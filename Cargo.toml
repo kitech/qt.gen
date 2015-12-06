@@ -2,3 +2,6 @@
 name = "rustqt"
 version = "1.0.0"  # 必须3位
 authors = ["gzleo"]
+
+[dependencies]
+libc = "0.2"

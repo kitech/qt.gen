@@ -3,6 +3,7 @@ extern crate rustqt;
 
 use rustqt::*;
 use rustqt::QtCore::*;
+use rustqt::qtfn::*;
 
 fn main() {
     println!("Hello rustqt!!!");
@@ -19,4 +20,8 @@ fn main() {
     let sr2 = x.arg((i1));
     let sr3 = x.arg((s5, s4, s3));
     println!("sr={}, sr2={}, sr3={}", sr.ival, sr2.ival, sr3.ival);
+
+    let rd1 = qrand();
+    let ver: &str = qVersion_();
+    println!("rd1={}, ver={}", rd1, ver);
 }
