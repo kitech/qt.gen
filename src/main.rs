@@ -24,4 +24,6 @@ fn main() {
     let rd1 = qrand();
     let ver: &str = qVersion_();
     println!("rd1={}, ver={}", rd1, ver);
+
+    NewClass();
 }
