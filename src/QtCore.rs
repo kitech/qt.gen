@@ -13,7 +13,7 @@ use std::any::Any;
 
 
 pub struct QString {
-    pub ival: i32
+    pub ival: i32,
 }
 
 impl QString {
@@ -40,6 +40,10 @@ impl QString_arg for (QString, QString) {
 impl QString_arg for (QString, QString, QString) {
     fn arg(self, this:&mut QString) -> QString {
         println!("222");
+        let arg0 = self.0;
+        let arg1 = self.1;
+        let arg2 = self.2;
+        let tmp = arg0.ival;
         return QString{ival:2}
     }
 }
@@ -47,6 +51,8 @@ impl QString_arg for (QString, QString, QString) {
 impl QString_arg for (i32) {
     fn arg(self, this:&mut QString) -> QString {
         println!("333");
+        // let arg0 = self.0;
+        let arg0 = self;
         return QString{ival:3}
     }
 }
