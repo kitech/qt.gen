@@ -5,10 +5,16 @@ use rustqt::*;
 // use rustqt::QtCore::*;
 use rustqt::qtfn::*;
 use rustqt::core::*;
+use rustqt::bar::*;
 
 fn test_QCoreApplication() {
     // QCoreApplication::NewQCoreApplication2(); // ok
-    QCoreApplication.NewQCoreApplication(0, 0);
+    let mut a0 = 0;
+    let mut a1  = String::from("aaaaa");
+    let a2 = 0;
+    let mut app = QCoreApplication::NewQCoreApplication((&mut a0, &mut a1, a2));
+    (&mut app).exec(());
+    // TestBar::newbar((&mut a0, &mut a1, a2));
 }
 
 fn main() {

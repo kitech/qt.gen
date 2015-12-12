@@ -63,3 +63,24 @@ fn test_i8start<'a>(a0: &'a mut i8) {
 }
 
 
+// test trait for (&'a mut i32, &'a mut str, i32)
+pub struct TestBar;
+impl TestBar {
+    pub fn newbar<T: BarTrait>(value: T) {
+        value.newbar();
+    }
+}
+pub trait BarTrait {
+    fn newbar(self);
+}
+
+impl<'a> BarTrait for (&'a mut i32, &'a mut String, i32) {
+    fn newbar(self) {
+        let arg0 = self.0;
+        println!("{}", arg0);
+    }
+}
+
+
+
+

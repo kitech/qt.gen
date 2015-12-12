@@ -135,31 +135,31 @@ class GenerateForRust(GenerateBase):
             inner_return = 'return' if return_type_name != 'void' else inner_return
 
         mangled_name = method_cursor.mangled_name
+        isctor = False
+        isdtor = False
         if cursor.kind == clang.cindex.CursorKind.CONSTRUCTOR:
             method_name = 'New%s' % (method_name)
+            isctor = True
         elif cursor.kind == clang.cindex.CursorKind.DESTRUCTOR:
             method_name = 'Free%s' % (method_name[1:])
+            isdtor = True
         else: pass
 
         ### method impl
         impl_method_proto = '%s::%s' % (class_name, method_name)
         if impl_method_proto not in self.implmthods:
             self.implmthods[impl_method_proto] = True
-            self.CP.AP('body', "impl /*struct*/ %s {\n" % (class_name))
-            self.CP.AP('body', "  pub fn %s<T: %s_%s>(&mut self, value: T) -> i32 {\n"
-                       % (method_name, class_name, method_name))
-            self.CP.AP('body', "    value.%s(self);\n" % (method_name))
-            self.CP.AP('body', "    return 1;\n")
-            self.CP.AP('body', "  }\n")
-            self.CP.AP('body', "}\n\n")
+            if isctor is True: self.generateImplStructCtor(class_name, method_name, method_cursor)
+            else: self.generateImplStructMethod(class_name, method_name, method_cursor)
 
         orig_method_name = cursor.spelling
         if unique_methods[orig_method_name] is True:
             unique_methods[orig_method_name] = False
-            self.generateMethodTrait(class_name, orig_method_name, method_cursor)
+            self.generateMethodDeclTrait(class_name, orig_method_name, method_cursor)
 
         ### trait impl
         ctysz = class_cursor.type.get_size()
+        ctysz = max(32, ctysz)  # 可能这个get_size()的值不准确啊。
         trait_params_array = self.generateParamsForTrait(class_name, method_name, method_cursor)
         trait_params = ', '.join(trait_params_array)
 
@@ -172,16 +172,12 @@ class GenerateForRust(GenerateBase):
         trait_proto = '%s::%s(%s)' % (class_name, method_name, trait_params)
         if trait_proto not in self.traits:
             self.traits[trait_proto] = True
-            self.CP.AP('body', "// proto: %s %s::%s(%s);\n" % (return_type_name, class_name, method_name, raw_params))
-            self.CP.AP('body', "impl<'a> /*trait*/ %s_%s for (%s) {\n" % (class_name, method_name, trait_params))
-            self.CP.AP('body', "  fn %s(self, this: &mut %s) -> i32 {\n" % (method_name, class_name))
-            self.CP.AP('body', "    // let qthis: *mut c_void = unsafe{calloc(1, %s)};\n" % (ctysz))
-            self.CP.AP('body', "    // unsafe{%s()};\n" % (mangled_name))
-            self.generateArgConvExprs(class_name, method_name, method_cursor)
-            self.CP.AP('body', "    unsafe {%s(%s)};\n" % (mangled_name, call_params))
-            self.CP.AP('body', "    return 1;\n")
-            self.CP.AP('body', "  }\n")
-            self.CP.AP('body', "}\n\n")
+            if isctor is True:
+                self.generateImplTraitCtor(class_name, method_name, method_cursor, ctysz,
+                                           trait_params, raw_params, call_params, return_type_name)
+            else:
+                self.generateImplTraitMethod(class_name, method_name, method_cursor, ctysz,
+                                             trait_params, raw_params, call_params, return_type_name)
 
         # extern
         extargs_array = self.generateParamsForExtern(class_name, method_name, method_cursor)
@@ -193,20 +189,84 @@ class GenerateForRust(GenerateBase):
 
         return
 
-    def generateMethodTrait(self, class_name, method_name, method_cursor):
+    def generateImplStructCtor(self, class_name, method_name, method_cursor):
+
+        self.CP.AP('body', "impl /*struct*/ %s {\n" % (class_name))
+        self.CP.AP('body', "  pub fn %s<T: %s_%s>(value: T) -> %s {\n"
+                   % (method_name, class_name, method_name, class_name))
+        self.CP.AP('body', "    let rsthis = value.%s();\n" % (method_name))
+        self.CP.AP('body', "    return rsthis;\n")
+        self.CP.AP('body', "    // return 1;\n")
+        self.CP.AP('body', "  }\n")
+        self.CP.AP('body', "}\n\n")
+        return
+
+    def generateImplStructMethod(self, class_name, method_name, method_cursor):
+        self.CP.AP('body', "impl /*struct*/ %s {\n" % (class_name))
+        self.CP.AP('body', "  pub fn %s<T: %s_%s>(&mut self, value: T) -> i32 {\n"
+                   % (method_name, class_name, method_name))
+        self.CP.AP('body', "    value.%s(self);\n" % (method_name))
+        self.CP.AP('body', "    return 1;\n")
+        self.CP.AP('body', "  }\n")
+        self.CP.AP('body', "}\n\n")
+        return
+
+    def generateImplTraitCtor(self, class_name, method_name, method_cursor,
+                              ctysz, trait_params, raw_params, call_params, return_type_name):
+        mangled_name = method_cursor.mangled_name
+        self.CP.AP('body', "// proto: %s %s::%s(%s);\n" % (return_type_name, class_name, method_name, raw_params))
+        self.CP.AP('body', "impl<'a> /*trait*/ %s_%s for (%s) {\n" % (class_name, method_name, trait_params))
+        self.CP.AP('body', "  fn %s(self) -> %s {\n" % (method_name, class_name))
+        self.CP.AP('body', "    let qthis: *mut c_void = unsafe{calloc(1, %s)};\n" % (ctysz))
+        self.CP.AP('body', "    // unsafe{%s()};\n" % (mangled_name))
+        self.generateArgConvExprs(class_name, method_name, method_cursor)
+        if len(call_params) == 0:
+            self.CP.AP('body', "    unsafe {%s(qthis%s)};\n" % (mangled_name, call_params))
+        else:
+            self.CP.AP('body', "    unsafe {%s(qthis, %s)};\n" % (mangled_name, call_params))
+        self.CP.AP('body', "    let rsthis = %s{qclsinst: qthis};\n" % (class_name))
+        self.CP.AP('body', "    return rsthis;\n")
+        self.CP.AP('body', "    // return 1;\n")
+        self.CP.AP('body', "  }\n")
+        self.CP.AP('body', "}\n\n")
+
+        return
+
+    def generateImplTraitMethod(self, class_name, method_name, method_cursor,
+                                      ctysz, trait_params, raw_params, call_params, return_type_name):
+        mangled_name = method_cursor.mangled_name
+        self.CP.AP('body', "// proto: %s %s::%s(%s);\n" % (return_type_name, class_name, method_name, raw_params))
+        self.CP.AP('body', "impl<'a> /*trait*/ %s_%s for (%s) {\n" % (class_name, method_name, trait_params))
+        self.CP.AP('body', "  fn %s(self, this: &mut %s) -> i32 {\n" % (method_name, class_name))
+        self.CP.AP('body', "    // let qthis: *mut c_void = unsafe{calloc(1, %s)};\n" % (ctysz))
+        self.CP.AP('body', "    // unsafe{%s()};\n" % (mangled_name))
+        self.generateArgConvExprs(class_name, method_name, method_cursor)
+        self.CP.AP('body', "    unsafe {%s(%s)};\n" % (mangled_name, call_params))
+        self.CP.AP('body', "    return 1;\n")
+        self.CP.AP('body', "  }\n")
+        self.CP.AP('body', "}\n\n")
+
+        return
+
+    def generateMethodDeclTrait(self, class_name, method_name, method_cursor):
         cursor = method_cursor
 
         fixmthname = self.fix_conflict_method_name(method_name)
         if fixmthname != method_name: method_name = fixmthname
 
+        isctor = False
         if cursor.kind == clang.cindex.CursorKind.CONSTRUCTOR:
             method_name = 'New%s' % (method_name)
+            isctor = True
         elif cursor.kind == clang.cindex.CursorKind.DESTRUCTOR:
             method_name = 'Free%s' % (method_name[1:])
 
         ### trait
         self.CP.AP('body', "pub trait %s_%s {\n" % (class_name, method_name))
-        self.CP.AP('body', "  fn %s(self, this: &mut %s) -> %s;\n" % (method_name, class_name, "i32"))
+        if isctor is True:
+            self.CP.AP('body', "  fn %s(self) -> %s;\n" % (method_name, class_name))
+        else:
+            self.CP.AP('body', "  fn %s(self, this: &mut %s) -> %s;\n" % (method_name, class_name, "i32"))
         self.CP.AP('body', "}\n\n")
         return
 
@@ -319,6 +379,9 @@ class GenerateForRust(GenerateBase):
     def generateParamsForExtern(self, class_name, method_name, method_cursor):
         idx = 0
         argv = []
+
+        if method_cursor.kind == clang.cindex.CursorKind.CONSTRUCTOR:
+            argv.append('qthis: *mut c_void')
 
         for arg in method_cursor.get_arguments():
             idx += 1

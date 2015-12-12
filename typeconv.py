@@ -114,7 +114,7 @@ class TypeConvForRust(TypeConv):
 
             if can_name in raw_type_map:
                 if self.IsCharType(can_name):
-                    return "&%s str" % (mut_or_no)
+                    return "&%s String" % (mut_or_no)
                 else:
                     return "&%s %s" % (mut_or_no, raw_type_map[can_name])
             else:
