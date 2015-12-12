@@ -21,9 +21,10 @@ class GenerateForRust(GenerateBase):
         self.cp_clsrs = CodePaper()  # 可能中间reset。可能的name: header, main, use, ext, body
         self.CP = self.cp_clsrs
 
-        self.qclses = {}  # class name => true
+        self.qclses = {}  # class name => True
         self.tyconv = TypeConvForRust()
-        self.traits = {}  # traits proto => true
+        self.traits = {}  # traits proto => True
+        self.implmthods = {}  # method proto => True
         return
 
     def generateHeader(self, module):
@@ -141,13 +142,16 @@ class GenerateForRust(GenerateBase):
         else: pass
 
         ### method impl
-        self.CP.AP('body', "impl /*struct*/ %s {\n" % (class_name))
-        self.CP.AP('body', "  pub fn %s<T: %s_%s>(&mut self, value: T) -> i32 {\n"
+        impl_method_proto = '%s::%s' % (class_name, method_name)
+        if impl_method_proto not in self.implmthods:
+            self.implmthods[impl_method_proto] = True
+            self.CP.AP('body', "impl /*struct*/ %s {\n" % (class_name))
+            self.CP.AP('body', "  pub fn %s<T: %s_%s>(&mut self, value: T) -> i32 {\n"
                        % (method_name, class_name, method_name))
-        self.CP.AP('body', "    value.%s(self);\n" % (method_name))
-        self.CP.AP('body', "    return 1;\n")
-        self.CP.AP('body', "  }\n")
-        self.CP.AP('body', "}\n\n")
+            self.CP.AP('body', "    value.%s(self);\n" % (method_name))
+            self.CP.AP('body', "    return 1;\n")
+            self.CP.AP('body', "  }\n")
+            self.CP.AP('body', "}\n\n")
 
         orig_method_name = cursor.spelling
         if unique_methods[orig_method_name] is True:

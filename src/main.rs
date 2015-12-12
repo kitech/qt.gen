@@ -2,11 +2,18 @@
 extern crate rustqt;
 
 use rustqt::*;
-use rustqt::QtCore::*;
+// use rustqt::QtCore::*;
 use rustqt::qtfn::*;
+use rustqt::core::*;
+
+fn test_QCoreApplication() {
+    // QCoreApplication::NewQCoreApplication2(); // ok
+    QCoreApplication.NewQCoreApplication(0, 0);
+}
 
 fn main() {
     println!("Hello rustqt!!!");
+    /*
     // 我都use了，为什么还要加个QtCore前缀呢
     let mut x = QString{ival:999};
     let s1 = QString{ival:111};
@@ -24,6 +31,8 @@ fn main() {
     let rd1 = qrand();
     let ver: &str = qVersion_();
     println!("rd1={}, ver={}", rd1, ver);
+    */
+    // NewClass();
 
-    NewClass();
+    test_QCoreApplication();
 }
