@@ -92,13 +92,16 @@ class GenerateForRust(GenerateBase):
             unique_methods[method_name] = True
 
         dupremove = self.dedup_return_const_diff_method(methods)
-        print(444, 'dupremove len:', len(dupremove), dupremove)
+        # print(444, 'dupremove len:', len(dupremove), dupremove)
         for mangled_name in methods:
             cursor = methods[mangled_name]
             method_name = cursor.spelling
-            if self.check_skip_method(cursor): continue
+            if self.check_skip_method(cursor):
+                # if method_name == 'QCoreApplication':
+                    # print(433, 'whyyyyyyyyyyyyyy') # no
+                continue
             if mangled_name in dupremove:
-                print(333, 'skip method:', mangled_name)
+                # print(333, 'skip method:', mangled_name)
                 continue
 
             self.generateMethod(class_name, method_name, cursor, cs, unique_methods)
@@ -111,7 +114,10 @@ class GenerateForRust(GenerateBase):
         return_type = cursor.result_type
         return_real_type = self.real_type_name(return_type)
         if '::' in return_real_type: return
-        if self.check_skip_params(cursor): return
+        if self.check_skip_params(cursor):
+            if method_name == 'QCoreApplication':
+                print(444, 'whyyyyyyyyyyyyyy')
+            return
 
         fixmthname = self.fix_conflict_method_name(method_name)
         if fixmthname != method_name: method_name = fixmthname
@@ -359,6 +365,7 @@ class GenerateForRust(GenerateBase):
 
     # @return True | False
     def check_skip_params(self, cursor):
+        method_name = cursor.spelling
         for arg in cursor.get_arguments():
             type_name = arg.type.spelling
             type_name_segs = type_name.split(' ')
@@ -386,7 +393,12 @@ class GenerateForRust(GenerateBase):
             if type_name[0:1] == 'Q' and '::' in type_name: return True  # 有可能是类内类，像QMetaObject::Connection
             if '<' in type_name: return True  # 模板类参数
             # void directoryChanged(const QString & path, QFileSystemWatcher::QPrivateSignal arg0);
-            if arg.displayname == '' and type_name == 'int': return True
+            # 这个不准确，会把QCoreApplication(int &, char**, int)也过滤掉了
+            if method_name == 'QCoreApplication':pass
+            else:
+                if arg.displayname == '' and type_name == 'int':
+                    print(555, 'whyyyyyyyyyyyyyy', method_name, arg.type.spelling)
+                    # return True  # 过滤的不对，前边的已经过滤掉。
 
             #### more
             can_type = self.tyconv.TypeToCanonical(arg.type)

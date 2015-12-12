@@ -143,7 +143,6 @@ class GenTool:
             # TODO va_list type
             if self.check_skip_method(m): continue
             mangled_name = m.mangled_name
-
             if m.kind == clang.cindex.CursorKind.CXX_METHOD:
                 method_names[mangled_name] = m
             if m.kind == clang.cindex.CursorKind.CONSTRUCTOR:
