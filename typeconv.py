@@ -57,6 +57,11 @@ class TypeConv(object):
         if 'const' in tysegs: tysegs.remove('const')
         return ' '.join(tysegs)
 
+    def TypeNameTrimConst(self, tyname):
+        tysegs = tyname.split(' ')
+        if 'const' in tysegs: tysegs.remove('const')
+        return ' '.join(tysegs)
+
     def IsCharType(self, tyname): return 'char' in tyname
 
     def IsPointer(self, cxxtype):
@@ -78,7 +83,7 @@ class TypeConvForRust(TypeConv):
     def TypeCXX2Rust(self, cxxtype):
         raw_type_map = {
             'bool': 'i8', 'int': 'i32', 'uint': 'u32',
-            'long': 'i32', 'unsigned long': 'u32', 'long long': 'i64',
+            'long': 'i32', 'unsigned long': 'u32', 'long long': 'i64', 'unsigned long long': 'u64',
             'short': 'i16', 'ushort': 'u16', 'unsigned short': 'u16',
             'char': 'i8', 'uchar': 'u8', 'unsigned char': 'u8',
             'char16_t': 'i16', 'wchar_t': 'wchar_t',
@@ -104,18 +109,16 @@ class TypeConvForRust(TypeConv):
 
         if cxxtype.kind == clang.cindex.TypeKind.POINTER or \
            cxxtype.kind == clang.cindex.TypeKind.LVALUEREFERENCE:
-            const_literal = ""
-            if is_const(cxxtype): const_literal = "const "
+            mut_or_no = 'mut'
+            if is_const(cxxtype): mut_or_no = ''
 
             if can_name in raw_type_map:
                 if self.IsCharType(can_name):
-                    return "&mut str"
+                    return "&%s str" % (mut_or_no)
                 else:
-                    return "&mut %s" % (raw_type_map[can_name])
+                    return "&%s %s" % (mut_or_no, raw_type_map[can_name])
             else:
-                if not can_name.startswith('Q'):
-                    print(666, cxxtype.spelling, can_name)
-                return "&mut %s" % (can_name)
+                return "&%s %s" % (mut_or_no, can_name)
 
         if cxxtype.kind == clang.cindex.TypeKind.RVALUEREFERENCE:
             return "&mut %s" % (cxxtype.spelling.split(' ')[0])
@@ -135,10 +138,10 @@ class TypeConvForRust(TypeConv):
             if raw_type_name in raw_type_map:
                 return '%s' % (raw_type_map[raw_type_name])
             else:
-                glog.debug('just use default type name: %s, %d', cxxtype.spelling, cxxtype.kind)
+                glog.debug('just use default type name: %s, %s', cxxtype.spelling, str(cxxtype.kind))
                 if cxxtype.spelling == 'int':
                     exit(0)
-                return '%s' % (raw_type_name.split(' ').remove('const'))
+                return '%s' % (self.TypeNameTrimConst(raw_type_name))
 
         if cxxtype.spelling in ['uint']:
             raw_type_name = cxxtype.spelling
@@ -167,6 +170,7 @@ class TypeConvForRust(TypeConv):
         raw_type_map = {
             'bool': 'int8_t', 'int': 'c_int', 'uint': 'c_uint',
             'long': 'c_long', 'unsigned long': 'c_ulong', 'long long': 'c_longlong',
+            'unsigned long long': 'uint64_t',
             'short': 'c_short', 'ushort': 'c_ushort', 'unsigned short': 'c_ushort',
             'char': 'c_char', 'uchar': 'c_uchar', 'unsigned char': 'c_uchar',
             'char16_t': 'int16_t', 'wchar_t': 'wchar_t',
@@ -198,8 +202,6 @@ class TypeConvForRust(TypeConv):
                 if can_name in raw_type_map:
                     return '*mut %s' % (raw_type_map[can_name])
                 else:
-                    if 'short' in can_name:
-                        glog.debug(can_name + ', ' + cxxtype.spelling)
                     return '*mut %s' % ('c_void')
 
         if cxxtype.kind == clang.cindex.TypeKind.RVALUEREFERENCE:
@@ -223,7 +225,7 @@ class TypeConvForRust(TypeConv):
                 print(888, 'just use default type name:', cxxtype.spelling, cxxtype.kind)
                 if cxxtype.spelling == 'int':
                     exit(0)
-                return '%s' % (raw_type_name.split(' ').remove('const'))
+                return '%s' % (self.TypeNameTrimConst(raw_type_name))
 
         if cxxtype.spelling in ['uint']:
             raw_type_name = cxxtype.spelling

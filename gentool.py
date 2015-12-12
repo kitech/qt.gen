@@ -92,8 +92,8 @@ class GenTool:
                 # print(header, class_name_lower, name)
                 if class_name_lower == class_name.lower():
                     skip = self.check_skip_class(header, class_name_lower, cs)
-                    print(header, class_name_lower, class_name)
-                    print(555, skip)
+                    # print(header, class_name_lower, class_name)
+                    # print(555, skip)
                     # exit(0)
 
             if self.check_skip_class(header, class_name_lower, cs): continue
@@ -142,12 +142,14 @@ class GenTool:
             # print(m.kind, m.spelling)
             # TODO va_list type
             if self.check_skip_method(m): continue
+            mangled_name = m.mangled_name
+
             if m.kind == clang.cindex.CursorKind.CXX_METHOD:
-                method_names[m.spelling] = m
+                method_names[mangled_name] = m
             if m.kind == clang.cindex.CursorKind.CONSTRUCTOR:
-                method_names[m.spelling] = m
+                method_names[mangled_name] = m
             if m.kind == clang.cindex.CursorKind.DESTRUCTOR:
-                method_names[m.spelling] = m
+                method_names[mangled_name] = m
 
         return method_names
 

@@ -23,6 +23,7 @@ class GenerateForRust(GenerateBase):
 
         self.qclses = {}  # class name => true
         self.tyconv = TypeConvForRust()
+        self.traits = {}  # traits proto => true
         return
 
     def generateHeader(self, module):
@@ -83,15 +84,28 @@ class GenerateForRust(GenerateBase):
         self.CP.AP('body', "  pub qclsinst: *mut c_void,\n")
         self.CP.AP('body', "}\n\n")
 
-        for mth in methods:
-            cursor = methods[mth]
-            if self.check_skip_method(cursor): continue
+        # 重载的方法，只生成一次trait
+        unique_methods = {}
+        for mangled_name in methods:
+            cursor = methods[mangled_name]
+            method_name = cursor.spelling
+            unique_methods[method_name] = True
 
-            self.generateMethod(class_name, mth, cursor, cs)
+        dupremove = self.dedup_return_const_diff_method(methods)
+        print(444, 'dupremove len:', len(dupremove), dupremove)
+        for mangled_name in methods:
+            cursor = methods[mangled_name]
+            method_name = cursor.spelling
+            if self.check_skip_method(cursor): continue
+            if mangled_name in dupremove:
+                print(333, 'skip method:', mangled_name)
+                continue
+
+            self.generateMethod(class_name, method_name, cursor, cs, unique_methods)
 
         return
 
-    def generateMethod(self, class_name, method_name, method_cursor, class_cursor):
+    def generateMethod(self, class_name, method_name, method_cursor, class_cursor, unique_methods):
         cursor = method_cursor
 
         return_type = cursor.result_type
@@ -129,10 +143,10 @@ class GenerateForRust(GenerateBase):
         self.CP.AP('body', "  }\n")
         self.CP.AP('body', "}\n\n")
 
-        ### trait
-        self.CP.AP('body', "pub trait %s_%s {\n" % (class_name, method_name))
-        self.CP.AP('body', "  fn %s(self, this: &mut %s) -> %s;\n" % (method_name, class_name, "i32"))
-        self.CP.AP('body', "}\n\n")
+        orig_method_name = cursor.spelling
+        if unique_methods[orig_method_name] is True:
+            unique_methods[orig_method_name] = False
+            self.generateMethodTrait(class_name, orig_method_name, method_cursor)
 
         ### trait impl
         ctysz = class_cursor.type.get_size()
@@ -145,16 +159,19 @@ class GenerateForRust(GenerateBase):
         raw_params_array = self.generateParamsRaw(class_name, method_name, method_cursor)
         raw_params = ', '.join(raw_params_array)
 
-        self.CP.AP('body', "// proto: %s %s::%s(%s);\n" % (return_type_name, class_name, method_name, raw_params))
-        self.CP.AP('body', "impl<'a> /*trait*/ %s_%s for (%s) {\n" % (class_name, method_name, trait_params))
-        self.CP.AP('body', "  fn %s(self, this: &mut %s) -> i32 {\n" % (method_name, class_name))
-        self.CP.AP('body', "    // let qthis: *mut c_void = unsafe{calloc(1, %s)};\n" % (ctysz))
-        self.CP.AP('body', "    // unsafe{%s()};\n" % (mangled_name))
-        self.generateArgConvExprs(class_name, method_name, method_cursor)
-        self.CP.AP('body', "    unsafe {%s(%s)};\n" % (mangled_name, call_params))
-        self.CP.AP('body', "    return 1;\n")
-        self.CP.AP('body', "  }\n")
-        self.CP.AP('body', "}\n\n")
+        trait_proto = '%s::%s(%s)' % (class_name, method_name, trait_params)
+        if trait_proto not in self.traits:
+            self.traits[trait_proto] = True
+            self.CP.AP('body', "// proto: %s %s::%s(%s);\n" % (return_type_name, class_name, method_name, raw_params))
+            self.CP.AP('body', "impl<'a> /*trait*/ %s_%s for (%s) {\n" % (class_name, method_name, trait_params))
+            self.CP.AP('body', "  fn %s(self, this: &mut %s) -> i32 {\n" % (method_name, class_name))
+            self.CP.AP('body', "    // let qthis: *mut c_void = unsafe{calloc(1, %s)};\n" % (ctysz))
+            self.CP.AP('body', "    // unsafe{%s()};\n" % (mangled_name))
+            self.generateArgConvExprs(class_name, method_name, method_cursor)
+            self.CP.AP('body', "    unsafe {%s(%s)};\n" % (mangled_name, call_params))
+            self.CP.AP('body', "    return 1;\n")
+            self.CP.AP('body', "  }\n")
+            self.CP.AP('body', "}\n\n")
 
         # extern
         extargs_array = self.generateParamsForExtern(class_name, method_name, method_cursor)
@@ -164,6 +181,23 @@ class GenerateForRust(GenerateBase):
         params = self.generateParams(class_name, method_name, method_cursor)
         params = ', '.join(params)
 
+        return
+
+    def generateMethodTrait(self, class_name, method_name, method_cursor):
+        cursor = method_cursor
+
+        fixmthname = self.fix_conflict_method_name(method_name)
+        if fixmthname != method_name: method_name = fixmthname
+
+        if cursor.kind == clang.cindex.CursorKind.CONSTRUCTOR:
+            method_name = 'New%s' % (method_name)
+        elif cursor.kind == clang.cindex.CursorKind.DESTRUCTOR:
+            method_name = 'Free%s' % (method_name[1:])
+
+        ### trait
+        self.CP.AP('body', "pub trait %s_%s {\n" % (class_name, method_name))
+        self.CP.AP('body', "  fn %s(self, this: &mut %s) -> %s;\n" % (method_name, class_name, "i32"))
+        self.CP.AP('body', "}\n\n")
         return
 
     def generateArgConvExprs(self, class_name, method_name, method_cursor):
@@ -298,6 +332,18 @@ class GenerateForRust(GenerateBase):
 
         return argv
 
+    def dedup_return_const_diff_method(self, methods):
+        dupremove = []
+        for mtop in methods:
+            postop = mtop.find('Q')
+            for msub in methods:
+                if mtop == msub: continue
+                possub = msub.find('Q')
+                if mtop[postop:] != msub[possub:]: continue
+                if postop > possub: dupremove.append(mtop)
+                else: dupremove.append(msub)
+        return dupremove
+
     def is_qt_class(self, name):
         # should be qt class name
         if name[0:1] == 'Q' and name[1:2].upper() == name[1:2] and '::' not in name:
@@ -320,16 +366,23 @@ class GenerateForRust(GenerateBase):
             if '*' in type_name_segs: type_name_segs.remove('*')
             if '&' in type_name_segs: type_name_segs.remove('&')
             type_name = type_name_segs[0]
+            # Fix && move语义参数方法，
+            if '&&' in type_name: return True
+            if arg.type.kind == clang.cindex.TypeKind.RVALUEREFERENCE: return True
             if 'QPrivate' in type_name: return True
             if 'Private' in type_name: return True
             if 'QAbstract' in type_name: return True
             if 'QLatin1String' == type_name: return True
+            if 'QLatin1Char' == type_name: return True
             if 'QStringRef' in type_name: return True
             if 'QStringDataPtr' in type_name: return True
             if 'QByteArrayDataPtr' in type_name: return True
             if 'QModelIndexList' in type_name: return True
             if 'QXmlStreamNamespaceDeclarations' in type_name: return True
             if 'QGenericArgument' in type_name: return True
+            if 'QJson' in type_name: return True
+            if 'QWidget' in type_name: return True
+            if 'FILE' in type_name: return True
             if type_name[0:1] == 'Q' and '::' in type_name: return True  # 有可能是类内类，像QMetaObject::Connection
             if '<' in type_name: return True  # 模板类参数
             # void directoryChanged(const QString & path, QFileSystemWatcher::QPrivateSignal arg0);
@@ -373,6 +426,13 @@ class GenerateForRust(GenerateBase):
         fixmths_prefix = ['qt_check_for_']
         for p in fixmths_prefix:
             if method_name.startswith(p): return True
+
+        #### toUpper() &&，c++11 move语义的方法去掉
+        # _ZNKR7QString7toUpperEv, _ZNO7QString7toUpperEv
+        mangled_name = cursor.mangled_name
+        if mangled_name.startswith('_ZNO'): return True
+        # TODO fix QString::data() vs. QString::data() const
+        # _ZN7QString4dataEv, _ZNK7QString4dataEv
 
         # 实现不知道怎么fix了，已经fix，原来是给clang.cindex.parse中的-I不全，导致找不到类型。
         # fixmths3 = ['setQueryItems']
