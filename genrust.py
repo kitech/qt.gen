@@ -151,7 +151,7 @@ class GenerateForRust(GenerateBase):
         self.CP.AP('body', "    // let qthis: *mut c_void = unsafe{calloc(1, %s)};\n" % (ctysz))
         self.CP.AP('body', "    // unsafe{%s()};\n" % (mangled_name))
         self.generateArgConvExprs(class_name, method_name, method_cursor)
-        self.CP.AP('body', "    // unsafe {%s(%s)};\n" % (mangled_name, call_params))
+        self.CP.AP('body', "    unsafe {%s(%s)};\n" % (mangled_name, call_params))
         self.CP.AP('body', "    return 1;\n")
         self.CP.AP('body', "  }\n")
         self.CP.AP('body', "}\n\n")
