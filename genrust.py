@@ -430,7 +430,7 @@ class GenerateForRust(GenerateBase):
     def fix_conflict_method_name(self, method_name):
         mthname = method_name
         fixmthname = mthname
-        if mthname in ['match', 'type']:  # , 'select']:
+        if mthname in ['match', 'type', 'move']:  # , 'select']:
             fixmthname = mthname + '_'
         return fixmthname
 
@@ -462,9 +462,11 @@ class GenerateForRust(GenerateBase):
             if 'QJson' in type_name: return True
             # if 'QWidget' in type_name: return True
             if 'QTextEngine' in type_name: return True
-            if 'QAction' in type_name: return True
+            # if 'QAction' in type_name: return True
             if 'QPlatformPixmap' in type_name: return True
             if 'QPlatformScreen' in type_name: return True
+            if 'QPlatformMenu' in type_name: return True
+            if 'QFileDialogArgs' in type_name: return True
             if 'FILE' in type_name: return True
             if type_name[0:1] == 'Q' and '::' in type_name: return True  # 有可能是类内类，像QMetaObject::Connection
             if '<' in type_name: return True  # 模板类参数
