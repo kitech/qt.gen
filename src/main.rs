@@ -4,7 +4,7 @@ extern crate rustqt;
 use rustqt::*;
 // use rustqt::QtCore::*;
 use rustqt::qtfn::*;
-use rustqt::core::*;
+// use rustqt::core::*;
 use rustqt::bar::*;
 
 fn test_QCoreApplication() {
@@ -12,8 +12,8 @@ fn test_QCoreApplication() {
     let mut a0 = 0;
     let mut a1  = String::from("aaaaa");
     let a2 = 0;
-    let mut app = QCoreApplication::NewQCoreApplication((&mut a0, &mut a1, a2));
-    (&mut app).exec(());
+    // let mut app = QCoreApplication::NewQCoreApplication((&mut a0, &mut a1, a2));
+    // (&mut app).exec(());
     // TestBar::newbar((&mut a0, &mut a1, a2));
 }
 

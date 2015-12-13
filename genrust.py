@@ -147,6 +147,8 @@ class GenerateForRust(GenerateBase):
             method_name = 'Free%s' % (method_name[1:])
             isdtor = True
         else: pass
+        isstatic = cursor.is_static_method()
+        static_code = 'static' if isstatic else ''
 
         ### method impl
         impl_method_proto = '%s::%s' % (class_name, method_name)
@@ -168,6 +170,7 @@ class GenerateForRust(GenerateBase):
 
         call_params_array = self.generateParamsForCall(class_name, method_name, method_cursor)
         call_params = ', '.join(call_params_array)
+        if not isstatic and not isctor: call_params = ('rsthis.qclsinst, ' + call_params).strip(' ,')
 
         raw_params_array = self.generateParamsRaw(class_name, method_name, method_cursor)
         raw_params = ', '.join(raw_params_array)
@@ -185,8 +188,11 @@ class GenerateForRust(GenerateBase):
         # extern
         extargs_array = self.generateParamsForExtern(class_name, method_name, method_cursor)
         extargs = ', '.join(extargs_array)
-        self.CP.AP('ext', "  // proto: %s %s::%s(%s);\n" % (return_type_name, class_name, method_name, raw_params))
-        self.CP.AP('ext', "  fn %s(%s) -> i32;\n" % (mangled_name, extargs))
+        self.CP.AP('ext', "  // proto: %s %s %s::%s(%s);\n" %
+                   (static_code, return_type_name, class_name, method_name, raw_params))
+        if not isstatic: extargs = ('qthis: *mut c_void, ' + extargs).strip(' ,')
+        # self.CP.AP('ext', "  fn %s(%s) -> i32;\n" % (mangled_name, extargs))
+        self.generateReturnForFFIExt(class_name, method_name, method_cursor, extargs)
 
         params = self.generateParams(class_name, method_name, method_cursor)
         params = ', '.join(params)
@@ -206,11 +212,21 @@ class GenerateForRust(GenerateBase):
         return
 
     def generateImplStructMethod(self, class_name, method_name, method_cursor):
+        has_return, return_type_name = self.generateReturnForImplStruct(class_name, method_cursor)
+        return_piece_code_proto = ''
+        return_piece_code_return = ''
+        return_type_name_rs = ''
+        if has_return:
+            return_type_name_rs = self.tyconv.TypeCXX2Rust(method_cursor.result_type)
+            return_type_name_rs = self.tyconv.TypeNameTrimConst(return_type_name_rs)
+            return_piece_code_proto = '-> %s' % (return_type_name_rs)
+            return_piece_code_return = 'return'
+
         self.CP.AP('body', "impl /*struct*/ %s {\n" % (class_name))
-        self.CP.AP('body', "  pub fn %s<T: %s_%s>(&mut self, value: T) -> i32 {\n"
-                   % (method_name, class_name, method_name))
-        self.CP.AP('body', "    value.%s(self);\n" % (method_name))
-        self.CP.AP('body', "    return 1;\n")
+        self.CP.AP('body', "  pub fn %s<T: %s_%s>(&mut self, value: T) %s {\n"
+                   % (method_name, class_name, method_name, return_piece_code_proto))
+        self.CP.AP('body', "    %s value.%s(self);\n" % (return_piece_code_return, method_name))
+        self.CP.AP('body', "    // return 1;\n")
         self.CP.AP('body', "  }\n")
         self.CP.AP('body', "}\n\n")
         return
@@ -218,7 +234,8 @@ class GenerateForRust(GenerateBase):
     def generateImplTraitCtor(self, class_name, method_name, method_cursor,
                               ctysz, trait_params, raw_params, call_params, return_type_name):
         mangled_name = method_cursor.mangled_name
-        self.CP.AP('body', "// proto: %s %s::%s(%s);\n" % (return_type_name, class_name, method_name, raw_params))
+        self.CP.AP('body', "// proto: %s %s::%s(%s);\n" %
+                   (return_type_name, class_name, method_name, raw_params))
         self.CP.AP('body', "impl<'a> /*trait*/ %s_%s for (%s) {\n" % (class_name, method_name, trait_params))
         self.CP.AP('body', "  fn %s(self) -> %s {\n" % (method_name, class_name))
         self.CP.AP('body', "    let qthis: *mut c_void = unsafe{calloc(1, %s)};\n" % (ctysz))
@@ -237,18 +254,49 @@ class GenerateForRust(GenerateBase):
         return
 
     def generateImplTraitMethod(self, class_name, method_name, method_cursor,
-                                      ctysz, trait_params, raw_params, call_params, return_type_name):
+                                ctysz, trait_params, raw_params, call_params, return_type_name):
+        has_return, return_type_name = self.generateReturnForImplStruct(class_name, method_cursor)
+        return_piece_code_proto = ''
+        return_piece_code_return = ''
+        return_type_name_rs = ''
+        if has_return:
+            return_type_name_rs = self.tyconv.TypeCXX2Rust(method_cursor.result_type)
+            return_type_name_rs = self.tyconv.TypeNameTrimConst(return_type_name_rs)
+            return_piece_code_proto = '-> %s' % (return_type_name_rs)
+            return_piece_code_return = 'let mut ret = '
+
+        isstatic = method_cursor.is_static_method()
+        static_code = 'static' if isstatic else ''
+
         mangled_name = method_cursor.mangled_name
-        self.CP.AP('body', "// proto: %s %s::%s(%s);\n" % (return_type_name, class_name, method_name, raw_params))
+        self.CP.AP('body', "// proto: %s %s %s::%s(%s);\n" %
+                   (static_code, return_type_name, class_name, method_name, raw_params))
         self.CP.AP('body', "impl<'a> /*trait*/ %s_%s for (%s) {\n" % (class_name, method_name, trait_params))
-        self.CP.AP('body', "  fn %s(self, this: &mut %s) -> i32 {\n" % (method_name, class_name))
+        self.CP.AP('body', "  fn %s(self, rsthis: &mut %s) %s {\n" % (method_name, class_name, return_piece_code_proto))
         self.CP.AP('body', "    // let qthis: *mut c_void = unsafe{calloc(1, %s)};\n" % (ctysz))
         self.CP.AP('body', "    // unsafe{%s()};\n" % (mangled_name))
         self.generateArgConvExprs(class_name, method_name, method_cursor)
-        self.CP.AP('body', "    unsafe {%s(%s)};\n" % (mangled_name, call_params))
-        self.CP.AP('body', "    return 1;\n")
+        self.CP.AP('body', "    %s unsafe {%s(%s)};\n" % (return_piece_code_return, mangled_name, call_params))
+
+        # return expr post process
+        # TODO 还有一种值返回的情况要处理，值返回的情况需要先创建一个空对象
+        return_type_name_ext = self.tyconv.TypeCXX2RustExtern(method_cursor.result_type)
+        if return_type_name_ext == '*mut c_void' or return_type_name_ext == '*const c_void':  # no const now
+            if has_return: self.CP.AP('body', "    let mut ret1 = %s{qclsinst: ret};\n" % (return_type_name_rs))
+            if has_return: self.CP.AP('body', "    return ret1;\n")
+        else:
+            if has_return: self.CP.AP('body', "    return ret as %s;\n" % (return_type_name_rs))
+
+        self.CP.AP('body', "    // return 1;\n")
         self.CP.AP('body', "  }\n")
         self.CP.AP('body', "}\n\n")
+
+        # case for return qt object
+        if has_return:
+            for seg in return_type_name.split(' '):
+                if seg[0:1] == 'Q' and seg[1:2].upper() == seg[1:2]:  # should be qt class name
+                    if seg != class_name and class_name:
+                        self.CP.APU('use', "use super::%s::%s;\n" % (seg.lower(), seg))
 
         return
 
@@ -265,12 +313,23 @@ class GenerateForRust(GenerateBase):
         elif cursor.kind == clang.cindex.CursorKind.DESTRUCTOR:
             method_name = 'Free%s' % (method_name[1:])
 
+        has_return, return_type_name = self.generateReturnForImplStruct(class_name, method_cursor)
+        return_piece_code_proto = ''
+        return_piece_code_return = ''
+        return_type_name_rs = ''
+        if has_return:
+            return_type_name_rs = self.tyconv.TypeCXX2Rust(method_cursor.result_type)
+            return_type_name_rs = self.tyconv.TypeNameTrimConst(return_type_name_rs)
+            return_piece_code_proto = '-> %s' % (return_type_name_rs)
+            return_piece_code_return = 'let mut ret = '
+
         ### trait
         self.CP.AP('body', "pub trait %s_%s {\n" % (class_name, method_name))
         if isctor is True:
             self.CP.AP('body', "  fn %s(self) -> %s;\n" % (method_name, class_name))
         else:
-            self.CP.AP('body', "  fn %s(self, this: &mut %s) -> %s;\n" % (method_name, class_name, "i32"))
+            self.CP.AP('body', "  fn %s(self, rsthis: &mut %s) %s;\n" %
+                       (method_name, class_name, return_piece_code_proto))
         self.CP.AP('body', "}\n\n")
         return
 
@@ -385,7 +444,8 @@ class GenerateForRust(GenerateBase):
         argv = []
 
         if method_cursor.kind == clang.cindex.CursorKind.CONSTRUCTOR:
-            argv.append('qthis: *mut c_void')
+            # argv.append('qthis: *mut c_void')
+            pass
 
         for arg in method_cursor.get_arguments():
             idx += 1
@@ -408,6 +468,74 @@ class GenerateForRust(GenerateBase):
             argv.append(argelem)
 
         return argv
+
+    def generateReturnForImplStruct(self, class_name, method_cursor):
+        cursor = method_cursor
+
+        return_type = cursor.result_type
+        return_real_type = self.real_type_name(return_type)
+
+        return_type_name = return_type.spelling
+        if cursor.kind == clang.cindex.CursorKind.CONSTRUCTOR or \
+           cursor.kind == clang.cindex.CursorKind.DESTRUCTOR:
+            pass
+        else:
+            return_type_name = self.resolve_swig_type_name(class_name, return_type)
+            return_type_name2 = self.hotfix_typename_ifenum_asint(class_name, method_cursor, return_type)
+            return_type_name = return_type_name2 if return_type_name2 is not None else return_type_name
+
+        has_return = True
+        if return_type_name == 'void': has_return = False
+        # if cursor.spelling == 'buttons':
+        #     print(666, has_return, return_type_name, cursor.spelling, return_type.kind, cursor.semantic_parent.spelling)
+        #     exit(0)
+        if '<' in return_type_name: has_return = False
+        if 'QAbstract' in return_type_name: has_return = False
+        if 'QMetaObject' in return_type_name: has_return = False
+        if 'QOpenGL' in return_type_name: has_return = False
+        if 'QGraphics' in return_type_name: has_return = False
+        if 'QPlatform' in return_type_name: has_return = False
+
+        return has_return, return_type_name
+
+    def generateReturnForFFIExt(self, class_name, method_name, method_cursor, extargs):
+        cursor = method_cursor
+
+        return_type = cursor.result_type
+        return_real_type = self.real_type_name(return_type)
+
+        return_type_name = return_type.spelling
+        if cursor.kind == clang.cindex.CursorKind.CONSTRUCTOR or \
+           cursor.kind == clang.cindex.CursorKind.DESTRUCTOR:
+            pass
+        else:
+            return_type_name = self.resolve_swig_type_name(class_name, return_type)
+            return_type_name2 = self.hotfix_typename_ifenum_asint(class_name, method_cursor, return_type)
+            return_type_name = return_type_name2 if return_type_name2 is not None else return_type_name
+
+        has_return = True
+        if return_type_name == 'void': has_return = False
+        # if cursor.spelling == 'buttons':
+        #     print(666, has_return, return_type_name, cursor.spelling, return_type.kind, cursor.semantic_parent.spelling)
+        #     exit(0)
+        if '<' in return_type_name: has_return = False
+        if 'QAbstract' in return_type_name: has_return = False
+        if 'QMetaObject' in return_type_name: has_return = False
+        if 'QOpenGL' in return_type_name: has_return = False
+        if 'QGraphics' in return_type_name: has_return = False
+        if 'QPlatform' in return_type_name: has_return = False
+
+        # calc ext type name
+        type_name = self.tyconv.TypeCXX2RustExtern(method_cursor.result_type)
+        return_type_name = type_name
+
+        mangled_name = method_cursor.mangled_name
+        return_piece_proto = ''
+        if cursor.result_type.kind != clang.cindex.TypeKind.VOID and has_return:
+            return_piece_proto = '-> %s' % (return_type_name)
+        self.CP.AP('ext', "  fn %s(%s) %s;\n" % (mangled_name, extargs, return_piece_proto))
+
+        return has_return, return_type_name
 
     def dedup_return_const_diff_method(self, methods):
         dupremove = []
@@ -534,6 +662,19 @@ class GenerateForRust(GenerateBase):
         if mangled_name.startswith('_ZNO'): return True
         # TODO fix QString::data() vs. QString::data() const
         # _ZN7QString4dataEv, _ZNK7QString4dataEv
+        # TODO 这种情况还挺多的。函数名相同，返回值不回的重载方法 。需要想办法处理。
+        if mangled_name == '_ZN8QMenuBar7addMenuEP5QMenu': return True
+        if mangled_name == '_ZN5QMenu7addMenuEPS_': return True
+        if mangled_name == '_ZN11QMainWindow10addToolBarEP8QToolBar': return True
+        if mangled_name == '_ZNK15QCalendarWidget14dateTextFormatEv': return True
+        if mangled_name == '_ZN9QScroller8scrollerEPK7QObject': return True
+        if mangled_name == '_ZN12QApplication8setStyleERK7QString': return True
+        if method_name == 'mapToScene': return True  # 重载的方法太多
+        if method_name == 'mapFromScene': return True  # 重载的方法太多
+        if method_name == 'mapToItem': return True
+        if method_name == 'mapToParent': return True
+        if method_name == 'mapFromItem': return True
+        if method_name == 'mapFromParent': return True
 
         # 实现不知道怎么fix了，已经fix，原来是给clang.cindex.parse中的-I不全，导致找不到类型。
         # fixmths3 = ['setQueryItems']

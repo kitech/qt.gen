@@ -219,7 +219,8 @@ class TypeConvForRust(TypeConv):
                 if can_name in raw_type_map:
                     return '*const %s' % (raw_type_map[can_name])
                 else:
-                    return '*const %s' % ('c_void')
+                    # return '*const %s' % ('c_void')  # 不好处理，全换mut试试吧
+                    return '*mut %s' % ('c_void')
             else:
                 if can_name in raw_type_map:
                     return '*mut %s' % (raw_type_map[can_name])
@@ -275,7 +276,8 @@ class TypeConvForRust(TypeConv):
 
         if cxxtype.kind == clang.cindex.TypeKind.RECORD:
             if is_const(cxxtype):
-                return '*const %s' % ('c_void')
+                # return '*const %s' % ('c_void')  # 不好处理，全换mut试试吧
+                return '*mut %s' % ('c_void')
             else:
                 return '*mut %s' % ('c_void')
 
@@ -287,7 +289,7 @@ class TypeConvForRust(TypeConv):
             # print(666, can_type.kind, can_name, cxxtype.spelling)
             constq = 'mut'
             rsty = ''
-            if self.TypeIsConst(cxxtype): constq = 'const'
+            # if self.TypeIsConst(cxxtype): constq = 'const'
             can_name = can_name.split(' ')[0]
             ext_name = can_name
             if can_name in raw_type_map: ext_name = raw_type_map[can_name]

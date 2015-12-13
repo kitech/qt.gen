@@ -86,6 +86,25 @@ pub fn test_vec_str(a0: Vec<String>) {
 
 }
 
+// test return multable reference
+// error: error: `n` does not live long enough
+// pub fn test_ret_mutable_ref<'a>() -> &'a mut i32 {
+//     let n = 5;
+//     let r = &mut n;
+//     return r;
+// }
 
+// pub fn test_ret_mutable_ref<'a>() -> &'a Foo {
+//     let n = Foo{qclsinst: 0 as *mut c_void};
+//     let r = &n;
+//     return r;
+// }
+
+// 看来只好这样了。
+pub fn test_ret_mutable_ref() -> Foo {
+    let n = Foo{qclsinst: 0 as *mut c_void};
+    let r = n;
+    return r;
+}
 
 
