@@ -149,7 +149,7 @@ class GenerateForGo(GenerateBase):
             print('Warning fix enum-as-int3:', type_name, '=> ', tokens[0])
             return '%s' % (tokens[0])
 
-        if firstch.upper() == firstch and firstch == 'Q' and tokens[0][1:1].lower() == tokens[0][1:1]:
+        if firstch.upper() == firstch and firstch == 'Q' and tokens[0][1:2].lower() == tokens[0][1:2]:
             print('Warning fix enum-as-int4:', type_name, '=> ', type_name.replace('int', tokens[0]))
             return '%s' % (type_name.replace('int', tokens[0]))
 

@@ -81,8 +81,9 @@ class TypeConvForRust(TypeConv):
 
     # @param cxxtype clang.cindex.Type
     def TypeCXX2Rust(self, cxxtype):
+        # TODO c++ char => rust char
         raw_type_map = {
-            'bool': 'i8', 'int': 'i32', 'uint': 'u32',
+            'bool': 'i8', 'int': 'i32', 'uint': 'u32', 'unsigned int': 'u32',
             'long': 'i32', 'unsigned long': 'u32', 'long long': 'i64', 'unsigned long long': 'u64',
             'short': 'i16', 'ushort': 'u16', 'unsigned short': 'u16',
             'char': 'i8', 'uchar': 'u8', 'unsigned char': 'u8',
@@ -162,13 +163,34 @@ class TypeConvForRust(TypeConv):
             if cxxtype.spelling.startswith('Qt::') or \
                (cxxtype.spelling.startswith('Q') and '::' in cxxtype.spelling):
                 return 'i32'
+            if cxxtype.spelling == '::quintptr':
+                return '*mut i32'
+
+        # TODO const char *const [], TypeKind.INCOMPLETEARRAY
+        # 也有可能是一维INCOMPLETEARRAY, 所以还要考虑维度
+        if cxxtype.kind == clang.cindex.TypeKind.INCOMPLETEARRAY or \
+           cxxtype.kind == clang.cindex.TypeKind.CONSTANTARRAY:
+            pointee_type = can_type.get_pointee()  # INVALID
+            # print(666, can_type.kind, can_name, cxxtype.spelling)
+            constq = 'mut'
+            rsty = ''
+            if self.TypeIsConst(cxxtype): constq = ''
+            can_name = can_name.split(' ')[0]
+            ext_name = can_name
+            if can_name in raw_type_map: ext_name = raw_type_map[can_name]
+            rsty = '&%s Vec<&%s %s>' % (constq, constq, ext_name)
+            return rsty
+            # print(666, rsty, cxxtype.spelling)
+            # exit(0)
+            pass
+        # TODO TypeKind.CONSTANTARRAY
 
         glog.debug('just use default type name: ' + str(cxxtype.spelling) + ', ' + str(cxxtype.kind))
         return cxxtype.spelling
 
     def TypeCXX2RustExtern(self, cxxtype):
         raw_type_map = {
-            'bool': 'int8_t', 'int': 'c_int', 'uint': 'c_uint',
+            'bool': 'int8_t', 'int': 'c_int', 'uint': 'c_uint', 'unsigned int': 'c_uint',
             'long': 'c_long', 'unsigned long': 'c_ulong', 'long long': 'c_longlong',
             'unsigned long long': 'uint64_t',
             'short': 'c_short', 'ushort': 'c_ushort', 'unsigned short': 'c_ushort',
@@ -246,6 +268,10 @@ class TypeConvForRust(TypeConv):
             if cxxtype.spelling.startswith('Qt::') or \
                (cxxtype.spelling.startswith('Q') and '::' in cxxtype.spelling):
                 return 'c_int'
+            if cxxtype.spelling == '::quintptr':
+                return '*mut c_uint'
+            # under_type = cxxtype.get_declaration().underlying_typedef_type
+            # print(777, under_type.spelling, under_type.kind)
 
         if cxxtype.kind == clang.cindex.TypeKind.RECORD:
             if is_const(cxxtype):
@@ -253,6 +279,23 @@ class TypeConvForRust(TypeConv):
             else:
                 return '*mut %s' % ('c_void')
 
+        # TODO const char *const [], TypeKind.INCOMPLETEARRAY
+        # 也有可能是一维INCOMPLETEARRAY, 所以还要考虑维度
+        if cxxtype.kind == clang.cindex.TypeKind.INCOMPLETEARRAY or \
+            cxxtype.kind == clang.cindex.TypeKind.CONSTANTARRAY:
+            pointee_type = can_type.get_pointee()  # INVALID
+            # print(666, can_type.kind, can_name, cxxtype.spelling)
+            constq = 'mut'
+            rsty = ''
+            if self.TypeIsConst(cxxtype): constq = 'const'
+            can_name = can_name.split(' ')[0]
+            ext_name = can_name
+            if can_name in raw_type_map: ext_name = raw_type_map[can_name]
+            rsty = '*%s *%s %s' % (constq, constq, ext_name)
+            return rsty
+            # print(666, rsty, cxxtype.spelling)
+            # exit(0)
+            pass
         print(888, 'just use default type name:', cxxtype.spelling, cxxtype.kind)
         return cxxtype.spelling
 

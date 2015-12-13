@@ -81,6 +81,11 @@ impl<'a> BarTrait for (&'a mut i32, &'a mut String, i32) {
     }
 }
 
+// test Vec<String> for char **
+pub fn test_vec_str(a0: Vec<String>) {
+
+}
+
 
 
 

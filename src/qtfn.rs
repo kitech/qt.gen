@@ -23,7 +23,8 @@ use std::vec;
 extern {
     fn _Z5qrandv() -> int32_t;
     fn _Z6qsrandj(a: uint32_t) ;
-    fn qVersion() -> *const libc::c_char;
+    fn qVersion() -> *const
+        libc::c_char;
     fn _ZN12QApplicationC1ERiPPci(this: *mut libc::c_void, argc: int32_t, argv: int32_t, a: int32_t);
     // fn _ZN12QApplicationC2ERiPPci(this: *mut libc::c_void, argc: int32_t, argv: int32_t, a: int32_t);
     fn _ZN12QApplicationC2ERiPPci(this: *mut libc::c_void, argc: *mut int32_t, argv: *mut *mut libc::c_char, a: int32_t);
@@ -32,7 +33,9 @@ extern {
 
 pub fn NewClass() {
     let this: *mut libc::c_void = unsafe{libc::calloc(1, 200)};
-    let argv: *const *const libc::c_char;
+    let argv: *const *const libc::c_char; // ok
+    // let argv2: * * libc::c_char; // error
+    let argv3: *mut *mut libc::c_char; // ok
     let argv0: *mut libc::c_void = unsafe{libc::calloc(1, 20)};
     // unsafe{libc::memset(argv0, 0, 20)};
     // argv = argv0 as * const *const libc::c_char;

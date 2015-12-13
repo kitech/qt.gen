@@ -14,6 +14,7 @@ from genrust import GenerateForRust
 clang.cindex.Config.set_library_file('/usr/lib/libclang.so')
 
 qtmodules = ['QtCore', 'QtGui', 'QtWidgets', 'QtNetwork', 'QtDBus']
+qtmodules = ['QtGui', 'QtWidgets', 'QtNetwork', 'QtDBus']
 compile_args = ['-x', 'c++', '-std=c++11', '-D__CODE_GENERATOR__']
 compile_args += "-I/usr/include/qt -std=c++11 -DQT_CORE_LIB -DQT_NO_DEBUG -D_GNU_SOURCE -pipe -fno-exceptions -O2 -march=x86-64 -mtune=generic -O2 -pipe -fstack-protector-strong -std=c++0x -Wall -W -D_REENTRANT -fPIC".split(' ')
 for module in qtmodules: compile_args += ['-I/usr/include/qt/%s' % (module)]

@@ -98,8 +98,9 @@ class GenerateForRust(GenerateBase):
             cursor = methods[mangled_name]
             method_name = cursor.spelling
             if self.check_skip_method(cursor):
-                # if method_name == 'QCoreApplication':
-                    # print(433, 'whyyyyyyyyyyyyyy') # no
+                # if method_name == 'QAction':
+                    #print(433, 'whyyyyyyyyyyyyyy') # no
+                    # exit(0)
                 continue
             if mangled_name in dupremove:
                 # print(333, 'skip method:', mangled_name)
@@ -118,6 +119,8 @@ class GenerateForRust(GenerateBase):
         if self.check_skip_params(cursor):
             if method_name == 'QCoreApplication':
                 print(444, 'whyyyyyyyyyyyyyy')
+            if method_name == 'QPixmap':
+                print(444, 'hahhaa', method_name, self.get_cursor_tokens(method_cursor))
             return
 
         fixmthname = self.fix_conflict_method_name(method_name)
@@ -182,6 +185,7 @@ class GenerateForRust(GenerateBase):
         # extern
         extargs_array = self.generateParamsForExtern(class_name, method_name, method_cursor)
         extargs = ', '.join(extargs_array)
+        self.CP.AP('ext', "  // proto: %s %s::%s(%s);\n" % (return_type_name, class_name, method_name, raw_params))
         self.CP.AP('ext', "  fn %s(%s) -> i32;\n" % (mangled_name, extargs))
 
         params = self.generateParams(class_name, method_name, method_cursor)
@@ -365,7 +369,7 @@ class GenerateForRust(GenerateBase):
             type_name = self.tyconv.TypeCXX2Rust(arg.type)
             if type_name.startswith('&'): type_name = type_name.replace('&', "&'a ")
             for seg in type_name.split(' '):
-                if seg[0:1] == 'Q' and seg[1:1].upper() == seg[1:1]:  # should be qt class name
+                if seg[0:1] == 'Q' and seg[1:2].upper() == seg[1:2]:  # should be qt class name
                     if seg != class_name and class_name:
                         self.CP.APU('use', "use super::%s::%s;\n" % (seg.lower(), seg))
 
@@ -426,7 +430,7 @@ class GenerateForRust(GenerateBase):
     def fix_conflict_method_name(self, method_name):
         mthname = method_name
         fixmthname = mthname
-        if mthname in ['match']:  # , 'select']:
+        if mthname in ['match', 'type']:  # , 'select']:
             fixmthname = mthname + '_'
         return fixmthname
 
@@ -440,6 +444,7 @@ class GenerateForRust(GenerateBase):
             if '*' in type_name_segs: type_name_segs.remove('*')
             if '&' in type_name_segs: type_name_segs.remove('&')
             type_name = type_name_segs[0]
+
             # Fix && move语义参数方法，
             if '&&' in type_name: return True
             if arg.type.kind == clang.cindex.TypeKind.RVALUEREFERENCE: return True
@@ -455,7 +460,11 @@ class GenerateForRust(GenerateBase):
             if 'QXmlStreamNamespaceDeclarations' in type_name: return True
             if 'QGenericArgument' in type_name: return True
             if 'QJson' in type_name: return True
-            if 'QWidget' in type_name: return True
+            # if 'QWidget' in type_name: return True
+            if 'QTextEngine' in type_name: return True
+            if 'QAction' in type_name: return True
+            if 'QPlatformPixmap' in type_name: return True
+            if 'QPlatformScreen' in type_name: return True
             if 'FILE' in type_name: return True
             if type_name[0:1] == 'Q' and '::' in type_name: return True  # 有可能是类内类，像QMetaObject::Connection
             if '<' in type_name: return True  # 模板类参数
@@ -470,6 +479,17 @@ class GenerateForRust(GenerateBase):
             #### more
             can_type = self.tyconv.TypeToCanonical(arg.type)
             if can_type.kind == clang.cindex.TypeKind.FUNCTIONPROTO: return True
+            # if method_name == 'fromRotationMatrix':
+            if can_type.kind == clang.cindex.TypeKind.RECORD:
+                decl = can_type.get_declaration()
+                for token in decl.get_tokens():
+                    # print(555, token.spelling)
+                    if token.spelling == 'template': return True
+                    break
+                # print(555, can_type.kind, method_name, decl.kind, decl.spelling,
+                      #decl.get_num_template_arguments(),
+                      #)
+                # exit(0)
 
         return False
 
@@ -560,7 +580,8 @@ class GenerateForRust(GenerateBase):
             print('Warning fix enum-as-int3:', type_name, '=> ', tokens[0])
             return '%s' % (tokens[0])
 
-        if firstch.upper() == firstch and firstch == 'Q' and tokens[0][1:1].lower() == tokens[0][1:1]:
+        # like 可能是Qt类内enum
+        if firstch.upper() == firstch and firstch == 'Q' and tokens[0][1:2].lower() == tokens[0][1:2]:
             print('Warning fix enum-as-int4:', type_name, '=> ', type_name.replace('int', tokens[0]))
             return '%s' % (type_name.replace('int', tokens[0]))
 
@@ -604,9 +625,16 @@ class GenerateForRust(GenerateBase):
 
         return type_name
 
-    def write_code(self, module, fname, code):
+    def get_cursor_tokens(self, cursor):
+        tokens = []
+        for token in cursor.get_tokens():
+            tokens.append(token.spelling)
+        return ' '.join(tokens)
 
-        fpath = "src/%s/%s.rs" % (module[2:].lower(), fname)
+    def write_code(self, module, fname, code):
+        # module = 'QtCore'  # 全部生成的文件都放在一个目录吧
+        fpath = "src/core/%s.rs" % (fname)
+        # fpath = "src/%s/%s.rs" % (module[2:].lower(), fname)
         f = os.open(fpath, os.O_CREAT | os.O_TRUNC | os.O_RDWR)
         os.write(f, code)
         os.close(f)
@@ -614,7 +642,8 @@ class GenerateForRust(GenerateBase):
         return
 
     def write_modrs(self, module, code):
-        fpath = "src/%s/mod.rs" % (module[2:].lower())
+        # fpath = "src/%s/mod.rs" % (module[2:].lower())
+        fpath = "src/core/%s.rs" % (module[2:].lower())
         f = os.open(fpath, os.O_CREAT | os.O_TRUNC | os.O_RDWR)
         os.write(f, code)
         os.close(f)
