@@ -219,6 +219,7 @@ class GenerateForRust(GenerateBase):
         if has_return:
             return_type_name_rs = self.tyconv.TypeCXX2Rust(method_cursor.result_type)
             return_type_name_rs = self.tyconv.TypeNameTrimConst(return_type_name_rs)
+            return_type_name_rs = self.reform_return_type_name(return_type_name_rs)
             return_piece_code_proto = '-> %s' % (return_type_name_rs)
             return_piece_code_return = 'return'
 
@@ -262,8 +263,9 @@ class GenerateForRust(GenerateBase):
         if has_return:
             return_type_name_rs = self.tyconv.TypeCXX2Rust(method_cursor.result_type)
             return_type_name_rs = self.tyconv.TypeNameTrimConst(return_type_name_rs)
+            return_type_name_rs = self.reform_return_type_name(return_type_name_rs)
             return_piece_code_proto = '-> %s' % (return_type_name_rs)
-            return_piece_code_return = 'let mut ret = '
+            return_piece_code_return = 'let mut ret ='
 
         isstatic = method_cursor.is_static_method()
         static_code = 'static' if isstatic else ''
@@ -282,6 +284,7 @@ class GenerateForRust(GenerateBase):
         # TODO 还有一种值返回的情况要处理，值返回的情况需要先创建一个空对象
         return_type_name_ext = self.tyconv.TypeCXX2RustExtern(method_cursor.result_type)
         if return_type_name_ext == '*mut c_void' or return_type_name_ext == '*const c_void':  # no const now
+            # 应该是返回一个qt class对象，由于无法返回&mut类型的对象
             if has_return: self.CP.AP('body', "    let mut ret1 = %s{qclsinst: ret};\n" % (return_type_name_rs))
             if has_return: self.CP.AP('body', "    return ret1;\n")
         else:
@@ -320,6 +323,7 @@ class GenerateForRust(GenerateBase):
         if has_return:
             return_type_name_rs = self.tyconv.TypeCXX2Rust(method_cursor.result_type)
             return_type_name_rs = self.tyconv.TypeNameTrimConst(return_type_name_rs)
+            return_type_name_rs = self.reform_return_type_name(return_type_name_rs)
             return_piece_code_proto = '-> %s' % (return_type_name_rs)
             return_piece_code_return = 'let mut ret = '
 
@@ -548,6 +552,13 @@ class GenerateForRust(GenerateBase):
                 if postop > possub: dupremove.append(mtop)
                 else: dupremove.append(msub)
         return dupremove
+
+    def reform_return_type_name(self, retname):
+        lst = retname.split(' ')
+        for elem in lst:
+            if self.is_qt_class(elem):
+                return elem
+        return retname
 
     def is_qt_class(self, name):
         # should be qt class name
