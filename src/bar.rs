@@ -4,6 +4,7 @@ extern crate libc;
 use self::libc::c_void;
 use self::libc::c_char;
 use self::libc::int8_t;
+use self::libc::strlen;
 
 use super::foo::Foo;
 
@@ -107,4 +108,24 @@ pub fn test_ret_mutable_ref() -> Foo {
     return r;
 }
 
+// test *u8 to String
+// error: non-scalar cast: `*mut u8` as `&mut collections::string::String`
+pub fn test_star_u8_to_String() {
+    let s1 = String::from("abcdefg");
+    let s1u8 = s1.as_ptr();
+    let s1u8mut = s1u8 as *mut u8;
+    let s1u8mut2 = s1u8mut as *mut u8;
+    let s2 = s1u8 as *mut c_char;
+    unsafe {strlen(s2)};
+    // unsafe {strlen(s1u8)};
+    unsafe {String::from_raw_parts(s1u8mut2, 7, 9)};
+}
 
+
+// TODO
+// QString => *mut c_uchar
+// let arg1 = self.1.as_ptr()  as *mut c_uchar;
+// Vec<?> => *mut *mut ?
+// let arg1 = self.1.as_mut_ptr()  as *mut *mut c_float;
+// return void * 
+// return const float * 

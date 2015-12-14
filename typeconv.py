@@ -206,7 +206,6 @@ class TypeConvForRust(TypeConv):
             'std::string': 'c_char', 'std::wstring': 'c_char',
             'std::u32string': 'c_char', 'std::u16string': 'c_char',
         }
-        # print(888, cxxtype.kind, cxxtype.spelling)
 
         def is_const(ty): return ty.spelling.startswith('const ')
 
@@ -222,6 +221,8 @@ class TypeConvForRust(TypeConv):
                     # return '*const %s' % ('c_void')  # 不好处理，全换mut试试吧
                     return '*mut %s' % ('c_void')
             else:
+                if can_type.kind == clang.cindex.TypeKind.FUNCTIONPROTO:
+                    pass  # TODO
                 if can_name in raw_type_map:
                     return '*mut %s' % (raw_type_map[can_name])
                 else:
@@ -294,10 +295,13 @@ class TypeConvForRust(TypeConv):
             ext_name = can_name
             if can_name in raw_type_map: ext_name = raw_type_map[can_name]
             rsty = '*%s *%s %s' % (constq, constq, ext_name)
+
             return rsty
             # print(666, rsty, cxxtype.spelling)
             # exit(0)
             pass
+
+
         print(888, 'just use default type name:', cxxtype.spelling, cxxtype.kind)
         return cxxtype.spelling
 

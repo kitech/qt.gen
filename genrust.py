@@ -287,6 +287,9 @@ class GenerateForRust(GenerateBase):
             # 应该是返回一个qt class对象，由于无法返回&mut类型的对象
             if has_return: self.CP.AP('body', "    let mut ret1 = %s{qclsinst: ret};\n" % (return_type_name_rs))
             if has_return: self.CP.AP('body', "    return ret1;\n")
+        elif return_type_name_rs == 'String' and 'char' in return_type_name_ext:
+            if has_return: self.CP.AP('body', "    let slen = unsafe {strlen(ret as *const i8)} as usize;\n")
+            if has_return: self.CP.AP('body', "    return unsafe{String::from_raw_parts(ret as *mut u8, slen, slen+1)};\n")
         else:
             if has_return: self.CP.AP('body', "    return ret as %s;\n" % (return_type_name_rs))
 
@@ -499,6 +502,9 @@ class GenerateForRust(GenerateBase):
         if 'QOpenGL' in return_type_name: has_return = False
         if 'QGraphics' in return_type_name: has_return = False
         if 'QPlatform' in return_type_name: has_return = False
+        if 'QFunctionPointer' in return_type_name: has_return = False
+        if 'QTextEngine' in return_type_name: has_return = False
+        if 'QTextDocumentPrivate' in return_type_name: has_return = False
 
         return has_return, return_type_name
 
@@ -528,6 +534,9 @@ class GenerateForRust(GenerateBase):
         if 'QOpenGL' in return_type_name: has_return = False
         if 'QGraphics' in return_type_name: has_return = False
         if 'QPlatform' in return_type_name: has_return = False
+        if 'QFunctionPointer' in return_type_name: has_return = False
+        if 'QTextEngine' in return_type_name: has_return = False
+        if 'QTextDocumentPrivate' in return_type_name: has_return = False
 
         # calc ext type name
         type_name = self.tyconv.TypeCXX2RustExtern(method_cursor.result_type)
@@ -556,8 +565,8 @@ class GenerateForRust(GenerateBase):
     def reform_return_type_name(self, retname):
         lst = retname.split(' ')
         for elem in lst:
-            if self.is_qt_class(elem):
-                return elem
+            if self.is_qt_class(elem): return elem
+            if elem == 'String': return elem
         return retname
 
     def is_qt_class(self, name):
@@ -674,6 +683,7 @@ class GenerateForRust(GenerateBase):
         # TODO fix QString::data() vs. QString::data() const
         # _ZN7QString4dataEv, _ZNK7QString4dataEv
         # TODO 这种情况还挺多的。函数名相同，返回值不回的重载方法 。需要想办法处理。
+        # 这是支持方式，http://stackoverflow.com/questions/24594374/overload-operators-with-different-rhs-type
         if mangled_name == '_ZN8QMenuBar7addMenuEP5QMenu': return True
         if mangled_name == '_ZN5QMenu7addMenuEPS_': return True
         if mangled_name == '_ZN11QMainWindow10addToolBarEP8QToolBar': return True
@@ -686,6 +696,17 @@ class GenerateForRust(GenerateBase):
         if method_name == 'mapToParent': return True
         if method_name == 'mapFromItem': return True
         if method_name == 'mapFromParent': return True
+        if method_name == 'resolve': return True  # QFont::resolve
+        if method_name == 'map': return True  # QTransform::map
+        if method_name == 'mapRect': return True  # QTransform::mapRect
+        if method_name == 'point': return True  # QPolygon::point
+        if method_name == 'boundingRect': return True  # QPainter::boundingRect
+        if method_name == 'borderColor': return True  # QOpenGLTexture::borderColor
+        if method_name == 'trueMatrix': return True  # QPixmap::trueMatrix
+        if method_name == 'insertRow': return True  # QStandardItemModel::insertRow
+        class_name = cursor.semantic_parent.spelling
+        if method_name == 'read' and class_name == 'QImageReader': return True
+        if method_name == 'find' and class_name == 'QPixmapCache': return True
 
         # 实现不知道怎么fix了，已经fix，原来是给clang.cindex.parse中的-I不全，导致找不到类型。
         # fixmths3 = ['setQueryItems']
