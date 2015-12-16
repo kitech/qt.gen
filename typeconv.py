@@ -16,6 +16,7 @@ from genutil import *
 # qt类型指针，引用
 # qt类型非指针，非引用
 
+# 还需要分返回值的类型
 
 # for python2 base class need to object
 class TypeConv(object):

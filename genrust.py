@@ -267,6 +267,10 @@ class GenerateForRust(GenerateBase):
             return_piece_code_proto = '-> %s' % (return_type_name_rs)
             return_piece_code_return = 'let mut ret ='
 
+        if 'QList<' in return_piece_code_proto:
+            print(777777777, "whyyyyyyyyyyyyyy", method_name, has_return, return_type_name,
+                  method_cursor.result_type.kind)
+            exit(0)
         isstatic = method_cursor.is_static_method()
         static_code = 'static' if isstatic else ''
 
@@ -497,6 +501,9 @@ class GenerateForRust(GenerateBase):
         #     print(666, has_return, return_type_name, cursor.spelling, return_type.kind, cursor.semantic_parent.spelling)
         #     exit(0)
         if '<' in return_type_name: has_return = False
+        if "QStringList" in return_type_name: has_return = False
+        if "QObjectList" in return_type_name: has_return = False
+        if '::' in return_type_name: has_return = False
         if 'QAbstract' in return_type_name: has_return = False
         if 'QMetaObject' in return_type_name: has_return = False
         if 'QOpenGL' in return_type_name: has_return = False
@@ -505,6 +512,24 @@ class GenerateForRust(GenerateBase):
         if 'QFunctionPointer' in return_type_name: has_return = False
         if 'QTextEngine' in return_type_name: has_return = False
         if 'QTextDocumentPrivate' in return_type_name: has_return = False
+        if 'QJson' in return_type_name: has_return = False
+        if 'QStringRef' in return_type_name: has_return = False
+        if 'internalPointer' in method_cursor.spelling: has_return = False
+        if 'rwidth' in method_cursor.spelling: has_return = False
+        if 'rheight' in method_cursor.spelling: has_return = False
+        if 'utf16' == method_cursor.spelling: has_return = False
+        if 'x' == method_cursor.spelling: has_return = False
+        if 'rx' == method_cursor.spelling: has_return = False
+        if 'y' == method_cursor.spelling: has_return = False
+        if 'ry' == method_cursor.spelling: has_return = False
+        if class_name == 'QGenericArgument' and method_cursor.spelling == 'data': has_return = False
+        if class_name == 'QSharedMemory' and method_cursor.spelling == 'constData': has_return = False
+        if class_name == 'QSharedMemory' and method_cursor.spelling == 'data': has_return = False
+        if class_name == 'QVariant' and method_cursor.spelling == 'constData': has_return = False
+        if class_name == 'QVariant' and method_cursor.spelling == 'data': has_return = False
+        if class_name == 'QThreadStorageData' and method_cursor.spelling == 'set': has_return = False
+        if class_name == 'QThreadStorageData' and method_cursor.spelling == 'get': has_return = False
+        if class_name == 'QChar' and method_cursor.spelling == 'unicode': has_return = False
 
         return has_return, return_type_name
 
@@ -529,6 +554,9 @@ class GenerateForRust(GenerateBase):
         #     print(666, has_return, return_type_name, cursor.spelling, return_type.kind, cursor.semantic_parent.spelling)
         #     exit(0)
         if '<' in return_type_name: has_return = False
+        if "QStringList" in return_type_name: has_return = False
+        if "QObjectList" in return_type_name: has_return = False
+        if '::' in return_type_name: has_return = False
         if 'QAbstract' in return_type_name: has_return = False
         if 'QMetaObject' in return_type_name: has_return = False
         if 'QOpenGL' in return_type_name: has_return = False
@@ -537,6 +565,24 @@ class GenerateForRust(GenerateBase):
         if 'QFunctionPointer' in return_type_name: has_return = False
         if 'QTextEngine' in return_type_name: has_return = False
         if 'QTextDocumentPrivate' in return_type_name: has_return = False
+        if 'QJson' in return_type_name: has_return = False
+        if 'QStringRef' in return_type_name: has_return = False
+        if 'internalPointer' in method_name: has_return = False
+        if 'rwidth' in method_cursor.spelling: has_return = False
+        if 'rheight' in method_cursor.spelling: has_return = False
+        if 'utf16' == method_cursor.spelling: has_return = False
+        if 'x' == method_cursor.spelling: has_return = False
+        if 'rx' == method_cursor.spelling: has_return = False
+        if 'y' == method_cursor.spelling: has_return = False
+        if 'ry' == method_cursor.spelling: has_return = False
+        if class_name == 'QGenericArgument' and method_cursor.spelling == 'data': has_return = False
+        if class_name == 'QSharedMemory' and method_cursor.spelling == 'constData': has_return = False
+        if class_name == 'QSharedMemory' and method_cursor.spelling == 'data': has_return = False
+        if class_name == 'QVariant' and method_cursor.spelling == 'constData': has_return = False
+        if class_name == 'QVariant' and method_cursor.spelling == 'data': has_return = False
+        if class_name == 'QThreadStorageData' and method_cursor.spelling == 'set': has_return = False
+        if class_name == 'QThreadStorageData' and method_cursor.spelling == 'get': has_return = False
+        if class_name == 'QChar' and method_cursor.spelling == 'unicode': has_return = False
 
         # calc ext type name
         type_name = self.tyconv.TypeCXX2RustExtern(method_cursor.result_type)
@@ -707,6 +753,20 @@ class GenerateForRust(GenerateBase):
         class_name = cursor.semantic_parent.spelling
         if method_name == 'read' and class_name == 'QImageReader': return True
         if method_name == 'find' and class_name == 'QPixmapCache': return True
+        if class_name == 'QChar' and method_name == 'toUpper': return True
+        if class_name == 'QChar' and method_name == 'toLower': return True
+        if class_name == 'QChar' and method_name == 'mirroredChar': return True
+        if class_name == 'QChar' and method_name == 'toTitleCase': return True
+        if class_name == 'QChar' and method_name == 'toCaseFolded': return True
+        if class_name == 'QByteArray' and method_name == 'fill': return True
+        if class_name == 'QBitArray' and method_name == 'fill': return True
+        if class_name == 'QIODevice' and method_name == 'read': return True
+        if class_name == 'QIODevice' and method_name == 'peek': return True
+        if class_name == 'QIODevice' and method_name == 'readLine': return True
+        if class_name == 'QFileSelector' and method_name == 'select': return True
+        if class_name == 'QTextDecoder' and method_name == 'toUnicode': return True
+        if class_name == 'QCryptographicHash' and method_name == 'addData': return True
+        if class_name == 'QMessageAuthenticationCode' and method_name == 'addData': return True
 
         # 实现不知道怎么fix了，已经fix，原来是给clang.cindex.parse中的-I不全，导致找不到类型。
         # fixmths3 = ['setQueryItems']
