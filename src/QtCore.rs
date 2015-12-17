@@ -89,7 +89,35 @@ impl RString_read<u64> for (i32, i64) {
     fn read(self, this:&mut RString) -> u64 {
         return 1;
     }
+}
 
+// 这种写法是错误的，
+// error: wrong number of type arguments: expected 1, found 0 [E0243]
+/*
+impl RString_read<> for (i32, i64) {
+    fn read(self, this:&mut RString) {
+        return;
+    }
+}
+*/
+
+// 很强大，这样也行啊。()叫unit type。
+// 是不是rust的void类型呢
+/*
+impl RString_read<()> for (i32, i64) {
+    fn read(self, this:&mut RString) -> () {
+        return (); // OK
+        return; // OK
+    }
+}
+ */
+
+// 模板参数不能省，其他位置都可以省略。
+impl RString_read<()> for (i32, i64) {
+    fn read(self, this:&mut RString) {
+        return (); // OK
+        return; // OK
+    }
 }
 
 impl RString_read<RString> for (RString) {

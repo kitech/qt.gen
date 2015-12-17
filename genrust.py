@@ -531,6 +531,9 @@ class GenerateForRust(GenerateBase):
         if class_name == 'QThreadStorageData' and method_cursor.spelling == 'get': has_return = False
         if class_name == 'QChar' and method_cursor.spelling == 'unicode': has_return = False
 
+        # nrety = self.tyconv.Type2RustRet(return_type, cursor)
+        # print(890, return_type.spelling, '=>', nrety)
+
         return has_return, return_type_name
 
     def generateReturnForFFIExt(self, class_name, method_name, method_cursor, extargs):

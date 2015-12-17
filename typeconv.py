@@ -19,7 +19,26 @@ from genutil import *
 # 还需要分返回值的类型
 
 # for python2 base class need to object
+class TypeConvertContext(object):
+    def __init__(self):
+        self.orig_type = None
+        self.can_type = None
+        self.convable_type = None
+        self.pointee_type = None
+        self.pointer_level = 0
+        self.const = False
+
+        self.orig_type_name = ''
+        self.can_type_name = ''
+        self.convable_type_name = ''
+
+        self.orig_cursor = None
+        return
+
+
 class TypeConv(object):
+    tymap = {}
+
     def __init__(self):
         return
 
@@ -37,6 +56,12 @@ class TypeConv(object):
             under_type = cxxtype.get_declaration().under_type()
             return self.TypeToCanonical(under_type)
 
+        return cxxtype
+
+    def TypeToConvertable(self, cxxtype):
+        if cxxtype.kind == clidx.TypeKind.TYPEDEF:
+            under_type = cxxtype.get_declaration().underlying_typedef_type
+            return self.TypeToConvertable(under_type)
         return cxxtype
 
     def TypeCanName(self, cxxtype):
@@ -71,14 +96,150 @@ class TypeConv(object):
            cxxtype.kind == clidx.TypeKind.RVALUEREFERENCE:
             return True
         return False
+
+    def createContext(self, cxxtype, cursor):
+        ctx = TypeConvertContext()
+        ctx.orig_type = cxxtype
+        ctx.convable_type = self.TypeToConvertable(cxxtype)
+        ctx.can_type = self.TypeToCanonical(cxxtype)
+        ctx.const = self.TypeIsConst(cxxtype) or self.TypeIsConst(ctx.convable_type)
+
+        ctx.orig_type_name = ctx.orig_type.spelling
+        ctx.can_type_name = ctx.can_type.spelling
+        ctx.convable_type_name = ctx.convable_type.spelling
+
+        if ctx.const: ctx.can_type_name = self.TypeNameTrimConst(ctx.can_type_name)
+
+        ctx.orig_cursor = cursor
+        return ctx
+
+    def dumpContext(self, ctx):
+        print(890, ctx.orig_type.kind, ctx.orig_type_name, "\n",
+              ctx.convable_type.kind, ctx.convable_type_name, "cva<-\n->can",
+              ctx.can_type.kind, ctx.can_type_name,
+              ctx.const, ctx.pointer_level)
+        return
+
     pass
 
 
 class TypeConvForRust(TypeConv):
+    tymap = {
+        'bool': ['i8', 'c_char'], 'int': ['i32', 'c_int'], 'uint': ['u32', 'c_uint'],
+        # 'long': ['i32', 'c_long'],  # wtf, 这个32位系统和64位系统不一样怎么办
+        'long': ['i64', 'c_long'],  # wtf, 这个32位系统和64位系统不一样怎么办
+        'unsigned long': ['u64', 'c_ulong'],
+        'long long': ['i64', 'c_longlong'], 'unsigned long long': ['u64', 'c_ulonglong'],
+        'short': ['i16', 'c_short'], 'unsigned short': ['u16', 'c_ushort'],
+        'float': ['f32', 'c_float'], 'double': ['f64', 'c_double'],
+        'char': ['i8', 'c_char'], 'unsigned char': ['u8', 'c_uchar'],
+    }
 
     def __init__(self):
         super(TypeConvForRust, self).__init__()
         return
+
+
+    # @param cxxtype clang.cindex.Type
+    # @return str
+    # @return None 返回值为空，无返回值，不处理返回值
+    def Type2RustArg(self, cxxtype):
+
+        return
+
+    # @param cxxtype clang.cindex.Type
+    # @return str
+    # @return None 返回值为空，无返回值，不处理返回值
+    def Type2RustRet(self, cxxtype, cursor):
+        ctx = self.createContext(cxxtype, cursor)
+
+        if ctx.convable_type.kind == clidx.TypeKind.POINTER:
+            return self.Type2RustRetPointer(ctx)
+
+        if ctx.convable_type.kind == clidx.TypeKind.VOID:
+            return None
+
+        if ctx.convable_type.kind == clidx.TypeKind.RECORD:
+            return self.Type2RustRetRecord(ctx)
+
+        # 原始类型值类型
+        if ctx.convable_type_name in TypeConvForRust.tymap:
+            return self.Type2RustRetPrimitive(ctx)
+
+        print(783, 'wtf')
+        self.dumpContext(ctx)
+        exit(0)
+        return ctx.orig_type.spelling
+
+    # @param cxxtype clang.cindex.Type
+    # @return str
+    def Type2ExtArg(self, cxxtype):
+        return
+
+    def Type2ExtRet(self, cxxtype):
+        return
+
+    def Type2RustRetFunctionProto(self, ctx):
+        rety = '*mut c_void'
+        rety = ctx.orig_type_name
+        return rety
+
+    def Type2RustRetPointer(self, ctx):
+        ctx.pointer_level += 1
+        pointee_type = ctx.convable_type.get_pointee()
+        if pointee_type.kind == clidx.TypeKind.POINTER:
+            ctx.pointer_level += 1
+            pointee_type2 = pointee_type.get_pointee()
+            if pointee_type2.kind == clidx.TypeKind.POINTER:
+                ctx.pointer_level += 1
+        if ctx.pointer_level > 2:
+            glog.debug("")
+            print('wtf, two many pointer level:' + str(ctx.pointer_level))
+            exit(0)
+
+        if ctx.can_type.kind == clidx.TypeKind.FUNCTIONPROTO:
+            return self.Type2RustRetFunctionProto(ctx)
+
+        can_name = ctx.can_type_name
+        if ctx.const: can_name = self.TypeNameTrimConst(can_name)
+        if can_name in TypeConvForRust.tymap:
+            can_rsty = TypeConvForRust.tymap[can_name][0]
+            if ctx.pointer_level == 1:
+                if self.IsCharType(can_name): rety = 'String'
+                else: rety = '*mut %s' % (can_rsty)
+            elif ctx.pointer_level == 2:
+                if self.IsCharType(can_name): rety = 'Vec<String>'
+                else: rety = '*mut *mut %s' & (can_rsty)
+            else: raise('not possible')
+            return rety
+        else:
+            if ctx.can_type.kind == clidx.TypeKind.RECORD:
+                rety = can_name
+                return rety
+            if ctx.can_type.kind == clidx.TypeKind.VOID:
+                rety = '*mut c_void'
+                return rety
+            glog.debug("");
+            print(678, 'wtf, type not in tymap:', can_name, ctx.orig_type_name, ctx.orig_type.spelling,
+                  ctx.orig_cursor.spelling, ctx.orig_cursor.kind, ctx.orig_cursor.semantic_parent.spelling)
+            self.dumpContext(ctx)
+            exit(0)
+
+        raise('not possible')
+        return
+
+    def Type2RustRetPrimitive(self, ctx):
+        rety = TypeConvForRust.tymap[ctx.can_type_name][0]
+        return rety
+
+    def Type2RustRetRecord(self, ctx):
+        rety = ctx.can_type_name
+        return rety
+
+    # TODO
+    def Type2RustRetUnexposed(self, ctx):
+        rety = ctx.can_type_name
+        return rety
 
     # @param cxxtype clang.cindex.Type
     def TypeCXX2Rust(self, cxxtype):
