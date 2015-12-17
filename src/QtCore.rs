@@ -12,87 +12,138 @@ use std::any::Any;
 //
 
 
-pub struct QString {
+pub struct RString {
     pub ival: i32,
 }
 
-impl QString {
-    pub fn arg<T: QString_arg>(&mut self, value: T) -> QString {
-        let s = value.arg(self);
+impl RString {
+    pub fn arg<T: RString_arg>(&mut self, args: T) -> RString {
+        let s = args.arg(self);
         println!("fff {}", s.ival);
         return s
-        // return QString{ival: 4}
+        // return RString{ival: 4}
     }
+
 }
 
-pub trait QString_arg {
-    fn arg(self, this:&mut QString) -> QString;
+pub trait RString_arg {
+    fn arg(self, this:&mut RString) -> RString;
 }
 
-impl QString_arg for (QString, QString) {
-    fn arg(self, this:&mut QString) -> QString {
+impl RString_arg for (RString, RString) {
+    fn arg(self, this:&mut RString) -> RString {
         let args = self;
         println!("111,{},{}", "ieiiewr", this.ival);
-        return QString{ival:1}
+        return RString{ival:1}
     }
 }
 
-impl QString_arg for (QString, QString, QString) {
-    fn arg(self, this:&mut QString) -> QString {
+impl RString_arg for (RString, RString, RString) {
+    fn arg(self, this:&mut RString) -> RString {
         println!("222");
         let arg0 = self.0;
         let arg1 = self.1;
         let arg2 = self.2;
         let tmp = arg0.ival;
-        return QString{ival:2}
+        return RString{ival:2}
     }
 }
 
-impl QString_arg for (i32) {
-    fn arg(self, this:&mut QString) -> QString {
+impl RString_arg for (i32) {
+    fn arg(self, this:&mut RString) -> RString {
         println!("333");
         // let arg0 = self.0;
         let arg0 = self;
-        return QString{ival:3}
+        return RString{ival:3}
     }
 }
 
+// 返回值重载，使用generic实现。
+pub trait RString_read<RetType> {
+    fn read(self, this:&mut RString) -> RetType;
+}
+
+// read(i32, i64) -> i32
+impl RString {
+    pub fn read<RetType, T: RString_read<RetType>>(&mut self, args: T) -> RetType {
+        let res = args.read(self);
+        return res;
+    }
+}
+
+impl RString_read<i32> for (i32, i64) {
+    fn read(self, this:&mut RString) -> i32 {
+        return 1;
+    }
+}
+
+impl RString_read<i64> for (i32, i64) {
+    fn read(self, this:&mut RString) -> i64 {
+        return 1;
+    }
+
+}
+
+// 这个重载功能很强大哦！！！
+impl RString_read<u64> for (i32, i64) {
+    fn read(self, this:&mut RString) -> u64 {
+        return 1;
+    }
+
+}
+
+impl RString_read<RString> for (RString) {
+    fn read(self, this:&mut RString) -> RString {
+        return RString{ival:0};
+    }
+}
+
+// 继续generic???这就不支持了，不用担心继续generic的问题了
+/*
+impl RString_read<RetType> for (RString) {
+    fn read(self, this:&mut RString) -> RString {
+        return RString{ival:0};
+    }
+}
+ */
+
+
 /////
-pub struct QByteArray {
+pub struct RByteArray {
     pub ival: i32
 }
 
-impl QByteArray {
-    pub fn arg<T: QByteArray_arg>(&mut self, value: T) -> QByteArray {
+impl RByteArray {
+    pub fn arg<T: RByteArray_arg>(&mut self, value: T) -> RByteArray {
         let s = value.arg(self);
         println!("fff {}", s.ival);
         return s
-        // return QByteArray{ival: 4}
+        // return RByteArray{ival: 4}
     }
 }
 
-pub trait QByteArray_arg {
-    fn arg(self, this:&mut QByteArray) -> QByteArray;
+pub trait RByteArray_arg {
+    fn arg(self, this:&mut RByteArray) -> RByteArray;
 }
 
-impl QByteArray_arg for (QByteArray, QByteArray) {
-    fn arg(self, this:&mut QByteArray) -> QByteArray {
+impl RByteArray_arg for (RByteArray, RByteArray) {
+    fn arg(self, this:&mut RByteArray) -> RByteArray {
         let args = self;
         println!("111,{},{}", "ieiiewr", this.ival);
-        return QByteArray{ival:1}
+        return RByteArray{ival:1}
     }
 }
 
-impl QByteArray_arg for (QByteArray, QByteArray, QByteArray) {
-    fn arg(self, this:&mut QByteArray) -> QByteArray {
+impl RByteArray_arg for (RByteArray, RByteArray, RByteArray) {
+    fn arg(self, this:&mut RByteArray) -> RByteArray {
         println!("222");
-        return QByteArray{ival:2}
+        return RByteArray{ival:2}
     }
 }
 
-impl QByteArray_arg for (i32) {
-    fn arg(self, this:&mut QByteArray) -> QByteArray {
+impl RByteArray_arg for (i32) {
+    fn arg(self, this:&mut RByteArray) -> RByteArray {
         println!("333");
-        return QByteArray{ival:3}
+        return RByteArray{ival:3}
     }
 }

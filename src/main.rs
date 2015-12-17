@@ -2,7 +2,7 @@
 extern crate rustqt;
 
 use rustqt::*;
-// use rustqt::QtCore::*;
+use rustqt::QtCore::*;
 use rustqt::qtfn::*;
 // use rustqt::core::*;
 use rustqt::bar::*;
@@ -14,6 +14,7 @@ fn test_QCoreApplication() {
     let a2 = 0;
     // let mut app = QCoreApplication::NewQCoreApplication((&mut a0, &mut a1, a2));
     // (&mut app).exec(());
+
     // TestBar::newbar((&mut a0, &mut a1, a2));
 }
 
@@ -21,12 +22,12 @@ fn main() {
     println!("Hello rustqt!!!");
     /*
     // 我都use了，为什么还要加个QtCore前缀呢
-    let mut x = QString{ival:999};
-    let s1 = QString{ival:111};
-    let s2 = QString{ival:222};
-    let s3 = QString{ival:333};
-    let s4 = QString{ival:444};
-    let s5 = QString{ival:555};
+    let mut x = RString{ival:999};
+    let s1 = RString{ival:111};
+    let s2 = RString{ival:222};
+    let s3 = RString{ival:333};
+    let s4 = RString{ival:444};
+    let s5 = RString{ival:555};
     let i1 = 111;
 
     let sr = x.arg((s1, s2));
