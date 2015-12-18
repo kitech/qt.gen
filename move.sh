@@ -1,6 +1,6 @@
 #!/bin/sh
 
-clslst=$(cat src/core/core.rs |grep "mod q"|awk '{print $2}'|awk -F\; '{print $1}')
+clslst=$(cat src/core/widgets.rs |grep "mod q"|awk '{print $2}'|awk -F\; '{print $1}')
 
 set -x
 for cls in $clslst; do

@@ -213,20 +213,20 @@ class GenerateForRust(GenerateBase):
 
     def generateImplStructMethod(self, class_name, method_name, method_cursor):
         has_return, return_type_name = self.generateReturnForImplStruct(class_name, method_cursor)
-        return_piece_code_proto = ''
-        return_piece_code_return = ''
+        # return_piece_code_proto = ''
+        # return_piece_code_return = ''
         return_type_name_rs = ''
         if has_return:
             return_type_name_rs = self.tyconv.TypeCXX2Rust(method_cursor.result_type)
             return_type_name_rs = self.tyconv.TypeNameTrimConst(return_type_name_rs)
             return_type_name_rs = self.reform_return_type_name(return_type_name_rs)
-            return_piece_code_proto = '-> %s' % (return_type_name_rs)
-            return_piece_code_return = 'return'
+            # return_piece_code_proto = '-> %s' % (return_type_name_rs)
+            # return_piece_code_return = 'return'
 
         self.CP.AP('body', "impl /*struct*/ %s {\n" % (class_name))
-        self.CP.AP('body', "  pub fn %s<T: %s_%s>(&mut self, value: T) %s {\n"
-                   % (method_name, class_name, method_name, return_piece_code_proto))
-        self.CP.AP('body', "    %s value.%s(self);\n" % (return_piece_code_return, method_name))
+        self.CP.AP('body', "  pub fn %s<RetType, T: %s_%s<RetType>>(&mut self, value: T) -> RetType {\n"
+                   % (method_name, class_name, method_name))
+        self.CP.AP('body', "    return value.%s(self);\n" % (method_name))
         self.CP.AP('body', "    // return 1;\n")
         self.CP.AP('body', "  }\n")
         self.CP.AP('body', "}\n\n")
@@ -256,14 +256,17 @@ class GenerateForRust(GenerateBase):
 
     def generateImplTraitMethod(self, class_name, method_name, method_cursor,
                                 ctysz, trait_params, raw_params, call_params, return_type_name):
+        cursor = method_cursor
         has_return, return_type_name = self.generateReturnForImplStruct(class_name, method_cursor)
         return_piece_code_proto = ''
         return_piece_code_return = ''
-        return_type_name_rs = ''
+        return_type_name_rs = '()'
         if has_return:
-            return_type_name_rs = self.tyconv.TypeCXX2Rust(method_cursor.result_type)
-            return_type_name_rs = self.tyconv.TypeNameTrimConst(return_type_name_rs)
-            return_type_name_rs = self.reform_return_type_name(return_type_name_rs)
+            # return_type_name_rs = self.tyconv.TypeCXX2Rust(method_cursor.result_type)
+            # return_type_name_rs = self.tyconv.TypeNameTrimConst(return_type_name_rs)
+            # return_type_name_rs = self.reform_return_type_name(return_type_name_rs)
+            return_type_name_rs = self.tyconv.Type2RustRet(cursor.result_type, cursor)
+            print(890, cursor.result_type.spelling, '=>', return_type_name_rs)
             return_piece_code_proto = '-> %s' % (return_type_name_rs)
             return_piece_code_return = 'let mut ret ='
 
@@ -277,8 +280,9 @@ class GenerateForRust(GenerateBase):
         mangled_name = method_cursor.mangled_name
         self.CP.AP('body', "// proto: %s %s %s::%s(%s);\n" %
                    (static_code, return_type_name, class_name, method_name, raw_params))
-        self.CP.AP('body', "impl<'a> /*trait*/ %s_%s for (%s) {\n" % (class_name, method_name, trait_params))
-        self.CP.AP('body', "  fn %s(self, rsthis: &mut %s) %s {\n" % (method_name, class_name, return_piece_code_proto))
+        self.CP.AP('body', "impl<'a> /*trait*/ %s_%s<%s> for (%s) {\n" %
+                   (class_name, method_name, return_type_name_rs, trait_params))
+        self.CP.AP('body', "  fn %s(self, rsthis: &mut %s) -> %s {\n" % (method_name, class_name, return_type_name_rs))
         self.CP.AP('body', "    // let qthis: *mut c_void = unsafe{calloc(1, %s)};\n" % (ctysz))
         self.CP.AP('body', "    // unsafe{%s()};\n" % (mangled_name))
         self.generateArgConvExprs(class_name, method_name, method_cursor)
@@ -324,23 +328,24 @@ class GenerateForRust(GenerateBase):
             method_name = 'Free%s' % (method_name[1:])
 
         has_return, return_type_name = self.generateReturnForImplStruct(class_name, method_cursor)
-        return_piece_code_proto = ''
-        return_piece_code_return = ''
+        # return_piece_code_proto = ''
+        # return_piece_code_return = ''
         return_type_name_rs = ''
         if has_return:
             return_type_name_rs = self.tyconv.TypeCXX2Rust(method_cursor.result_type)
             return_type_name_rs = self.tyconv.TypeNameTrimConst(return_type_name_rs)
             return_type_name_rs = self.reform_return_type_name(return_type_name_rs)
-            return_piece_code_proto = '-> %s' % (return_type_name_rs)
-            return_piece_code_return = 'let mut ret = '
+            # return_piece_code_proto = '-> %s' % (return_type_name_rs)
+            # return_piece_code_return = 'let mut ret = '
 
         ### trait
-        self.CP.AP('body', "pub trait %s_%s {\n" % (class_name, method_name))
         if isctor is True:
+            self.CP.AP('body', "pub trait %s_%s {\n" % (class_name, method_name))
             self.CP.AP('body', "  fn %s(self) -> %s;\n" % (method_name, class_name))
         else:
-            self.CP.AP('body', "  fn %s(self, rsthis: &mut %s) %s;\n" %
-                       (method_name, class_name, return_piece_code_proto))
+            self.CP.AP('body', "pub trait %s_%s<RetType> {\n" % (class_name, method_name))
+            self.CP.AP('body', "  fn %s(self, rsthis: &mut %s) -> RetType;\n" %
+                       (method_name, class_name))
         self.CP.AP('body', "}\n\n")
         return
 
@@ -531,8 +536,12 @@ class GenerateForRust(GenerateBase):
         if class_name == 'QThreadStorageData' and method_cursor.spelling == 'get': has_return = False
         if class_name == 'QChar' and method_cursor.spelling == 'unicode': has_return = False
 
-        # nrety = self.tyconv.Type2RustRet(return_type, cursor)
-        # print(890, return_type.spelling, '=>', nrety)
+        if has_return:
+            # return_type_name = nrety
+            pass
+        else:
+            # return_type_name = '()'
+            pass
 
         return has_return, return_type_name
 

@@ -1,6 +1,7 @@
 
 use std::fmt::Debug;
 use std::any::Any;
+use std::collections::HashMap;
 
 // 实现类似C++的overload方法
 // 要为每个有重载的方法生成一个trait，再为每重载的方法生成不同参数的trait实现。
@@ -175,3 +176,13 @@ impl RByteArray_arg for (i32) {
         return RByteArray{ival:3}
     }
 }
+
+
+// generic模板
+struct NList<T> {
+    ival: T,
+}
+
+type NList1<T> = Vec<T>;
+type NMap<K,V> = HashMap<K, V>;
+

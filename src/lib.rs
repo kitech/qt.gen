@@ -6,7 +6,7 @@ pub mod qtfn;
 pub mod foo;
 pub mod bar;
 
-// pub mod core;
+pub mod core;
 // pub mod gui;
 
 

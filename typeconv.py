@@ -126,6 +126,7 @@ class TypeConv(object):
 class TypeConvForRust(TypeConv):
     tymap = {
         'bool': ['i8', 'c_char'], 'int': ['i32', 'c_int'], 'uint': ['u32', 'c_uint'],
+        'unsigned int': ['u32', 'c_uint'],
         # 'long': ['i32', 'c_long'],  # wtf, 这个32位系统和64位系统不一样怎么办
         'long': ['i64', 'c_long'],  # wtf, 这个32位系统和64位系统不一样怎么办
         'unsigned long': ['u64', 'c_ulong'],
@@ -152,12 +153,18 @@ class TypeConvForRust(TypeConv):
     # @return None 返回值为空，无返回值，不处理返回值
     def Type2RustRet(self, cxxtype, cursor):
         ctx = self.createContext(cxxtype, cursor)
+        if 'QMetaObject' in ctx.orig_type_name:
+            self.dumpContext(ctx)
+            exit(0)
 
         if ctx.convable_type.kind == clidx.TypeKind.POINTER:
             return self.Type2RustRetPointer(ctx)
 
+        if ctx.convable_type.kind == clidx.TypeKind.LVALUEREFERENCE:
+            return self.Type2RustRetLVRef(ctx)
+
         if ctx.convable_type.kind == clidx.TypeKind.VOID:
-            return None
+            return '()'
 
         if ctx.convable_type.kind == clidx.TypeKind.RECORD:
             return self.Type2RustRetRecord(ctx)
@@ -228,6 +235,34 @@ class TypeConvForRust(TypeConv):
         raise('not possible')
         return
 
+    def Type2RustRetLVRef(self, ctx):
+        self.dumpContext(ctx)
+        ctx.pointer_level += 1
+        pointee_type = ctx.convable_type.get_pointee()
+        print(pointee_type.kind, pointee_type.spelling, ctx.can_type_name)
+
+        can_name = ctx.can_type_name
+        if ctx.const: can_name = self.TypeNameTrimConst(can_name)
+        if can_name in TypeConvForRust.tymap:
+            can_rsty = TypeConvForRust.tymap[can_name][0]
+            if self.IsCharType(can_name): rety = 'String'
+            else: rety = '%s' % (can_rsty)
+            return rety
+        else:
+            if ctx.can_type.kind == clidx.TypeKind.RECORD:
+                rety = can_name
+                return rety
+            glog.debug("");
+            print(678, 'wtf, type not in tymap:', can_name, ctx.orig_type_name, ctx.orig_type.spelling,
+                  ctx.orig_cursor.spelling, ctx.orig_cursor.kind, ctx.orig_cursor.semantic_parent.spelling)
+            self.dumpContext(ctx)
+            exit(0)
+
+        raise('not possible')
+
+        exit(0)
+        return
+
     def Type2RustRetPrimitive(self, ctx):
         rety = TypeConvForRust.tymap[ctx.can_type_name][0]
         return rety
@@ -236,7 +271,7 @@ class TypeConvForRust(TypeConv):
         rety = ctx.can_type_name
         return rety
 
-    # TODO
+    # TODO, like QList<int>
     def Type2RustRetUnexposed(self, ctx):
         rety = ctx.can_type_name
         return rety
@@ -408,7 +443,7 @@ class TypeConvForRust(TypeConv):
             if raw_type_name in raw_type_map:
                 return '%s' % (raw_type_map[raw_type_name])
             else:
-                print(888, 'just use default type name:', cxxtype.spelling, cxxtype.kind)
+                # print(888, 'just use default type name:', cxxtype.spelling, cxxtype.kind)
                 if cxxtype.spelling == 'int':
                     exit(0)
                 return '%s' % (self.TypeNameTrimConst(raw_type_name))
@@ -464,7 +499,7 @@ class TypeConvForRust(TypeConv):
             pass
 
 
-        print(888, 'just use default type name:', cxxtype.spelling, cxxtype.kind)
+        # print(888, 'just use default type name:', cxxtype.spelling, cxxtype.kind)
         return cxxtype.spelling
 
     @staticmethod
