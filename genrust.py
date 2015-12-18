@@ -742,43 +742,46 @@ class GenerateForRust(GenerateBase):
         # _ZN7QString4dataEv, _ZNK7QString4dataEv
         # TODO 这种情况还挺多的。函数名相同，返回值不回的重载方法 。需要想办法处理。
         # 这是支持方式，http://stackoverflow.com/questions/24594374/overload-operators-with-different-rhs-type
-        if mangled_name == '_ZN8QMenuBar7addMenuEP5QMenu': return True
-        if mangled_name == '_ZN5QMenu7addMenuEPS_': return True
-        if mangled_name == '_ZN11QMainWindow10addToolBarEP8QToolBar': return True
-        if mangled_name == '_ZNK15QCalendarWidget14dateTextFormatEv': return True
-        if mangled_name == '_ZN9QScroller8scrollerEPK7QObject': return True
-        if mangled_name == '_ZN12QApplication8setStyleERK7QString': return True
-        if method_name == 'mapToScene': return True  # 重载的方法太多
-        if method_name == 'mapFromScene': return True  # 重载的方法太多
-        if method_name == 'mapToItem': return True
-        if method_name == 'mapToParent': return True
-        if method_name == 'mapFromItem': return True
-        if method_name == 'mapFromParent': return True
-        if method_name == 'resolve': return True  # QFont::resolve
-        if method_name == 'map': return True  # QTransform::map
-        if method_name == 'mapRect': return True  # QTransform::mapRect
-        if method_name == 'point': return True  # QPolygon::point
-        if method_name == 'boundingRect': return True  # QPainter::boundingRect
-        if method_name == 'borderColor': return True  # QOpenGLTexture::borderColor
-        if method_name == 'trueMatrix': return True  # QPixmap::trueMatrix
-        if method_name == 'insertRow': return True  # QStandardItemModel::insertRow
+        # widgets
+        # if mangled_name == '_ZN8QMenuBar7addMenuEP5QMenu': return True
+        # if mangled_name == '_ZN5QMenu7addMenuEPS_': return True
+        # if mangled_name == '_ZN11QMainWindow10addToolBarEP8QToolBar': return True
+        # if mangled_name == '_ZNK15QCalendarWidget14dateTextFormatEv': return True
+        # if mangled_name == '_ZN9QScroller8scrollerEPK7QObject': return True
+        # if mangled_name == '_ZN12QApplication8setStyleERK7QString': return True
+        # if method_name == 'mapToScene': return True  # 重载的方法太多
+        # if method_name == 'mapFromScene': return True  # 重载的方法太多
+        # if method_name == 'mapToItem': return True
+        # if method_name == 'mapToParent': return True
+        # if method_name == 'mapFromItem': return True
+        # if method_name == 'mapFromParent': return True
+        # if method_name == 'resolve': return True  # QFont::resolve
+        # if method_name == 'map': return True  # QTransform::map
+        # if method_name == 'mapRect': return True  # QTransform::mapRect
+        # if method_name == 'point': return True  # QPolygon::point
+        # if method_name == 'boundingRect': return True  # QPainter::boundingRect
+        # if method_name == 'borderColor': return True  # QOpenGLTexture::borderColor
+        # if method_name == 'trueMatrix': return True  # QPixmap::trueMatrix
+        # if method_name == 'insertRow': return True  # QStandardItemModel::insertRow
+        # gui
         class_name = cursor.semantic_parent.spelling
-        if method_name == 'read' and class_name == 'QImageReader': return True
-        if method_name == 'find' and class_name == 'QPixmapCache': return True
-        if class_name == 'QChar' and method_name == 'toUpper': return True
-        if class_name == 'QChar' and method_name == 'toLower': return True
-        if class_name == 'QChar' and method_name == 'mirroredChar': return True
-        if class_name == 'QChar' and method_name == 'toTitleCase': return True
-        if class_name == 'QChar' and method_name == 'toCaseFolded': return True
-        if class_name == 'QByteArray' and method_name == 'fill': return True
-        if class_name == 'QBitArray' and method_name == 'fill': return True
-        if class_name == 'QIODevice' and method_name == 'read': return True
-        if class_name == 'QIODevice' and method_name == 'peek': return True
-        if class_name == 'QIODevice' and method_name == 'readLine': return True
-        if class_name == 'QFileSelector' and method_name == 'select': return True
-        if class_name == 'QTextDecoder' and method_name == 'toUnicode': return True
-        if class_name == 'QCryptographicHash' and method_name == 'addData': return True
-        if class_name == 'QMessageAuthenticationCode' and method_name == 'addData': return True
+        # if method_name == 'read' and class_name == 'QImageReader': return True
+        # if method_name == 'find' and class_name == 'QPixmapCache': return True
+        # core
+        # if class_name == 'QChar' and method_name == 'toUpper': return True
+        # if class_name == 'QChar' and method_name == 'toLower': return True
+        # if class_name == 'QChar' and method_name == 'mirroredChar': return True
+        # if class_name == 'QChar' and method_name == 'toTitleCase': return True
+        # if class_name == 'QChar' and method_name == 'toCaseFolded': return True
+        # if class_name == 'QByteArray' and method_name == 'fill': return True
+        # if class_name == 'QBitArray' and method_name == 'fill': return True
+        # if class_name == 'QIODevice' and method_name == 'read': return True
+        # if class_name == 'QIODevice' and method_name == 'peek': return True
+        # if class_name == 'QIODevice' and method_name == 'readLine': return True
+        # if class_name == 'QFileSelector' and method_name == 'select': return True
+        # if class_name == 'QTextDecoder' and method_name == 'toUnicode': return True
+        # if class_name == 'QCryptographicHash' and method_name == 'addData': return True
+        # if class_name == 'QMessageAuthenticationCode' and method_name == 'addData': return True
 
         # 实现不知道怎么fix了，已经fix，原来是给clang.cindex.parse中的-I不全，导致找不到类型。
         # fixmths3 = ['setQueryItems']
