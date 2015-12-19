@@ -1,6 +1,8 @@
 # encoding: utf8
 
 import logging
+import sys
+import traceback
 
 import clang
 import clang.cindex
@@ -17,6 +19,7 @@ from genutil import *
 # qt类型非指针，非引用
 
 # 还需要分返回值的类型
+
 
 # for python2 base class need to object
 class TypeConvertContext(object):
@@ -113,11 +116,17 @@ class TypeConv(object):
         ctx.orig_cursor = cursor
         return ctx
 
-    def dumpContext(self, ctx):
-        print(890, ctx.orig_type.kind, ctx.orig_type_name, "\n",
+    def dumpContext(self, ctx, exit_ = True):
+        tb = traceback.extract_stack()
+        # print(tb, len(tb))
+        lno = tb[len(tb)-2][1]
+        fn = tb[len(tb)-2][2]
+        posig = '%s:%s' % (fn, lno)
+        print(posig, ctx.orig_type.kind, ctx.orig_type_name, "\n",
               ctx.convable_type.kind, ctx.convable_type_name, "cva<-\n->can",
               ctx.can_type.kind, ctx.can_type_name,
               ctx.const, ctx.pointer_level)
+        if exit_: exit(0)
         return
 
     pass
@@ -153,9 +162,6 @@ class TypeConvForRust(TypeConv):
     # @return None 返回值为空，无返回值，不处理返回值
     def Type2RustRet(self, cxxtype, cursor):
         ctx = self.createContext(cxxtype, cursor)
-        if 'QMetaObject' in ctx.orig_type_name:
-            self.dumpContext(ctx)
-            exit(0)
 
         if ctx.convable_type.kind == clidx.TypeKind.POINTER:
             return self.Type2RustRetPointer(ctx)
@@ -169,11 +175,16 @@ class TypeConvForRust(TypeConv):
         if ctx.convable_type.kind == clidx.TypeKind.RECORD:
             return self.Type2RustRetRecord(ctx)
 
+        if ctx.convable_type.kind == clidx.TypeKind.UNEXPOSED:
+            return '(/*unexposed*/)'
+
+        if ctx.convable_type.kind == clidx.TypeKind.ENUM:
+            return 'i32'
+
         # 原始类型值类型
         if ctx.convable_type_name in TypeConvForRust.tymap:
             return self.Type2RustRetPrimitive(ctx)
 
-        print(783, 'wtf')
         self.dumpContext(ctx)
         exit(0)
         return ctx.orig_type.spelling
@@ -207,6 +218,11 @@ class TypeConvForRust(TypeConv):
         if ctx.can_type.kind == clidx.TypeKind.FUNCTIONPROTO:
             return self.Type2RustRetFunctionProto(ctx)
 
+        if ctx.can_type.kind == clidx.TypeKind.RECORD:
+            return ctx.can_type_name
+        if ctx.can_type.kind == clidx.TypeKind.VOID:
+            return '*mut c_void'
+
         can_name = ctx.can_type_name
         if ctx.const: can_name = self.TypeNameTrimConst(can_name)
         if can_name in TypeConvForRust.tymap:
@@ -220,12 +236,6 @@ class TypeConvForRust(TypeConv):
             else: raise('not possible')
             return rety
         else:
-            if ctx.can_type.kind == clidx.TypeKind.RECORD:
-                rety = can_name
-                return rety
-            if ctx.can_type.kind == clidx.TypeKind.VOID:
-                rety = '*mut c_void'
-                return rety
             glog.debug("");
             print(678, 'wtf, type not in tymap:', can_name, ctx.orig_type_name, ctx.orig_type.spelling,
                   ctx.orig_cursor.spelling, ctx.orig_cursor.kind, ctx.orig_cursor.semantic_parent.spelling)
@@ -236,10 +246,13 @@ class TypeConvForRust(TypeConv):
         return
 
     def Type2RustRetLVRef(self, ctx):
-        self.dumpContext(ctx)
+        # self.dumpContext(ctx)
         ctx.pointer_level += 1
         pointee_type = ctx.convable_type.get_pointee()
-        print(pointee_type.kind, pointee_type.spelling, ctx.can_type_name)
+        # print(pointee_type.kind, pointee_type.spelling, ctx.can_type_name)
+
+        if ctx.can_type.kind == clidx.TypeKind.RECORD:
+            return ctx.can_type_name
 
         can_name = ctx.can_type_name
         if ctx.const: can_name = self.TypeNameTrimConst(can_name)
@@ -249,15 +262,13 @@ class TypeConvForRust(TypeConv):
             else: rety = '%s' % (can_rsty)
             return rety
         else:
-            if ctx.can_type.kind == clidx.TypeKind.RECORD:
-                rety = can_name
-                return rety
             glog.debug("");
             print(678, 'wtf, type not in tymap:', can_name, ctx.orig_type_name, ctx.orig_type.spelling,
                   ctx.orig_cursor.spelling, ctx.orig_cursor.kind, ctx.orig_cursor.semantic_parent.spelling)
             self.dumpContext(ctx)
             exit(0)
 
+        self.dumpContext(ctx)
         raise('not possible')
 
         exit(0)
