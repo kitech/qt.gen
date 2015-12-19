@@ -24,7 +24,6 @@ impl RString {
         return s
         // return RString{ival: 4}
     }
-
 }
 
 pub trait RString_arg {
@@ -135,6 +134,80 @@ impl RString_read<RetType> for (RString) {
     }
 }
  */
+
+
+// test for static method overload
+impl RString {
+    // static
+    pub fn number<RetType, T: RString_number<RetType>>(args: T) -> RetType {
+        return args.number();
+        // return ();
+    }
+}
+
+pub trait RString_number<RetType> {
+    fn number(self) -> RetType;
+}
+
+impl RString_number<RString> for (i32) {
+    fn number(self) -> RString {
+        return RString{ival: 5};
+    }
+}
+
+impl RString_number<RString> for (u32) {
+    fn number(self) -> RString {
+        return RString{ival: 5};
+    }
+}
+
+impl RString_number<RString> for (i64) {
+    fn number(self) -> RString {
+        return RString{ival: 5};
+    }
+}
+
+impl RString_number<RString> for (f64) {
+    fn number(self) -> RString {
+        return RString{ival: 5};
+    }
+}
+
+// test for static method and non-static method overload
+impl RString {
+    // static，
+    // 只好这样了，加个_s后缀
+    pub fn compare_s<RetType, T:RString_compare_s<RetType>>(args: T) -> RetType {
+        return args.compare_s();
+    }
+    // error: duplicate method [E0201]
+    /*
+    pub fn compare<RetType, T:RString_number<RetType>>(&mut self, args: T) -> RetType {
+    }
+     */
+    // non-static
+    // error: error: duplicate method [E0201]
+    // 这种使用不同的trait也还是不行
+    /*
+    pub fn compare<RetType, T:RString_compare<RetType>>(&mut self, args: T) -> RetType {
+        return args.compare(self);
+    }
+     */
+
+    pub fn compare<RetType, T:RString_compare<RetType>>(&mut self, args: T) -> RetType {
+        return args.compare(self);
+    }
+}
+
+pub trait RString_compare_s<RetType> {
+    fn compare_s(self) -> RetType;
+}
+
+pub trait RString_compare<RetType> {
+    fn compare(self, &mut RString) -> RetType;
+}
+
+
 
 
 /////

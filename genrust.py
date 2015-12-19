@@ -10,6 +10,14 @@ from genutil import *
 from typeconv import TypeConv, TypeConvForRust
 from genbase import GenerateBase
 
+# TODO
+# 静态方法与动态方法同名
+# 参数默认值
+# 内联方法
+# 集合参数或返回值的转换，像Vec<T> <=> QList<T>, 或者Vec<T> <=> T **
+# qt模板类型的封装实现
+# 代码整理, GenContext
+
 
 class GenerateForRust(GenerateBase):
     def __init__(self):
@@ -89,8 +97,10 @@ class GenerateForRust(GenerateBase):
         unique_methods = {}
         for mangled_name in methods:
             cursor = methods[mangled_name]
-            method_name = cursor.spelling
-            unique_methods[method_name] = True
+            isstatic = cursor.is_static_method()
+            static_suffix = '_s' if isstatic else ''
+            umethod_name = cursor.spelling + static_suffix
+            unique_methods[umethod_name] = True
 
         dupremove = self.dedup_return_const_diff_method(methods)
         # print(444, 'dupremove len:', len(dupremove), dupremove)
@@ -149,18 +159,23 @@ class GenerateForRust(GenerateBase):
         else: pass
         isstatic = cursor.is_static_method()
         static_code = 'static' if isstatic else ''
+        static_suffix = '_s' if isstatic else ''
+
+        # prehandler
+        raw_params_array = self.generateParamsRaw(class_name, method_name, method_cursor)
+        raw_params = ', '.join(raw_params_array)
 
         ### method impl
-        impl_method_proto = '%s::%s' % (class_name, method_name)
+        impl_method_proto = '%s::%s%s' % (class_name, method_name, static_suffix)
         if impl_method_proto not in self.implmthods:
             self.implmthods[impl_method_proto] = True
             if isctor is True: self.generateImplStructCtor(class_name, method_name, method_cursor)
-            else: self.generateImplStructMethod(class_name, method_name, method_cursor)
+            else: self.generateImplStructMethod(class_name, method_name, method_cursor, raw_params)
 
-        orig_method_name = cursor.spelling
-        if unique_methods[orig_method_name] is True:
-            unique_methods[orig_method_name] = False
-            self.generateMethodDeclTrait(class_name, orig_method_name, method_cursor)
+        uniq_method_name = cursor.spelling + static_suffix
+        if unique_methods[uniq_method_name] is True:
+            unique_methods[uniq_method_name] = False
+            self.generateMethodDeclTrait(class_name, cursor.spelling, method_cursor)
 
         ### trait impl
         ctysz = class_cursor.type.get_size()
@@ -172,8 +187,6 @@ class GenerateForRust(GenerateBase):
         call_params = ', '.join(call_params_array)
         if not isstatic and not isctor: call_params = ('rsthis.qclsinst, ' + call_params).strip(' ,')
 
-        raw_params_array = self.generateParamsRaw(class_name, method_name, method_cursor)
-        raw_params = ', '.join(raw_params_array)
 
         trait_proto = '%s::%s(%s)' % (class_name, method_name, trait_params)
         if trait_proto not in self.traits:
@@ -211,7 +224,7 @@ class GenerateForRust(GenerateBase):
         self.CP.AP('body', "}\n\n")
         return
 
-    def generateImplStructMethod(self, class_name, method_name, method_cursor):
+    def generateImplStructMethod(self, class_name, method_name, method_cursor, raw_params):
         has_return, return_type_name = self.generateReturnForImplStruct(class_name, method_cursor)
         # return_piece_code_proto = ''
         # return_piece_code_return = ''
@@ -223,10 +236,18 @@ class GenerateForRust(GenerateBase):
             # return_piece_code_proto = '-> %s' % (return_type_name_rs)
             # return_piece_code_return = 'return'
 
+        isstatic = method_cursor.is_static_method()
+        static_code = 'static' if isstatic else ''
+        static_suffix = '_s' if isstatic else ''
+        self_code_proto = '' if isstatic else '&mut self,'
+        self_code_call = '' if isstatic else 'self'
+
+        self.CP.AP('body', "// proto: %s %s %s::%s(%s);\n" %
+                   (static_code, return_type_name, class_name, method_name, raw_params))
         self.CP.AP('body', "impl /*struct*/ %s {\n" % (class_name))
-        self.CP.AP('body', "  pub fn %s<RetType, T: %s_%s<RetType>>(&mut self, value: T) -> RetType {\n"
-                   % (method_name, class_name, method_name))
-        self.CP.AP('body', "    return value.%s(self);\n" % (method_name))
+        self.CP.AP('body', "  pub fn %s%s<RetType, T: %s_%s%s<RetType>>(%s overload_args: T) -> RetType {\n"
+                   % (method_name, static_suffix, class_name, method_name, static_suffix, self_code_proto))
+        self.CP.AP('body', "    return overload_args.%s%s(%s);\n" % (method_name, static_suffix, self_code_call))
         self.CP.AP('body', "    // return 1;\n")
         self.CP.AP('body', "  }\n")
         self.CP.AP('body', "}\n\n")
@@ -276,13 +297,17 @@ class GenerateForRust(GenerateBase):
             exit(0)
         isstatic = method_cursor.is_static_method()
         static_code = 'static' if isstatic else ''
+        static_suffix = '_s' if isstatic else ''
+        self_code_proto = '' if isstatic else ', rsthis: &mut %s' % (class_name)
+        self_code_call = '' if isstatic else 'self,'
 
         mangled_name = method_cursor.mangled_name
         self.CP.AP('body', "// proto: %s %s %s::%s(%s);\n" %
                    (static_code, return_type_name, class_name, method_name, raw_params))
-        self.CP.AP('body', "impl<'a> /*trait*/ %s_%s<%s> for (%s) {\n" %
-                   (class_name, method_name, return_type_name_rs, trait_params))
-        self.CP.AP('body', "  fn %s(self, rsthis: &mut %s) -> %s {\n" % (method_name, class_name, return_type_name_rs))
+        self.CP.AP('body', "impl<'a> /*trait*/ %s_%s%s<%s> for (%s) {\n" %
+                   (class_name, method_name, static_suffix, return_type_name_rs, trait_params))
+        self.CP.AP('body', "  fn %s%s(self %s) -> %s {\n" %
+                   (method_name, static_suffix, self_code_proto, return_type_name_rs))
         self.CP.AP('body', "    // let qthis: *mut c_void = unsafe{calloc(1, %s)};\n" % (ctysz))
         self.CP.AP('body', "    // unsafe{%s()};\n" % (mangled_name))
         self.generateArgConvExprs(class_name, method_name, method_cursor)
@@ -338,14 +363,19 @@ class GenerateForRust(GenerateBase):
             # return_piece_code_proto = '-> %s' % (return_type_name_rs)
             # return_piece_code_return = 'let mut ret = '
 
+        isstatic = method_cursor.is_static_method()
+        static_code = 'static' if isstatic else ''
+        static_suffix = '_s' if isstatic else ''
+        self_code_proto = '' if isstatic else ', rsthis: &mut %s' % (class_name)
+
         ### trait
         if isctor is True:
             self.CP.AP('body', "pub trait %s_%s {\n" % (class_name, method_name))
             self.CP.AP('body', "  fn %s(self) -> %s;\n" % (method_name, class_name))
         else:
-            self.CP.AP('body', "pub trait %s_%s<RetType> {\n" % (class_name, method_name))
-            self.CP.AP('body', "  fn %s(self, rsthis: &mut %s) -> RetType;\n" %
-                       (method_name, class_name))
+            self.CP.AP('body', "pub trait %s_%s%s<RetType> {\n" % (class_name, method_name, static_suffix))
+            self.CP.AP('body', "  fn %s%s(self %s) -> RetType;\n" %
+                       (method_name, static_suffix, self_code_proto))
         self.CP.AP('body', "}\n\n")
         return
 
