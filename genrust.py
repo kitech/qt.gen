@@ -180,7 +180,7 @@ class GenerateForRust(GenerateBase):
         method_name = ctx.method_name
 
         ctx.ret_type_name_rs = self.tyconv.Type2RustRet(ctx.ret_type, method_cursor)
-        ctx.ret_type_name_ext = self.tyconv.TypeCXX2RustExtern(ctx.ret_type)
+        ctx.ret_type_name_ext = self.tyconv.TypeCXX2RustExtern(ctx.ret_type, method_cursor)
 
         raw_params_array = self.generateParamsRaw(class_name, method_name, method_cursor)
         raw_params = ', '.join(raw_params_array)
@@ -327,16 +327,18 @@ class GenerateForRust(GenerateBase):
         self.generateArgConvExprs(class_name, method_name, method_cursor)
         self.CP.AP('body', "    %s unsafe {%s(%s)};\n" % (return_piece_code_return, mangled_name, call_params))
 
+        def iscvoidstar(tyname): return ' c_void' in tyname and '*' in tyname
         # return expr post process
         # TODO 还有一种值返回的情况要处理，值返回的情况需要先创建一个空对象
         return_type_name_ext = ctx.ret_type_name_ext
-        if return_type_name_ext == '*mut c_void' or return_type_name_ext == '*const c_void':  # no const now
+        if return_type_name_rs == 'String' and 'char' in return_type_name_ext:
+            if has_return: self.CP.AP('body', "    let slen = unsafe {strlen(ret as *const i8)} as usize;\n")
+            if has_return: self.CP.AP('body', "    return unsafe{String::from_raw_parts(ret as *mut u8, slen, slen+1)};\n")
+        # elif return_type_name_ext == '*mut c_void' or return_type_name_ext == '*const c_void':  # no const now
+        elif iscvoidstar(return_type_name_ext):
             # 应该是返回一个qt class对象，由于无法返回&mut类型的对象
             if has_return: self.CP.AP('body', "    let mut ret1 = %s{qclsinst: ret};\n" % (return_type_name_rs))
             if has_return: self.CP.AP('body', "    return ret1;\n")
-        elif return_type_name_rs == 'String' and 'char' in return_type_name_ext:
-            if has_return: self.CP.AP('body', "    let slen = unsafe {strlen(ret as *const i8)} as usize;\n")
-            if has_return: self.CP.AP('body', "    return unsafe{String::from_raw_parts(ret as *mut u8, slen, slen+1)};\n")
         else:
             if has_return: self.CP.AP('body', "    return ret as %s;\n" % (return_type_name_rs))
 
@@ -375,12 +377,17 @@ class GenerateForRust(GenerateBase):
         argc = 0
         for arg in method_cursor.get_arguments(): argc += 1
 
+        def isvec(tyname): return 'Vec<' in tyname
+
         for idx, (arg) in enumerate(method_cursor.get_arguments()):
-            astype = ''
-            astype = self.tyconv.TypeCXX2RustExtern(arg.type)
+            srctype = self.tyconv.TypeCXX2Rust(arg.type, arg)
+            astype = self.tyconv.TypeCXX2RustExtern(arg.type, arg)
             astype = ' as %s' % (astype)
             asptr = ''
-            if self.tyconv.IsPointer(arg.type) and self.tyconv.IsCharType(arg.type.spelling): asptr = '.as_ptr()'
+            if self.tyconv.IsPointer(arg.type) and self.tyconv.IsCharType(arg.type.spelling):
+                asptr = '.as_ptr()'
+            elif isvec(srctype): asptr = '.as_ptr()'
+
             qclsinst = ''
             can_name = self.tyconv.TypeCanName(arg.type)
             if self.is_qt_class(can_name): qclsinst = '.qclsinst'
@@ -441,7 +448,7 @@ class GenerateForRust(GenerateBase):
             type_name2 = self.hotfix_typename_ifenum_asint(class_name, arg, arg.type)
             type_name = type_name2 if type_name2 is not None else type_name
 
-            type_name_extern = self.tyconv.TypeCXX2RustExtern(arg.type)
+            type_name_extern = self.tyconv.TypeCXX2RustExtern(arg.type, arg)
             arg_name = 'arg%s' % idx if arg.displayname == '' else arg.displayname
             argelem = "arg%s" % (idx - 1)
             argv.append(argelem)
@@ -463,7 +470,7 @@ class GenerateForRust(GenerateBase):
             type_name = self.resolve_swig_type_name(class_name, arg.type)
             type_name2 = self.hotfix_typename_ifenum_asint(class_name, arg, arg.type)
             type_name = type_name2 if type_name2 is not None else type_name
-            type_name = self.tyconv.TypeCXX2Rust(arg.type)
+            type_name = self.tyconv.TypeCXX2Rust(arg.type, arg)
             if type_name.startswith('&'): type_name = type_name.replace('&', "&'a ")
             if self.is_qt_class(type_name) and self.check_skip_param(arg, method_name) is False:
                 seg = self.get_qt_class(type_name)
@@ -495,7 +502,7 @@ class GenerateForRust(GenerateBase):
             type_name = self.resolve_swig_type_name(class_name, arg.type)
             type_name2 = self.hotfix_typename_ifenum_asint(class_name, arg, arg.type)
             type_name = type_name2 if type_name2 is not None else type_name
-            type_name = self.tyconv.TypeCXX2RustExtern(arg.type)
+            type_name = self.tyconv.TypeCXX2RustExtern(arg.type, arg)
             if self.is_qt_class(type_name) and self.check_skip_param(arg, method_name) is False:
                 seg = self.get_qt_class(type_name)
                 if seg != class_name:
@@ -530,14 +537,14 @@ class GenerateForRust(GenerateBase):
         cursor = ctx.cursor
         has_return = ctx.has_return
         # calc ext type name
-        return_type_name = self.tyconv.TypeCXX2RustExtern(ctx.ret_type)
+        return_type_name = self.tyconv.TypeCXX2RustExtern(ctx.ret_type, cursor)
 
         mangled_name = ctx.mangled_name
         return_piece_proto = ''
         if cursor.result_type.kind != clang.cindex.TypeKind.VOID and has_return:
-            return_piece_proto = '-> %s' % (return_type_name)
+            return_piece_proto = ' -> %s' % (return_type_name)
         extargs = ctx.params_ext
-        self.CP.AP('ext', "  fn %s(%s) %s;\n" % (mangled_name, extargs, return_piece_proto))
+        self.CP.AP('ext', "  fn %s(%s)%s;\n" % (mangled_name, extargs, return_piece_proto))
 
         return has_return, return_type_name
 
