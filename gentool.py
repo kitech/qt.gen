@@ -4,6 +4,7 @@ import sys
 import os
 import clang
 import clang.cindex
+import clang.cindex as clidx
 
 from genbase import GenerateBase, TestBuilder
 from gengo import GenerateForGo, TestBuilderForGo
@@ -101,8 +102,12 @@ class GenTool:
             if self.check_skip_class(header, class_name_lower, cs): continue
             if not self.check_inheader_class(header, class_name_lower, cs): continue
             # print(header, class_name_lower, class_name, 'matched')
+            base_classes = self.get_base_class(cs)
+            base_class = base_classes[0] if len(base_classes) > 0 else None
+            if base_class is not None:
+                print(class_name, '->', base_class.spelling)
             methods = self.build_methods(cs)
-            class_names.append([class_name, cs, methods])
+            class_names.append([class_name, cs, methods, base_class])
 
         if len(class_names) == 0:
             print('wtf: no class found:', header)
@@ -127,11 +132,35 @@ class GenTool:
         #    exit(0)
         return
 
+    def get_base_class(self, class_cursor):
+        semp = class_cursor.semantic_parent
+        lexp = class_cursor.lexical_parent
+        # print(semp.spelling, lexp.spelling)
+        # print(class_cursor.type.spelling)
+
+        def skip_base_class(cursor):
+            name = cursor.spelling
+            # if name.startswith('QAbstract'): return True
+            if name.endswith('Interface'): return True
+            if name.endswith('Private'): return True
+            return False
+
+        bases = []
+        for x in class_cursor.walk_preorder():
+            # print(x.kind, x.spelling)
+            if x.kind == clidx.CursorKind.CXX_BASE_SPECIFIER:
+                decl = x.get_definition().type.get_declaration()
+                if skip_base_class(decl): break  # 提前终止，提高查找速度
+                # print(x.kind, decl.kind, decl.spelling)
+                bases.append(decl)
+        # print(bases, len(bases))
+        return bases
+
     def dedup_classes(self, class_names):
         dedup_class_names = []
         unique_classes = {}
         for elems in class_names:
-            class_name, cs, methods = elems
+            class_name, cs, methods, base_class = elems
             if class_name in unique_classes: continue
             unique_classes[class_name] = True
             dedup_class_names.append(elems)
@@ -192,9 +221,9 @@ class GenTool:
             # print('Omited private internal class:' + name)
             return True
 
-        if name.startswith('QAbstract'):
+        # if name.startswith('QAbstract'):
             # print('Omited abstract base class:' + name)
-            return True
+        #    return True
 
         # 如果有虚拟方法，无法实例化，则不生成文类的封装类
         # for subc in class_cursor.get_children():

@@ -42,4 +42,5 @@ fn main() {
     // NewClass();
 
     test_QCoreApplication();
+    test_inherint_1();
 }

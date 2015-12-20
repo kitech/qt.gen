@@ -1,4 +1,9 @@
 
+extern crate libc;
+
+use self::libc::c_void;
+use std::ops::Deref;
+use std::ops::DerefMut;
 use std::fmt::Debug;
 use std::any::Any;
 use std::collections::HashMap;
@@ -250,6 +255,57 @@ impl RByteArray_arg for (i32) {
     }
 }
 
+// 继承
+
+pub struct NWidget {
+    pub qclsinst: *mut c_void,
+}
+
+impl NWidget {
+    pub fn hehe(&self) {
+        println!("hehehehehhe");
+    }
+}
+
+pub struct NButton {
+    pub vbase: NWidget,
+    // pub rbase: &'a NWidget,
+    // pub mbase: &'a mut NWidget,
+    pub qclsinst: *mut c_void,
+}
+
+impl NButton {
+    pub fn new() -> NButton {
+        let mut i = 1 as *mut c_void;
+        let mut b = NWidget{qclsinst: i};
+        return NButton{vbase: b, qclsinst: i};
+    }
+    pub fn haha(&self) {
+        println!("hahahahhaha");
+    }
+}
+
+impl AsRef<NWidget> for NButton {
+    fn as_ref(&self) -> &NWidget{
+        &self.vbase
+    }
+}
+
+impl Deref for NButton {
+    type Target = NWidget;
+
+    fn deref(&self) -> &NWidget {
+        &self.vbase
+    }
+}
+
+
+pub fn test_inherint_1() {
+    let btn = NButton::new();
+    btn.haha();
+    btn.hehe();
+    btn.as_ref().hehe();
+}
 
 // generic模板
 struct NList<T> {

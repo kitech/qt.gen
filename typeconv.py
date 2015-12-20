@@ -303,6 +303,16 @@ class TypeConvForRust(TypeConv):
             # TODO
             self.dumpContext(ctx)
 
+        mut_or_no = 'mut'
+        if is_const(cxxtype): mut_or_no = ''
+
+        if cxxtype.kind == clidx.TypeKind.LVALUEREFERENCE:
+            if ctx.can_type_name in raw_type_map:
+                if self.IsCharType(ctx.can_type_name):
+                    return "&%s String" % (mut_or_no)
+                else:
+                    return "&%s %s" % (mut_or_no, raw_type_map[ctx.can_type_name][0])
+
         if cxxtype.kind == clang.cindex.TypeKind.POINTER or \
            cxxtype.kind == clang.cindex.TypeKind.LVALUEREFERENCE:
             mut_or_no = 'mut'

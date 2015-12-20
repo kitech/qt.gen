@@ -12,6 +12,9 @@ import clang.cindex
 # 打包到一起编译，估计编译出来的库会非常大，按一个类1M，1000个类就是1G哇。
 # 而pyqt5生成的binding层，一个qt模块最大3M，加起来30M的样子。
 
+# 改进：
+# 采用编译器的pass方式，从AST中不断推进
+
 from gentool import GenTool
 
 

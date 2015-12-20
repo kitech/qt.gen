@@ -17,9 +17,12 @@ from genbase import GenerateBase
 # 内联方法
 # enum类型成员
 # qt 全局函数
+# C++类的继承方法
+# 继承依赖继承链，而中间可能有QAbstractxxx类，需要处理。
 # 集合参数或返回值的转换，像Vec<T> <=> QList<T>, 或者Vec<T> <=> T **
 # qt模板类型的封装实现
-# 代码整理, GenContext
+# 代码整理, GenContext -- OK
+# 生成个简单文档？然后生成文档。
 
 
 class GenMethodContext(object):
@@ -57,9 +60,14 @@ class GenMethodContext(object):
 
         self.unique_methods = {}
         self.struct_proto = '%s::%s%s' % (self.class_name, self.method_name, self.static_suffix)
-        self.trait_proto = '' # '%s::%s(%s)' % (class_name, method_name, trait_params)
+        self.trait_proto = ''  # '%s::%s(%s)' % (class_name, method_name, trait_params)
 
         self.fn_proto_cpp = ''
+
+        # inherit
+        self.base_class = None
+        self.base_class_name = ''
+        self.has_base = False
 
         # aux
         self.tymap = None
@@ -107,11 +115,11 @@ class GenerateForRust(GenerateBase):
 
     def generateClasses(self, module, class_decls):
         for elems in class_decls:
-            class_name, cs, methods = elems
+            class_name, cs, methods, base_class = elems
             self.qclses[class_name] = True
 
         for elems in class_decls:
-            class_name, cs, methods = elems
+            class_name, cs, methods, base_class = elems
             self.CP = self.initCodePaperForClass()
             self.CP.AP('header', self.generateHeader(module))
             self.CP.AP('ext', "#[link(name = \"Qt5Core\")]\n")
@@ -119,7 +127,7 @@ class GenerateForRust(GenerateBase):
             self.CP.AP('ext', "#[link(name = \"Qt5Widgets\")]\n")
             self.CP.AP('ext', "extern {\n")
 
-            self.generateClass(class_name, cs, methods)
+            self.generateClass(class_name, cs, methods, base_class)
             # tcode = tcode + self.generateFooter(module)
             # self.write_code(module, class_name.lower(), tcode)
             self.CP.AP('ext', "}\n\n")
@@ -133,7 +141,7 @@ class GenerateForRust(GenerateBase):
         self.write_modrs(module, self.MP.exportCode(['main']))
         return
 
-    def generateClass(self, class_name, cs, methods):
+    def generateClass(self, class_name, cs, methods, base_class):
         ctysz = cs.type.get_size()
         self.CP.AP('body', "// class sizeof(%s)=%s\n" % (class_name, ctysz))
 
@@ -165,12 +173,12 @@ class GenerateForRust(GenerateBase):
                 # print(333, 'skip method:', mangled_name)
                 continue
 
-            ctx = self.createGenMethodContext(cursor, cs, unique_methods)
+            ctx = self.createGenMethodContext(cursor, cs, base_class, unique_methods)
             self.generateMethod(ctx)
 
         return
 
-    def createGenMethodContext(self, method_cursor, class_cursor, unique_methods):
+    def createGenMethodContext(self, method_cursor, class_cursor, base_class, unique_methods):
         ctx = GenMethodContext(method_cursor, class_cursor)
         ctx.unique_methods = unique_methods
 
@@ -210,6 +218,11 @@ class GenerateForRust(GenerateBase):
         ctx.fn_proto_cpp = "  // proto: %s %s %s::%s(%s);\n" % \
                            (ctx.static_str, ctx.ret_type_name_cpp, ctx.class_name, ctx.method_name, ctx.params_cpp)
         ctx.has_return = self.methodHasReturn(ctx)
+
+        # base class
+        ctx.base_class = base_class
+        ctx.base_class_name = base_class.spelling if base_class is not None else ''
+        ctx.has_base = True if base_class is not None else False
 
         # aux
         ctx.tymap = TypeConvForRust.tymap
