@@ -15,6 +15,8 @@ from genbase import GenerateBase
 # 静态方法与动态方法同名
 # 参数默认值
 # 内联方法
+# enum类型成员
+# qt 全局函数
 # 集合参数或返回值的转换，像Vec<T> <=> QList<T>, 或者Vec<T> <=> T **
 # qt模板类型的封装实现
 # 代码整理, GenContext
@@ -58,6 +60,9 @@ class GenMethodContext(object):
         self.trait_proto = '' # '%s::%s(%s)' % (class_name, method_name, trait_params)
 
         self.fn_proto_cpp = ''
+
+        # aux
+        self.tymap = None
         # simple init
 
         return
@@ -206,6 +211,8 @@ class GenerateForRust(GenerateBase):
                            (ctx.static_str, ctx.ret_type_name_cpp, ctx.class_name, ctx.method_name, ctx.params_cpp)
         ctx.has_return = self.methodHasReturn(ctx)
 
+        # aux
+        ctx.tymap = TypeConvForRust.tymap
         return ctx
 
     def generateMethod(self, ctx):
@@ -328,14 +335,17 @@ class GenerateForRust(GenerateBase):
         self.CP.AP('body', "    %s unsafe {%s(%s)};\n" % (return_piece_code_return, mangled_name, call_params))
 
         def iscvoidstar(tyname): return ' c_void' in tyname and '*' in tyname
+        def isrstar(tyname): return '*' in tyname
+
         # return expr post process
         # TODO 还有一种值返回的情况要处理，值返回的情况需要先创建一个空对象
         return_type_name_ext = ctx.ret_type_name_ext
+        return_type_name_rs = ctx.ret_type_name_rs
         if return_type_name_rs == 'String' and 'char' in return_type_name_ext:
             if has_return: self.CP.AP('body', "    let slen = unsafe {strlen(ret as *const i8)} as usize;\n")
             if has_return: self.CP.AP('body', "    return unsafe{String::from_raw_parts(ret as *mut u8, slen, slen+1)};\n")
         # elif return_type_name_ext == '*mut c_void' or return_type_name_ext == '*const c_void':  # no const now
-        elif iscvoidstar(return_type_name_ext):
+        elif iscvoidstar(return_type_name_ext) and not isrstar(return_type_name_rs):
             # 应该是返回一个qt class对象，由于无法返回&mut类型的对象
             if has_return: self.CP.AP('body', "    let mut ret1 = %s{qclsinst: ret};\n" % (return_type_name_rs))
             if has_return: self.CP.AP('body', "    return ret1;\n")
@@ -378,6 +388,7 @@ class GenerateForRust(GenerateBase):
         for arg in method_cursor.get_arguments(): argc += 1
 
         def isvec(tyname): return 'Vec<' in tyname
+        def isrstr(tyname): return 'String' in tyname.split(' ')
 
         for idx, (arg) in enumerate(method_cursor.get_arguments()):
             srctype = self.tyconv.TypeCXX2Rust(arg.type, arg)
@@ -387,6 +398,7 @@ class GenerateForRust(GenerateBase):
             if self.tyconv.IsPointer(arg.type) and self.tyconv.IsCharType(arg.type.spelling):
                 asptr = '.as_ptr()'
             elif isvec(srctype): asptr = '.as_ptr()'
+            elif isrstr(srctype): asptr = '.as_ptr()'
 
             qclsinst = ''
             can_name = self.tyconv.TypeCanName(arg.type)

@@ -331,7 +331,9 @@ class TypeConvForRust(TypeConv):
                 return '& String'
             if ctx.can_type.kind == clidx.TypeKind.WCHAR:
                 return '& String'
-            print(can_name)
+            if ctx.can_type.kind == clidx.TypeKind.ENUM:
+                return '&mut i32'
+            print(can_name, ctx.can_type.kind)
             self.dumpContext(ctx)
 
         if cxxtype.kind == clang.cindex.TypeKind.RVALUEREFERENCE:
@@ -348,9 +350,8 @@ class TypeConvForRust(TypeConv):
                             clang.cindex.TypeKind.CHAR_S,
                             clang.cindex.TypeKind.UCHAR,
                             clang.cindex.TypeKind.DOUBLE, clang.cindex.TypeKind.FLOAT, ]:
-            raw_type_name = cxxtype.spelling
-            if raw_type_name in raw_type_map:
-                return '%s' % (raw_type_map[raw_type_name][0])
+            if ctx.can_type_name in raw_type_map:
+                return '%s' % (raw_type_map[ctx.can_type_name][0])
             self.dumpContext(ctx)
 
         if cxxtype.spelling in ['uint']:
@@ -367,8 +368,12 @@ class TypeConvForRust(TypeConv):
             return self.TypeCXX2Rust(under_type, cxxtype.get_declaration())
 
         # ### UNEXPOSED
-        # maybe TODO
+        # maybe TODO，可能是python-clang绑定功能不全啊，模板解析不出来
         if cxxtype.kind == clang.cindex.TypeKind.UNEXPOSED:
+            import re
+            template_exp = '([a-zA-Z]+)\<([ a-zA-Z]+)([\*])?\>'
+            template_res = re.findall(template_exp, ctx.can_type_name)
+
             if cxxtype.spelling.startswith('Qt::') or \
                (cxxtype.spelling.startswith('Q') and '::' in cxxtype.spelling):
                 return 'i32'
@@ -376,6 +381,20 @@ class TypeConvForRust(TypeConv):
                 return '*mut i32'
             if cxxtype.spelling.startswith('std::initializer_list'):
                 return ctx.can_type_name.replace('std::initializer_list', 'QList')
+
+            if ctx.can_type.kind == clidx.TypeKind.RECORD:
+                # (QList, QAction, *)
+                # (QVector, unsigned int)
+                # print(template_res, template_res[0], len(template_res[0]))
+                if len(template_res[0]) == 2 or len(template_res[0]) == 3:
+                    cls = template_res[0][0].strip()
+                    inty = template_res[0][1].strip()
+                    if cls in ['QVector', 'QList']: result_cls = 'Vec'
+                    else: result_cls = cls
+                    if inty in raw_type_map: result_inty = raw_type_map[inty][0]
+                    else: result_inty = inty
+                    return('%s<%s>' % (result_cls, result_inty))
+
             self.dumpContext(ctx)
 
         # TODO const char *const [], TypeKind.INCOMPLETEARRAY
@@ -431,6 +450,8 @@ class TypeConvForRust(TypeConv):
                 return mut_or_const + 'c_char'
             if ctx.can_type.kind == clidx.TypeKind.WCHAR:
                 return mut_or_const + 'wchar_t'
+            if ctx.can_type.kind == clidx.TypeKind.ENUM:
+                return mut_or_const + 'c_i32'
             self.dumpContext(ctx)
 
         if cxxtype.kind == clang.cindex.TypeKind.RVALUEREFERENCE:
@@ -447,14 +468,9 @@ class TypeConvForRust(TypeConv):
                             clang.cindex.TypeKind.CHAR_S,
                             clang.cindex.TypeKind.UCHAR,
                             clang.cindex.TypeKind.DOUBLE, clang.cindex.TypeKind.FLOAT, ]:
-            raw_type_name = cxxtype.spelling
-            if raw_type_name in raw_type_map:
-                return '%s' % (raw_type_map[raw_type_name][1])
-            else:
-                # print(888, 'just use default type name:', cxxtype.spelling, cxxtype.kind)
-                if cxxtype.spelling == 'int':
-                    exit(0)
-                return '%s' % (self.TypeNameTrimConst(raw_type_name))
+            if ctx.can_type_name in raw_type_map:
+                return '%s' % (raw_type_map[ctx.can_type_name][1])
+            self.dumpContext(ctx)
 
         if cxxtype.spelling in ['uint']:
             raw_type_name = cxxtype.spelling
