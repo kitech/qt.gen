@@ -627,9 +627,6 @@ class GenerateForRust(GenerateBase):
             #     if seg != class_name:
             #         ctx.CP.APU('use', "use super::%s::%s;\n" % (seg.lower(), seg))
 
-            if method_name == 'fromStdWString':
-                print(type_name, arg.type.spelling, arg.type.kind)
-                # raise '123'
             arg_name = 'arg%s' % idx if arg.displayname == '' else arg.displayname
             argelem = "%s" % (type_name)
             argv.append(argelem)

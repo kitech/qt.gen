@@ -538,7 +538,6 @@ class TypeConvForRust(TypeConv):
             if ctx.can_type.kind == clidx.TypeKind.RECORD:
                 # (QList, QAction, *)
                 # (QVector, unsigned int)
-                print(template_res, ctx.can_type.spelling, ctx.can_type.kind)
                 # print(template_res, template_res[0], len(template_res[0]))
                 if len(template_res[0]) == 2 or len(template_res[0]) == 3:
                     cls = template_res[0][0].strip()
