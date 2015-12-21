@@ -10,13 +10,16 @@ from genbase import GenerateBase, TestBuilder
 from gengo import GenerateForGo, TestBuilderForGo
 from geninline import GenerateForInlineCXX
 from genrust import GenerateForRust
+from gencontext import *
+from genutil import *
 
 
 clang.cindex.Config.set_library_file('/usr/lib/libclang.so')
 
-qtmodules = ['QtCore', 'QtGui', 'QtWidgets', 'QtNetwork', 'QtDBus']
-qtmodules = ['QtGui', 'QtWidgets', 'QtNetwork', 'QtDBus']
-qtmodules = ['QtWidgets', 'QtNetwork', 'QtDBus']
+qtmodules = ['QtCore', 'QtGui', 'QtWidgets']
+# qtmodules.append('QtNetwork')
+# qtmodules.append('QtDBus')
+
 compile_args = ['-x', 'c++', '-std=c++11', '-D__CODE_GENERATOR__']
 compile_args += "-I/usr/include/qt -std=c++11 -DQT_CORE_LIB -DQT_NO_DEBUG -D_GNU_SOURCE -pipe -fno-exceptions -O2 -march=x86-64 -mtune=generic -O2 -pipe -fstack-protector-strong -std=c++0x -Wall -W -D_REENTRANT -fPIC".split(' ')
 for module in qtmodules: compile_args += ['-I/usr/include/qt/%s' % (module)]
@@ -31,55 +34,132 @@ class GenTool:
         self.builder = TestBuilderForGo()
         self.genres = {}  # key => True | False
         self.conflib = clang.cindex.conf.lib
-        self.cmake_code = ''
-        self.cmake_code_module = ''
+        self.gctx = GenContext()
+        self.gutil = GenUtil()
+        self.tuc = None
+        # self.cmake_code = ''
+        # self.cmake_code_module = ''
         return
 
-    def cmake_header(self):
-        code = ''
-        code += "project(qtinline)\n"
-        code += "cmake_minimum_required(VERSION 3.0)\n"
-        code += "set(CMAKE_VERBOSE_MAKEFILE on)\n"
-        code += "find_package(Qt5Core)\n"
-        code += "find_package(Qt5Gui)\n"
-        code += "find_package(Qt5Widgets)\n"
-        code += "find_package(Qt5Network)\n"
-        code += "set(CMAKE_CXX_FLAGS \"-O2 -std=c++11 -fno-exceptions\") # -std=c++14\")\n"
-        code += "\n"
-        return code
+    # def cmake_header(self):
+    #     code = ''
+    #     code += "project(qtinline)\n"
+    #     code += "cmake_minimum_required(VERSION 3.0)\n"
+    #     code += "set(CMAKE_VERBOSE_MAKEFILE on)\n"
+    #     code += "find_package(Qt5Core)\n"
+    #     code += "find_package(Qt5Gui)\n"
+    #     code += "find_package(Qt5Widgets)\n"
+    #     code += "find_package(Qt5Network)\n"
+    #     code += "set(CMAKE_CXX_FLAGS \"-O2 -std=c++11 -fno-exceptions\") # -std=c++14\")\n"
+    #     code += "\n"
+    #     return code
 
     # 单独测试每个qt类
     def walkgo(self):
+        self.tuc = cursor = self.build_ast()
+        print(self.tuc.kind)
+
+        idx = 0
+        for sub in cursor.get_children(): idx += 1
+        print('unit count:', idx)
+
+        for c in cursor.get_children():
+            idx += 1
+            # nmodule = self.gutil.get_decl_module(c)
+            # if nmodule != module: continue
+
+            # if 'QMetaObject' in c.spelling: print(c.kind, c.spelling, c.displayname, c.is_definition(), c.location)
+            if c.kind == clidx.CursorKind.CLASS_TEMPLATE and c.is_definition():
+                # print(c.kind, c.spelling, c.displayname, c.location)
+                self.gctx.addClass(c)
+            elif c.kind == clidx.CursorKind.CLASS_DECL and c.is_definition():
+                # print(c, c.kind, c.spelling, c.displayname, c.is_definition(), c.location)
+                self.gctx.addClass(c)
+            elif c.kind == clidx.CursorKind.STRUCT_DECL and c.is_definition():
+                # print(c, c.kind, c.spelling, c.displayname, c.is_definition(), c.location)
+                if c.spelling.startswith('Q'):
+                    self.gctx.addClass(c)
+                pass
+            elif c.kind == clidx.CursorKind.FUNCTION_TEMPLATE:
+                self.gctx.addFunction(c)
+            elif c.kind == clidx.CursorKind.FUNCTION_DECL:
+                # print(c, c.kind, c.spelling, c.displayname, c.is_definition(), c.location)
+                if not c.spelling.startswith('_'): self.gctx.addFunction(c)
+            elif c.kind == clidx.CursorKind.ENUM_DECL and c.is_definition():
+                # print(c, c.kind, c.spelling, c.displayname, c.is_definition(), c.location)
+                pass
+            elif c.is_definition():
+                # print(c, c.kind, c.spelling, c.displayname, c.is_definition(), c.location)
+                pass
+
+        self.gctx.dumpContext()
+        self.generator.setGenContext(self.gctx)
+        self.generator.genpass()
+        self.gctx.dumpContext()
+
+        for k in self.gctx.classes:
+            if not k.startswith('Q'): print(k)
+
+        return
         headers = self.gen_module_macro_include_path()
         for header in headers:
             module = header.split('/')[-1:].pop()
-            self.walkgo_module(module, header)
+            # self.walkgo_module(module, header)
 
-            self.cmake_code += "add_library(%sInline SHARED\n" % (module)
-            self.cmake_code += self.cmake_code_module
-            self.cmake_code += ")\n"
-            self.cmake_code += "qt5_use_modules(%sInline Core Gui Widgets Network)\n\n" % (module)
-            self.cmake_code_module = ''
+            # self.cmake_code += "add_library(%sInline SHARED\n" % (module)
+            # self.cmake_code += self.cmake_code_module
+            # self.cmake_code += ")\n"
+            # self.cmake_code += "qt5_use_modules(%sInline Core Gui Widgets Network)\n\n" % (module)
+            # self.cmake_code_module = ''
             break
 
-        self.cmake_code = self.cmake_header() + self.cmake_code
+        # self.cmake_code = self.cmake_header() + self.cmake_code
         # self.generator.write_cmake_code(module, '', self.cmake_code)
         return
 
+    # def walkgo_module(self, module, header):
+    #     print(module, header)
+    #     fp = open(header, "r")
+    #     while True:
+    #         line = fp.readline()
+    #         if line is None or len(line) == 0: break
+    #         if not line.startswith('#include "'): continue
+    #         class_file_name = line.split('"')[1]
+    #         class_path_name = self.calc_class_path(module, class_file_name)
+    #         class_name_lower = self.calc_class_name_lower(module, class_file_name)
+    #         # print(line.strip(), class_file_name, class_path_name, class_name)
+    #         if class_name_lower in ['qtcoreversion']: continue
+    #         self.walkgo_class(module, class_path_name, class_name_lower)
+    #     fp.close()
+    #     return
+
     def walkgo_module(self, module, header):
-        print(module, header)
-        fp = open(header, "r")
-        while True:
-            line = fp.readline()
-            if line is None or len(line) == 0: break
-            if not line.startswith('#include "'): continue
-            class_file_name = line.split('"')[1]
-            class_path_name = self.calc_class_path(module, class_file_name)
-            class_name_lower = self.calc_class_name_lower(module, class_file_name)
-            # print(line.strip(), class_file_name, class_path_name, class_name)
-            if class_name_lower in ['qtcoreversion']: continue
-            self.walkgo_class(module, class_path_name, class_name_lower)
-        fp.close()
+        cursor = self.build_ast(module)
+        idx = 0
+        for sub in cursor.get_children(): idx += 1
+        print('unit count:', idx)
+
+        for c in cursor.get_children():
+            idx += 1
+            # nmodule = self.gutil.get_decl_module(c)
+            # if nmodule != module: continue
+
+            if c.kind == clidx.CursorKind.CLASS_TEMPLATE and c.is_definition():
+                print(c.kind, c.spelling, c.displayname, c.location)
+            if c.kind == clidx.CursorKind.CLASS_DECL and c.is_definition():
+                # print(c, c.kind, c.spelling, c.displayname, c.is_definition(), c.location)
+                self.gctx.addClass(c)
+            if c.kind == clidx.CursorKind.FUNCTION_DECL and c.is_definition():
+                # print(c, c.kind, c.spelling, c.displayname, c.is_definition(), c.location)
+                self.gctx.addFunction(c)
+            if c.kind == clidx.CursorKind.ENUM_DECL and c.is_definition():
+                # print(c, c.kind, c.spelling, c.displayname, c.is_definition(), c.location)
+                pass
+
+        self.gctx.dumpContext()
+        self.generator.setGenContext(self.gctx)
+        self.generator.genpass(module)
+        self.gctx.dumpContext()
         return
 
     # 构造这个类的AST，找到类的定义
@@ -250,17 +330,28 @@ class GenTool:
 
         return False
 
-    def build_ast(self, module):
-        if module in self.cursors:
-            return self.cursors[module]
+    def build_ast(self):
+        # if module in self.cursors:
+        #    return self.cursors[module]
+        import os
 
-        global compile_args
-        module_header = self.build_module_header(module)
+        hdrsrc = './qthdrsrc.h'
+        astfile = './qthdrsrc.ast'
+
         index = clang.cindex.Index.create()
-        tu = index.parse(module_header, compile_args)
+        if os.path.exists(astfile):
+            tu = index.read(astfile)
+        else:
+            global compile_args
+            tu = index.parse(hdrsrc, compile_args)
+            tu.save(astfile)
+
         cursor = tu.cursor
-        self.cursors[module] = cursor
+        # print(cursor.kind)
         return cursor
+
+    def load_ast(self):
+        return
 
     def calc_class_path(self, module, header):
         path = '/usr/include/qt/%s/%s' % (module, header)

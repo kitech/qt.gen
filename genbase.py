@@ -1,7 +1,22 @@
 # encoding: utf8
 
+from genutil import *
 
-class GenerateBase:
+class GenerateBase(object):
+    def __init__(self):
+        super(GenerateBase, self).__init__()
+        self.gctx = None
+        self.gutil = GenUtil()
+        return
+
+    def setGenContext(self, ctx):
+        self.gctx = ctx
+        return
+
+    def genpass(self, module):
+        raise 'not impled'
+        return
+
     def generateHeader(self, module):
         return
 

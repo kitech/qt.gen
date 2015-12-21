@@ -4,8 +4,6 @@ import logging
 import sys
 import traceback
 
-import clang
-import clang.cindex
 import clang.cindex as clidx
 
 from genutil import *
@@ -35,7 +33,7 @@ class TypeConvertContext(object):
         self.can_type_name = ''
         self.convable_type_name = ''
 
-        self.orig_cursor = None
+        self.cursor = None
         return
 
 
@@ -91,7 +89,10 @@ class TypeConv(object):
         if 'const' in tysegs: tysegs.remove('const')
         return ' '.join(tysegs)
 
-    def IsCharType(self, tyname): return 'char' in tyname
+    def IsCharType(self, tyname):
+        if 'char' in tyname: return True
+        if 'string' in tyname: return True  # for std::string, std::wstring
+        return False
 
     def IsPointer(self, cxxtype):
         if cxxtype.kind == clidx.TypeKind.POINTER or \
@@ -113,7 +114,7 @@ class TypeConv(object):
 
         if ctx.const: ctx.can_type_name = self.TypeNameTrimConst(ctx.can_type_name)
 
-        ctx.orig_cursor = cursor
+        ctx.cursor = cursor
         return ctx
 
     def dumpContext(self, ctx, exit_ = True):
@@ -125,8 +126,9 @@ class TypeConv(object):
         print(posig, ctx.orig_type.spelling, ctx.orig_type.kind, ctx.orig_type_name, "\n",
               ctx.convable_type.kind, ctx.convable_type_name, "cva<-\n->can",
               ctx.can_type.kind, ctx.can_type_name,
-              ctx.const, ctx.pointer_level, ctx.orig_cursor.spelling, ctx.orig_cursor.location)
-        if exit_: exit(0)
+              'const:', ctx.const, ctx.pointer_level, ctx.cursor.spelling, ctx.cursor.location)
+
+        if exit_: raise 'dumpctx traced.'
         return
 
     pass
@@ -150,14 +152,14 @@ class TypeConvForRust(TypeConv):
         return
 
 
-    # @param cxxtype clang.cindex.Type
+    # @param cxxtype clidx.Type
     # @return str
     # @return None 返回值为空，无返回值，不处理返回值
     def Type2RustArg(self, cxxtype):
 
         return
 
-    # @param cxxtype clang.cindex.Type
+    # @param cxxtype clidx.Type
     # @return str
     # @return None 返回值为空，无返回值，不处理返回值
     def Type2RustRet(self, cxxtype, cursor):
@@ -189,7 +191,7 @@ class TypeConvForRust(TypeConv):
         exit(0)
         return ctx.orig_type.spelling
 
-    # @param cxxtype clang.cindex.Type
+    # @param cxxtype clidx.Type
     # @return str
     def Type2ExtArg(self, cxxtype):
         return
@@ -238,7 +240,7 @@ class TypeConvForRust(TypeConv):
         else:
             glog.debug("");
             print(678, 'wtf, type not in tymap:', can_name, ctx.orig_type_name, ctx.orig_type.spelling,
-                  ctx.orig_cursor.spelling, ctx.orig_cursor.kind, ctx.orig_cursor.semantic_parent.spelling)
+                  ctx.cursor.spelling, ctx.cursor.kind, ctx.cursor.semantic_parent.spelling)
             self.dumpContext(ctx)
             exit(0)
 
@@ -264,7 +266,7 @@ class TypeConvForRust(TypeConv):
         else:
             glog.debug("");
             print(678, 'wtf, type not in tymap:', can_name, ctx.orig_type_name, ctx.orig_type.spelling,
-                  ctx.orig_cursor.spelling, ctx.orig_cursor.kind, ctx.orig_cursor.semantic_parent.spelling)
+                  ctx.cursor.spelling, ctx.cursor.kind, ctx.cursor.semantic_parent.spelling)
             self.dumpContext(ctx)
             exit(0)
 
@@ -287,8 +289,8 @@ class TypeConvForRust(TypeConv):
         rety = ctx.can_type_name
         return rety
 
-    # @param cxxtype clang.cindex.Type
-    def TypeCXX2Rust(self, cxxtype, cursor):
+    # @param cxxtype clidx.Type
+    def TypeCXX2Rust(self, cxxtype, cursor, method_name=None):
         # TODO c++ char => rust char
         raw_type_map = TypeConvForRust.tymap
         ctx = self.createContext(cxxtype, cursor)
@@ -299,7 +301,7 @@ class TypeConvForRust(TypeConv):
         can_name = self.TypeCanName(can_type)
         can_name = ctx.can_type_name
 
-        if cxxtype.kind == clang.cindex.TypeKind.FUNCTIONPROTO:
+        if cxxtype.kind == clidx.TypeKind.FUNCTIONPROTO:
             # TODO
             self.dumpContext(ctx)
 
@@ -307,19 +309,23 @@ class TypeConvForRust(TypeConv):
         if is_const(cxxtype): mut_or_no = ''
 
         if cxxtype.kind == clidx.TypeKind.LVALUEREFERENCE:
+
             if ctx.can_type_name in raw_type_map:
-                if self.IsCharType(ctx.can_type_name):
+                if self.IsCharType(ctx.can_type_name) or self.IsCharType(ctx.convable_type_name):
                     return "&%s String" % (mut_or_no)
                 else:
+                    if method_name == 'fromStdWString':
+                        self.dumpContext(ctx)
                     return "&%s %s" % (mut_or_no, raw_type_map[ctx.can_type_name][0])
 
-        if cxxtype.kind == clang.cindex.TypeKind.POINTER or \
-           cxxtype.kind == clang.cindex.TypeKind.LVALUEREFERENCE:
+        if cxxtype.kind == clidx.TypeKind.POINTER or \
+           cxxtype.kind == clidx.TypeKind.LVALUEREFERENCE:
             mut_or_no = 'mut'
             if is_const(cxxtype): mut_or_no = ''
-
+            if 'wstring' in ctx.can_type_name:
+                self.dumpContext(ctx)
             if ctx.can_type_name in raw_type_map:
-                if self.IsCharType(ctx.can_type_name):
+                if self.IsCharType(ctx.can_type_name) or self.IsCharType(ctx.convable_type_name):
                     return "&%s String" % (mut_or_no)
                 else:
                     return "&%s Vec<%s>" % (mut_or_no, raw_type_map[ctx.can_type_name][0])
@@ -327,7 +333,7 @@ class TypeConvForRust(TypeConv):
             if ctx.can_type.kind == clidx.TypeKind.RECORD:
                 return ctx.can_type_name
             if ctx.can_type.kind == clidx.TypeKind.FUNCTIONPROTO:
-                return ctx.orig_cursor.spelling
+                return ctx.cursor.spelling
             if ctx.can_type.kind == clidx.TypeKind.VOID:
                 return '*mut c_void'
 
@@ -346,20 +352,20 @@ class TypeConvForRust(TypeConv):
             print(can_name, ctx.can_type.kind)
             self.dumpContext(ctx)
 
-        if cxxtype.kind == clang.cindex.TypeKind.RVALUEREFERENCE:
+        if cxxtype.kind == clidx.TypeKind.RVALUEREFERENCE:
             return "&mut %s" % (cxxtype.spelling.split(' ')[0])
 
-        if cxxtype.kind == clang.cindex.TypeKind.ENUM:
+        if cxxtype.kind == clidx.TypeKind.ENUM:
             return 'i32'
 
-        if cxxtype.kind in [clang.cindex.TypeKind.BOOL,
-                            clang.cindex.TypeKind.INT, clang.cindex.TypeKind.UINT,
-                            clang.cindex.TypeKind.SHORT, clang.cindex.TypeKind.USHORT,
-                            clang.cindex.TypeKind.LONG, clang.cindex.TypeKind.ULONG,
-                            clang.cindex.TypeKind.LONGLONG, clang.cindex.TypeKind.ULONGLONG,
-                            clang.cindex.TypeKind.CHAR_S,
-                            clang.cindex.TypeKind.UCHAR,
-                            clang.cindex.TypeKind.DOUBLE, clang.cindex.TypeKind.FLOAT, ]:
+        if cxxtype.kind in [clidx.TypeKind.BOOL,
+                            clidx.TypeKind.INT, clidx.TypeKind.UINT,
+                            clidx.TypeKind.SHORT, clidx.TypeKind.USHORT,
+                            clidx.TypeKind.LONG, clidx.TypeKind.ULONG,
+                            clidx.TypeKind.LONGLONG, clidx.TypeKind.ULONGLONG,
+                            clidx.TypeKind.CHAR_S,
+                            clidx.TypeKind.UCHAR,
+                            clidx.TypeKind.DOUBLE, clidx.TypeKind.FLOAT, ]:
             if ctx.can_type_name in raw_type_map:
                 return '%s' % (raw_type_map[ctx.can_type_name][0])
             self.dumpContext(ctx)
@@ -370,16 +376,16 @@ class TypeConvForRust(TypeConv):
                 return '%s' % (raw_type_map[raw_type_name][0])
             self.dumpContext(ctx)
 
-        if cxxtype.kind == clang.cindex.TypeKind.TYPEDEF:
+        if cxxtype.kind == clidx.TypeKind.TYPEDEF:
             under_type = cxxtype.get_declaration().underlying_typedef_type
-            if under_type.kind == clang.cindex.TypeKind.UNEXPOSED and \
+            if under_type.kind == clidx.TypeKind.UNEXPOSED and \
                under_type.spelling.startswith('QFlags<'):
                 return 'i32'
             return self.TypeCXX2Rust(under_type, cxxtype.get_declaration())
 
         # ### UNEXPOSED
         # maybe TODO，可能是python-clang绑定功能不全啊，模板解析不出来
-        if cxxtype.kind == clang.cindex.TypeKind.UNEXPOSED:
+        if cxxtype.kind == clidx.TypeKind.UNEXPOSED:
             import re
             template_exp = '([a-zA-Z]+)\<([ a-zA-Z]+)([\*])?\>'
             template_res = re.findall(template_exp, ctx.can_type_name)
@@ -409,8 +415,8 @@ class TypeConvForRust(TypeConv):
 
         # TODO const char *const [], TypeKind.INCOMPLETEARRAY
         # 也有可能是一维INCOMPLETEARRAY, 所以还要考虑维度
-        if cxxtype.kind == clang.cindex.TypeKind.INCOMPLETEARRAY or \
-           cxxtype.kind == clang.cindex.TypeKind.CONSTANTARRAY:
+        if cxxtype.kind == clidx.TypeKind.INCOMPLETEARRAY or \
+           cxxtype.kind == clidx.TypeKind.CONSTANTARRAY:
             pointee_type = can_type.get_pointee()  # INVALID
             # print(666, can_type.kind, can_name, cxxtype.spelling)
             constq = 'mut'
@@ -428,6 +434,9 @@ class TypeConvForRust(TypeConv):
         if cxxtype.kind == clidx.TypeKind.RECORD:
             return ctx.can_type_name
 
+        if cxxtype.kind == clidx.TypeKind.MEMBERPOINTER:
+            return '*mut u64'
+
         self.dumpContext(ctx)
         # glog.debug('just use default type name: ' + str(cxxtype.spelling) + ', ' + str(cxxtype.kind))
         return cxxtype.spelling
@@ -442,8 +451,8 @@ class TypeConvForRust(TypeConv):
         can_name = self.TypeCanName(can_type)
         can_name = ctx.can_type_name
 
-        if cxxtype.kind == clang.cindex.TypeKind.POINTER or \
-           cxxtype.kind == clang.cindex.TypeKind.LVALUEREFERENCE:
+        if cxxtype.kind == clidx.TypeKind.POINTER or \
+           cxxtype.kind == clidx.TypeKind.LVALUEREFERENCE:
             mut_or_const = '*const ' if is_const(cxxtype) else '*mut '
             mut_or_const = '*mut '
             if can_name in raw_type_map:
@@ -464,20 +473,20 @@ class TypeConvForRust(TypeConv):
                 return mut_or_const + 'c_i32'
             self.dumpContext(ctx)
 
-        if cxxtype.kind == clang.cindex.TypeKind.RVALUEREFERENCE:
+        if cxxtype.kind == clidx.TypeKind.RVALUEREFERENCE:
             return '*mut %s' % (cxxtype.spelling.split(' ')[0])
 
-        if cxxtype.kind == clang.cindex.TypeKind.ENUM:
+        if cxxtype.kind == clidx.TypeKind.ENUM:
             return 'c_int'
 
-        if cxxtype.kind in [clang.cindex.TypeKind.BOOL,
-                            clang.cindex.TypeKind.INT, clang.cindex.TypeKind.UINT,
-                            clang.cindex.TypeKind.SHORT, clang.cindex.TypeKind.USHORT,
-                            clang.cindex.TypeKind.LONG, clang.cindex.TypeKind.ULONG,
-                            clang.cindex.TypeKind.LONGLONG, clang.cindex.TypeKind.ULONGLONG,
-                            clang.cindex.TypeKind.CHAR_S,
-                            clang.cindex.TypeKind.UCHAR,
-                            clang.cindex.TypeKind.DOUBLE, clang.cindex.TypeKind.FLOAT, ]:
+        if cxxtype.kind in [clidx.TypeKind.BOOL,
+                            clidx.TypeKind.INT, clidx.TypeKind.UINT,
+                            clidx.TypeKind.SHORT, clidx.TypeKind.USHORT,
+                            clidx.TypeKind.LONG, clidx.TypeKind.ULONG,
+                            clidx.TypeKind.LONGLONG, clidx.TypeKind.ULONGLONG,
+                            clidx.TypeKind.CHAR_S,
+                            clidx.TypeKind.UCHAR,
+                            clidx.TypeKind.DOUBLE, clidx.TypeKind.FLOAT, ]:
             if ctx.can_type_name in raw_type_map:
                 return '%s' % (raw_type_map[ctx.can_type_name][1])
             self.dumpContext(ctx)
@@ -489,15 +498,19 @@ class TypeConvForRust(TypeConv):
             else:
                 return '%s' % (raw_type_name)
 
-        if cxxtype.kind == clang.cindex.TypeKind.TYPEDEF:
+        if cxxtype.kind == clidx.TypeKind.TYPEDEF:
             under_type = cxxtype.get_declaration().underlying_typedef_type
-            if under_type.kind == clang.cindex.TypeKind.UNEXPOSED and \
+            if under_type.kind == clidx.TypeKind.UNEXPOSED and \
                under_type.spelling.startswith('QFlags<'):
                 return 'c_int'
             return self.TypeCXX2RustExtern(under_type, cxxtype.get_declaration())
 
         # maybe TODO
-        if cxxtype.kind == clang.cindex.TypeKind.UNEXPOSED:
+        if cxxtype.kind == clidx.TypeKind.UNEXPOSED:
+            import re
+            template_exp = '([a-zA-Z]+)\<([ a-zA-Z]+)([\*])?\>'
+            template_res = re.findall(template_exp, ctx.can_type_name)
+
             if cxxtype.spelling.startswith('Qt::') or \
                (cxxtype.spelling.startswith('Q') and '::' in cxxtype.spelling):
                 return 'c_int'
@@ -506,7 +519,52 @@ class TypeConvForRust(TypeConv):
             # under_type = cxxtype.get_declaration().underlying_typedef_type
             # print(777, under_type.spelling, under_type.kind)
 
-        if cxxtype.kind == clang.cindex.TypeKind.RECORD:
+            if cxxtype.spelling.startswith('std::initializer_list'):
+                return ctx.can_type_name.replace('std::initializer_list', 'QList')
+
+            # TODO fix
+            # QPair<T1, T2>, QMap<T1, T2>, QHash<T1, T2>
+            # QGenericMatrix<3, 3, float>
+            if ctx.can_type.kind == clidx.TypeKind.RECORD:
+                if 'QPair<' in ctx.can_type_name:
+                    return ctx.can_type_name
+                if 'QMap<' in ctx.can_type_name:
+                    return ctx.can_type_name
+                if 'QHash<' in ctx.can_type_name:
+                    return ctx.can_type_name
+                if 'QGenericMatrix<' in ctx.can_type_name:
+                    return ctx.can_type_name
+
+            if ctx.can_type.kind == clidx.TypeKind.RECORD:
+                # (QList, QAction, *)
+                # (QVector, unsigned int)
+                print(template_res, ctx.can_type.spelling, ctx.can_type.kind)
+                # print(template_res, template_res[0], len(template_res[0]))
+                if len(template_res[0]) == 2 or len(template_res[0]) == 3:
+                    cls = template_res[0][0].strip()
+                    inty = template_res[0][1].strip()
+                    if cls in ['QVector', 'QList']: result_cls = 'Vec'
+                    else: result_cls = cls
+                    if inty in raw_type_map: result_inty = raw_type_map[inty][0]
+                    else: result_inty = inty
+                    return('%s<%s>' % (result_cls, result_inty))
+
+            if 'std::string' in ctx.convable_type_name:
+                return ctx.convable_type_name
+            if 'std::wstring' in ctx.convable_type_name:
+                return ctx.convable_type_name
+            if 'std::u16string' in ctx.convable_type_name:
+                return ctx.convable_type_name
+            if 'std::u32string' in ctx.convable_type_name:
+                return ctx.convable_type_name
+
+            # for template T
+            if 'type-parameter-' in ctx.can_type_name:
+                self.dumpContext(ctx)
+
+            self.dumpContext(ctx)
+
+        if cxxtype.kind == clidx.TypeKind.RECORD:
             if is_const(cxxtype):
                 # return '*const %s' % ('c_void')  # 不好处理，全换mut试试吧
                 return '*mut %s' % ('c_void')
@@ -515,8 +573,8 @@ class TypeConvForRust(TypeConv):
 
         # TODO const char *const [], TypeKind.INCOMPLETEARRAY
         # 也有可能是一维INCOMPLETEARRAY, 所以还要考虑维度
-        if cxxtype.kind == clang.cindex.TypeKind.INCOMPLETEARRAY or \
-            cxxtype.kind == clang.cindex.TypeKind.CONSTANTARRAY:
+        if cxxtype.kind == clidx.TypeKind.INCOMPLETEARRAY or \
+            cxxtype.kind == clidx.TypeKind.CONSTANTARRAY:
             pointee_type = can_type.get_pointee()  # INVALID
             # print(666, can_type.kind, can_name, cxxtype.spelling)
             constq = 'mut'
@@ -532,7 +590,13 @@ class TypeConvForRust(TypeConv):
             # exit(0)
             pass
 
+        if cxxtype.kind == clidx.TypeKind.VOID:
+            return 'void'
 
+        if cxxtype.kind == clidx.TypeKind.MEMBERPOINTER:
+            return '*mut c_void'
+
+        self.dumpContext(ctx)
         # print(888, 'just use default type name:', cxxtype.spelling, cxxtype.kind)
         return cxxtype.spelling
 
@@ -546,7 +610,7 @@ class TypeConvForRust(TypeConv):
             tysegs = ty.spelling.split(' ') + ['const']
             tysegs.remove('const')
             return tysegs[0]
-        if clean_type.kind == clang.cindex.TypeKind.RECORD:
+        if clean_type.kind == clidx.TypeKind.RECORD:
             tyname = trim_const(clean_type)
             return tyname
         return clean_type.spelling

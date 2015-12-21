@@ -2,6 +2,7 @@
 
 import os
 import logging
+import time
 
 import clang
 import clang.cindex
@@ -73,18 +74,22 @@ class GenMethodContext(object):
         self.tymap = None
         # simple init
 
+        self.CP = None
         return
 
 
 class GenerateForRust(GenerateBase):
     def __init__(self):
-        self.cp_modrs = CodePaper()  # 可能的name: main
-        self.cp_modrs.addPoint('main')
-        self.MP = self.cp_modrs
+        super(GenerateForRust, self).__init__()
+
+        self.modrss = {}  # mod => CodePaper
+        #self.cp_modrs = CodePaper()  # 可能的name: main
+        #self.cp_modrs.addPoint('main')
+        #self.MP = self.cp_modrs
 
         self.class_blocks = ['header', 'main', 'use', 'ext', 'body']
-        self.cp_clsrs = CodePaper()  # 可能中间reset。可能的name: header, main, use, ext, body
-        self.CP = self.cp_clsrs
+        # self.cp_clsrs = CodePaper()  # 可能中间reset。可能的name: header, main, use, ext, body
+        # self.CP = self.cp_clsrs
 
         self.qclses = {}  # class name => True
         self.tyconv = TypeConvForRust()
@@ -110,45 +115,159 @@ class GenerateForRust(GenerateBase):
         cp_clsrs = CodePaper()
         for blk in self.class_blocks:
             cp_clsrs.addPoint(blk)
-            cp_clsrs.append(blk, "// %s block begin\n" % (blk))
+            cp_clsrs.append(blk, "// %s block begin" % (blk))
         return cp_clsrs
 
-    def generateClasses(self, module, class_decls):
-        for elems in class_decls:
-            class_name, cs, methods, base_class = elems
-            self.qclses[class_name] = True
+    def genpass_init_code_paper(self):
+        for key in self.gctx.codes:
+            CP = self.gctx.codes[key]
+            mod = self.gctx.get_decl_mod_by_path(key)
+            code_file = self.gctx.get_code_file_by_path(key)
+            CP.AP('header', '// auto generated, do not modify.')
+            CP.AP('header', '// created: ' + time.ctime())
+            CP.AP('header', '// src-file: ' + key)
+            CP.AP('header', '// dst-file: /src/%s/%s.rs' % (mod, code_file))
+            CP.AP('header', '//\n')
 
-        for elems in class_decls:
-            class_name, cs, methods, base_class = elems
-            self.CP = self.initCodePaperForClass()
-            self.CP.AP('header', self.generateHeader(module))
-            self.CP.AP('ext', "#[link(name = \"Qt5Core\")]\n")
-            self.CP.AP('ext', "#[link(name = \"Qt5Gui\")]\n")
-            self.CP.AP('ext', "#[link(name = \"Qt5Widgets\")]\n")
-            self.CP.AP('ext', "extern {\n")
-
-            self.generateClass(class_name, cs, methods, base_class)
-            # tcode = tcode + self.generateFooter(module)
-            # self.write_code(module, class_name.lower(), tcode)
-            self.CP.AP('ext', "}\n\n")
-            self.CP.AP('use', "\n")
-
-            self.write_code(module, class_name.lower(), self.CP.exportCode(self.class_blocks))
-
-            self.MP.AP('main', "mod %s;\n" % (class_name.lower()))
-            self.MP.AP('main', "pub use self::%s::%s;\n\n" % (class_name.lower(), class_name))
-
-        self.write_modrs(module, self.MP.exportCode(['main']))
+            for blk in self.class_blocks:
+                CP.addPoint(blk)
+                CP.append(blk, "// %s block begin =>" % (blk))
         return
 
-    def generateClass(self, class_name, cs, methods, base_class):
-        ctysz = cs.type.get_size()
-        self.CP.AP('body', "// class sizeof(%s)=%s\n" % (class_name, ctysz))
+    def genpass_code_header(self):
+        for key in self.gctx.codes:
+            CP = self.gctx.codes[key]
+            CP.AP('header', self.generateHeader(''))
+            CP.AP('ext', "#[link(name = \"Qt5Core\")]")
+            CP.AP('ext', "#[link(name = \"Qt5Gui\")]")
+            CP.AP('ext', "#[link(name = \"Qt5Widgets\")]\n")
+            CP.AP('ext', "extern {")
+
+        return
+
+    def genpass_code_endian(self):
+        for key in self.gctx.codes:
+            CP = self.gctx.codes[key]
+            for blk in self.class_blocks:
+                if blk == 'ext':
+                    CP.append(blk, "} // <= %s block end\n" % (blk))
+                else:
+                    CP.append(blk, "// <= %s block end\n" % (blk))
+
+        return
+
+    def genpass_class_modef(self):
+        for key in self.gctx.classes:
+            cursor = self.gctx.classes[key]
+            if self.check_skip_class(cursor): continue
+
+            class_name = cursor.spelling
+            decl_file = self.gctx.get_decl_file(cursor)
+            decl_mod = self.gctx.get_decl_mod(cursor)
+            code_file = self.gctx.get_code_file(cursor)
+            istpl = self.gctx.is_template(cursor)
+
+            if decl_mod not in self.modrss:
+                self.modrss[decl_mod] = CodePaper()
+                self.modrss[decl_mod].addPoint('main')
+
+            MP = self.modrss[decl_mod]
+            MP.APU('main', "pub mod %s;" % (code_file))
+            MP.APU('main', "pub use self::%s::%s;\n" % (code_file, class_name))
+        return
+
+    def genpass(self):
+        self.genpass_init_code_paper()
+        self.genpass_code_header()
+
+        self.genpass_class_type()
+
+        print('gen classes...')
+        self.genpass_classes()
+
+        print('gen code endian...')
+        self.genpass_code_endian()
+
+        print('gen class mod define...')
+        self.genpass_class_modef()
+
+        print('gen files...')
+        self.genpass_write_codes()
+        return
+
+    def genpass_class_type(self):
+        for key in self.gctx.classes:
+            cursor = self.gctx.classes[key]
+            if self.check_skip_class(cursor): continue
+            self.genpass_class_type_impl(cursor)
+        return
+
+    def genpass_class_type_impl(self, cursor):
+        class_name = cursor.displayname
+        decl_file = self.gctx.get_decl_file(cursor)
+        CP = self.gctx.codes[decl_file]
+        ctysz = cursor.type.get_size()
+
+        CP.AP('body', "// class sizeof(%s)=%s" % (class_name, ctysz))
+        # generate struct of class
+        CP.AP('body', "pub struct %s {" % (class_name))
+        CP.AP('body', "  pub qclsinst: *mut c_void,")
+        CP.AP('body', "}\n")
+
+        return
+
+    def genpass_classes(self):
+        for key in self.gctx.classes:
+            cursor = self.gctx.classes[key]
+            if self.check_skip_class(cursor): continue
+
+            class_name = cursor.displayname
+            methods = self.gutil.get_methods(cursor)
+            bases = self.gutil.get_base_class(cursor)
+            base_class = bases[0] if len(bases) > 0 else None
+            self.generateClass(class_name, cursor, methods, base_class)
+            # break
+        return
+
+    # def generateClasses(self, module, class_decls):
+    #     for elems in class_decls:
+    #         class_name, cs, methods, base_class = elems
+    #         self.qclses[class_name] = True
+
+    #     for elems in class_decls:
+    #         class_name, cs, methods, base_class = elems
+    #         self.CP = self.initCodePaperForClass()
+    #         self.CP.AP('header', self.generateHeader(module))
+    #         self.CP.AP('ext', "#[link(name = \"Qt5Core\")]\n")
+    #         self.CP.AP('ext', "#[link(name = \"Qt5Gui\")]\n")
+    #         self.CP.AP('ext', "#[link(name = \"Qt5Widgets\")]\n")
+    #         self.CP.AP('ext', "extern {\n")
+
+    #         self.generateClass(class_name, cs, methods, base_class)
+    #         # tcode = tcode + self.generateFooter(module)
+    #         # self.write_code(module, class_name.lower(), tcode)
+    #         self.CP.AP('ext', "}\n\n")
+    #         self.CP.AP('use', "\n")
+
+    #         self.write_code(module, class_name.lower(), self.CP.exportCode(self.class_blocks))
+
+    #         self.MP.AP('main', "mod %s;\n" % (class_name.lower()))
+    #         self.MP.AP('main', "pub use self::%s::%s;\n\n" % (class_name.lower(), class_name))
+
+    #     self.write_modrs(module, self.MP.exportCode(['main']))
+    #     return
+
+    def generateClass(self, class_name, class_cursor, methods, base_class):
+
+        CP = self.gctx.getCodePager(class_cursor)
+
+        # ctysz = class_cursor.type.get_size()
+        # CP.AP('body', "// class sizeof(%s)=%s\n" % (class_name, ctysz))
 
         # generate struct of class
-        self.CP.AP('body', "pub struct %s {\n" % (class_name))
-        self.CP.AP('body', "  pub qclsinst: *mut c_void,\n")
-        self.CP.AP('body', "}\n\n")
+        # CP.AP('body', "pub struct %s {\n" % (class_name))
+        # CP.AP('body', "  pub qclsinst: *mut c_void,\n")
+        # CP.AP('body', "}\n\n")
 
         # 重载的方法，只生成一次trait
         unique_methods = {}
@@ -173,7 +292,7 @@ class GenerateForRust(GenerateBase):
                 # print(333, 'skip method:', mangled_name)
                 continue
 
-            ctx = self.createGenMethodContext(cursor, cs, base_class, unique_methods)
+            ctx = self.createGenMethodContext(cursor, class_cursor, base_class, unique_methods)
             self.generateMethod(ctx)
 
         return
@@ -181,6 +300,7 @@ class GenerateForRust(GenerateBase):
     def createGenMethodContext(self, method_cursor, class_cursor, base_class, unique_methods):
         ctx = GenMethodContext(method_cursor, class_cursor)
         ctx.unique_methods = unique_methods
+        ctx.CP = self.gctx.getCodePager(class_cursor)
 
         if ctx.ctor: ctx.method_name_rewrite = 'New%s' % (ctx.method_name)
         if ctx.dtor: ctx.method_name_rewrite = 'Free%s' % (ctx.method_name[1:])
@@ -198,14 +318,14 @@ class GenerateForRust(GenerateBase):
         raw_params_array = self.generateParamsRaw(class_name, method_name, method_cursor)
         raw_params = ', '.join(raw_params_array)
 
-        trait_params_array = self.generateParamsForTrait(class_name, method_name, method_cursor)
+        trait_params_array = self.generateParamsForTrait(class_name, method_name, method_cursor, ctx)
         trait_params = ', '.join(trait_params_array)
 
         call_params_array = self.generateParamsForCall(class_name, method_name, method_cursor)
         call_params = ', '.join(call_params_array)
         if not ctx.static and not ctx.ctor: call_params = ('rsthis.qclsinst, ' + call_params).strip(' ,')
 
-        extargs_array = self.generateParamsForExtern(class_name, method_name, method_cursor)
+        extargs_array = self.generateParamsForExtern(class_name, method_name, method_cursor, ctx)
         extargs = ', '.join(extargs_array)
         if not ctx.static: extargs = ('qthis: *mut c_void, ' + extargs).strip(' ,')
 
@@ -215,7 +335,7 @@ class GenerateForRust(GenerateBase):
         ctx.params_ext = extargs
 
         ctx.trait_proto = '%s::%s(%s)' % (class_name, method_name, trait_params)
-        ctx.fn_proto_cpp = "  // proto: %s %s %s::%s(%s);\n" % \
+        ctx.fn_proto_cpp = "  // proto: %s %s %s::%s(%s);" % \
                            (ctx.static_str, ctx.ret_type_name_cpp, ctx.class_name, ctx.method_name, ctx.params_cpp)
         ctx.has_return = self.methodHasReturn(ctx)
 
@@ -226,6 +346,7 @@ class GenerateForRust(GenerateBase):
 
         # aux
         ctx.tymap = TypeConvForRust.tymap
+
         return ctx
 
     def generateMethod(self, ctx):
@@ -257,7 +378,7 @@ class GenerateForRust(GenerateBase):
             else: self.generateImplTraitMethod(ctx)
 
         # extern
-        self.CP.AP('ext', ctx.fn_proto_cpp)
+        ctx.CP.AP('ext', ctx.fn_proto_cpp)
         self.generateDeclForFFIExt(ctx)
 
         return
@@ -266,15 +387,15 @@ class GenerateForRust(GenerateBase):
         class_name = ctx.class_name
         method_name = ctx.method_name_rewrite
 
-        self.CP.AP('body', ctx.fn_proto_cpp)
-        self.CP.AP('body', "impl /*struct*/ %s {\n" % (class_name))
-        self.CP.AP('body', "  pub fn %s<T: %s_%s>(value: T) -> %s {\n"
+        ctx.CP.AP('body', ctx.fn_proto_cpp)
+        ctx.CP.AP('body', "impl /*struct*/ %s {" % (class_name))
+        ctx.CP.AP('body', "  pub fn %s<T: %s_%s>(value: T) -> %s {"
                    % (method_name, class_name, method_name, class_name))
-        self.CP.AP('body', "    let rsthis = value.%s();\n" % (method_name))
-        self.CP.AP('body', "    return rsthis;\n")
-        self.CP.AP('body', "    // return 1;\n")
-        self.CP.AP('body', "  }\n")
-        self.CP.AP('body', "}\n\n")
+        ctx.CP.AP('body', "    let rsthis = value.%s();" % (method_name))
+        ctx.CP.AP('body', "    return rsthis;")
+        ctx.CP.AP('body', "    // return 1;")
+        ctx.CP.AP('body', "  }")
+        ctx.CP.AP('body', "}\n")
         return
 
     def generateImplStructMethod(self, ctx):
@@ -283,14 +404,14 @@ class GenerateForRust(GenerateBase):
         self_code_proto = ctx.static_self_struct
         self_code_call = ctx.static_self_call
 
-        self.CP.AP('body', ctx.fn_proto_cpp)
-        self.CP.AP('body', "impl /*struct*/ %s {\n" % (class_name))
-        self.CP.AP('body', "  pub fn %s<RetType, T: %s_%s<RetType>>(%s overload_args: T) -> RetType {\n"
+        ctx.CP.AP('body', ctx.fn_proto_cpp)
+        ctx.CP.AP('body', "impl /*struct*/ %s {" % (class_name))
+        ctx.CP.AP('body', "  pub fn %s<RetType, T: %s_%s<RetType>>(%s overload_args: T) -> RetType {"
                    % (method_name, class_name, method_name, self_code_proto))
-        self.CP.AP('body', "    return overload_args.%s(%s);\n" % (method_name, self_code_call))
-        self.CP.AP('body', "    // return 1;\n")
-        self.CP.AP('body', "  }\n")
-        self.CP.AP('body', "}\n\n")
+        ctx.CP.AP('body', "    return overload_args.%s(%s);" % (method_name, self_code_call))
+        ctx.CP.AP('body', "    // return 1;")
+        ctx.CP.AP('body', "  }")
+        ctx.CP.AP('body', "}\n")
         return
 
     def generateImplTraitCtor(self, ctx):
@@ -301,21 +422,21 @@ class GenerateForRust(GenerateBase):
         trait_params = ctx.params_rs
         call_params = ctx.params_call
 
-        self.CP.AP('body', ctx.fn_proto_cpp)
-        self.CP.AP('body', "impl<'a> /*trait*/ %s_%s for (%s) {\n" % (class_name, method_name, trait_params))
-        self.CP.AP('body', "  fn %s(self) -> %s {\n" % (method_name, class_name))
-        self.CP.AP('body', "    let qthis: *mut c_void = unsafe{calloc(1, %s)};\n" % (ctx.ctysz))
-        self.CP.AP('body', "    // unsafe{%s()};\n" % (mangled_name))
-        self.generateArgConvExprs(class_name, method_name, method_cursor)
+        ctx.CP.AP('body', ctx.fn_proto_cpp)
+        ctx.CP.AP('body', "impl<'a> /*trait*/ %s_%s for (%s) {" % (class_name, method_name, trait_params))
+        ctx.CP.AP('body', "  fn %s(self) -> %s {" % (method_name, class_name))
+        ctx.CP.AP('body', "    let qthis: *mut c_void = unsafe{calloc(1, %s)};" % (ctx.ctysz))
+        ctx.CP.AP('body', "    // unsafe{%s()};" % (mangled_name))
+        self.generateArgConvExprs(class_name, method_name, method_cursor, ctx)
         if len(call_params) == 0:
-            self.CP.AP('body', "    unsafe {%s(qthis%s)};\n" % (mangled_name, call_params))
+            ctx.CP.AP('body', "    unsafe {%s(qthis%s)};" % (mangled_name, call_params))
         else:
-            self.CP.AP('body', "    unsafe {%s(qthis, %s)};\n" % (mangled_name, call_params))
-        self.CP.AP('body', "    let rsthis = %s{qclsinst: qthis};\n" % (class_name))
-        self.CP.AP('body', "    return rsthis;\n")
-        self.CP.AP('body', "    // return 1;\n")
-        self.CP.AP('body', "  }\n")
-        self.CP.AP('body', "}\n\n")
+            ctx.CP.AP('body', "    unsafe {%s(qthis, %s)};" % (mangled_name, call_params))
+        ctx.CP.AP('body', "    let rsthis = %s{qclsinst: qthis};" % (class_name))
+        ctx.CP.AP('body', "    return rsthis;")
+        ctx.CP.AP('body', "    // return 1;")
+        ctx.CP.AP('body', "  }")
+        ctx.CP.AP('body', "}\n")
 
         return
 
@@ -337,15 +458,15 @@ class GenerateForRust(GenerateBase):
         call_params = ctx.params_call
 
         mangled_name = ctx.mangled_name
-        self.CP.AP('body', ctx.fn_proto_cpp)
-        self.CP.AP('body', "impl<'a> /*trait*/ %s_%s<%s> for (%s) {\n" %
+        ctx.CP.AP('body', ctx.fn_proto_cpp)
+        ctx.CP.AP('body', "impl<'a> /*trait*/ %s_%s<%s> for (%s) {" %
                    (class_name, method_name, return_type_name_rs, trait_params))
-        self.CP.AP('body', "  fn %s(self %s) -> %s {\n" %
+        ctx.CP.AP('body', "  fn %s(self %s) -> %s {" %
                    (method_name, self_code_proto, return_type_name_rs))
-        self.CP.AP('body', "    // let qthis: *mut c_void = unsafe{calloc(1, %s)};\n" % (ctx.ctysz))
-        self.CP.AP('body', "    // unsafe{%s()};\n" % (mangled_name))
-        self.generateArgConvExprs(class_name, method_name, method_cursor)
-        self.CP.AP('body', "    %s unsafe {%s(%s)};\n" % (return_piece_code_return, mangled_name, call_params))
+        ctx.CP.AP('body', "    // let qthis: *mut c_void = unsafe{calloc(1, %s)};" % (ctx.ctysz))
+        ctx.CP.AP('body', "    // unsafe{%s()};" % (mangled_name))
+        self.generateArgConvExprs(class_name, method_name, method_cursor, ctx)
+        ctx.CP.AP('body', "    %s unsafe {%s(%s)};" % (return_piece_code_return, mangled_name, call_params))
 
         def iscvoidstar(tyname): return ' c_void' in tyname and '*' in tyname
         def isrstar(tyname): return '*' in tyname
@@ -355,27 +476,28 @@ class GenerateForRust(GenerateBase):
         return_type_name_ext = ctx.ret_type_name_ext
         return_type_name_rs = ctx.ret_type_name_rs
         if return_type_name_rs == 'String' and 'char' in return_type_name_ext:
-            if has_return: self.CP.AP('body', "    let slen = unsafe {strlen(ret as *const i8)} as usize;\n")
-            if has_return: self.CP.AP('body', "    return unsafe{String::from_raw_parts(ret as *mut u8, slen, slen+1)};\n")
+            if has_return: ctx.CP.AP('body', "    let slen = unsafe {strlen(ret as *const i8)} as usize;")
+            if has_return: ctx.CP.AP('body', "    return unsafe{String::from_raw_parts(ret as *mut u8, slen, slen+1)};")
         # elif return_type_name_ext == '*mut c_void' or return_type_name_ext == '*const c_void':  # no const now
         elif iscvoidstar(return_type_name_ext) and not isrstar(return_type_name_rs):
             # 应该是返回一个qt class对象，由于无法返回&mut类型的对象
-            if has_return: self.CP.AP('body', "    let mut ret1 = %s{qclsinst: ret};\n" % (return_type_name_rs))
-            if has_return: self.CP.AP('body', "    return ret1;\n")
+            if has_return: ctx.CP.AP('body', "    let mut ret1 = %s{qclsinst: ret};" % (return_type_name_rs))
+            if has_return: ctx.CP.AP('body', "    return ret1;")
         else:
-            if has_return: self.CP.AP('body', "    return ret as %s;\n" % (return_type_name_rs))
+            if has_return: ctx.CP.AP('body', "    return ret as %s;" % (return_type_name_rs))
 
-        self.CP.AP('body', "    // return 1;\n")
-        self.CP.AP('body', "  }\n")
-        self.CP.AP('body', "}\n\n")
+        ctx.CP.AP('body', "    // return 1;")
+        ctx.CP.AP('body', "  }")
+        ctx.CP.AP('body', "}\n")
 
         # case for return qt object
         if has_return:
-            return_type_name = ctx.ret_type_name_rs
-            if self.is_qt_class(return_type_name):
-                seg = self.get_qt_class(return_type_name)
-                if seg != class_name and class_name:
-                    self.CP.APU('use', "use super::%s::%s;\n" % (seg.lower(), seg))
+            self.generateUseForRust(ctx, ctx.ret_type, ctx.cursor)
+            # return_type_name = ctx.ret_type_name_rs
+            # if self.is_qt_class(return_type_name):
+            #     seg = self.get_qt_class(return_type_name)
+            #     if seg != class_name and class_name:
+            #         ctx.CP.APU('use', "use super::%s::%s;\n" % (seg.lower(), seg))
 
         return
 
@@ -387,16 +509,16 @@ class GenerateForRust(GenerateBase):
 
         ### trait
         if ctx.ctor is True:
-            self.CP.AP('body', "pub trait %s_%s {\n" % (class_name, method_name))
-            self.CP.AP('body', "  fn %s(self) -> %s;\n" % (method_name, class_name))
+            ctx.CP.AP('body', "pub trait %s_%s {" % (class_name, method_name))
+            ctx.CP.AP('body', "  fn %s(self) -> %s;" % (method_name, class_name))
         else:
-            self.CP.AP('body', "pub trait %s_%s<RetType> {\n" % (class_name, method_name))
-            self.CP.AP('body', "  fn %s(self %s) -> RetType;\n" %
+            ctx.CP.AP('body', "pub trait %s_%s<RetType> {" % (class_name, method_name))
+            ctx.CP.AP('body', "  fn %s(self %s) -> RetType;" %
                        (method_name, self_code_proto))
-        self.CP.AP('body', "}\n\n")
+        ctx.CP.AP('body', "}\n")
         return
 
-    def generateArgConvExprs(self, class_name, method_name, method_cursor):
+    def generateArgConvExprs(self, class_name, method_name, method_cursor, ctx):
         argc = 0
         for arg in method_cursor.get_arguments(): argc += 1
 
@@ -417,9 +539,9 @@ class GenerateForRust(GenerateBase):
             can_name = self.tyconv.TypeCanName(arg.type)
             if self.is_qt_class(can_name): qclsinst = '.qclsinst'
             if argc == 1:  # fix shit rust tuple index
-                self.CP.AP('body', "    let arg%s = self%s%s %s;\n" % (idx, qclsinst, asptr, astype))
+                ctx.CP.AP('body', "    let arg%s = self%s%s %s;" % (idx, qclsinst, asptr, astype))
             else:
-                self.CP.AP('body', "    let arg%s = self.%s%s%s %s;\n" % (idx, idx, qclsinst, asptr, astype))
+                ctx.CP.AP('body', "    let arg%s = self.%s%s%s %s;" % (idx, idx, qclsinst, asptr, astype))
         return
 
     # @return []
@@ -481,7 +603,7 @@ class GenerateForRust(GenerateBase):
         return argv
 
     # @return []
-    def generateParamsForTrait(self, class_name, method_name, method_cursor):
+    def generateParamsForTrait(self, class_name, method_name, method_cursor, ctx):
         idx = 0
         argv = []
 
@@ -492,16 +614,22 @@ class GenerateForRust(GenerateBase):
             # param_line2 = self.restore_param_by_token(arg)
             # print(param_line2)
 
-            type_name = self.resolve_swig_type_name(class_name, arg.type)
-            type_name2 = self.hotfix_typename_ifenum_asint(class_name, arg, arg.type)
-            type_name = type_name2 if type_name2 is not None else type_name
-            type_name = self.tyconv.TypeCXX2Rust(arg.type, arg)
-            if type_name.startswith('&'): type_name = type_name.replace('&', "&'a ")
-            if self.is_qt_class(type_name) and self.check_skip_param(arg, method_name) is False:
-                seg = self.get_qt_class(type_name)
-                if seg != class_name:
-                    self.CP.APU('use', "use super::%s::%s;\n" % (seg.lower(), seg))
+            if self.check_skip_param(arg, method_name) is False:
+                self.generateUseForRust(ctx, arg.type, arg)
 
+            # type_name = self.resolve_swig_type_name(class_name, arg.type)
+            # type_name2 = self.hotfix_typename_ifenum_asint(class_name, arg, arg.type)
+            # type_name = type_name2 if type_name2 is not None else type_name
+            type_name = self.tyconv.TypeCXX2Rust(arg.type, arg, method_name)
+            if type_name.startswith('&'): type_name = type_name.replace('&', "&'a ")
+            # if self.is_qt_class(type_name) and self.check_skip_param(arg, method_name) is False:
+            #     seg = self.get_qt_class(type_name)
+            #     if seg != class_name:
+            #         ctx.CP.APU('use', "use super::%s::%s;\n" % (seg.lower(), seg))
+
+            if method_name == 'fromStdWString':
+                print(type_name, arg.type.spelling, arg.type.kind)
+                # raise '123'
             arg_name = 'arg%s' % idx if arg.displayname == '' else arg.displayname
             argelem = "%s" % (type_name)
             argv.append(argelem)
@@ -509,7 +637,7 @@ class GenerateForRust(GenerateBase):
         return argv
 
     # @return []
-    def generateParamsForExtern(self, class_name, method_name, method_cursor):
+    def generateParamsForExtern(self, class_name, method_name, method_cursor, ctx):
         idx = 0
         argv = []
 
@@ -524,14 +652,16 @@ class GenerateForRust(GenerateBase):
             # param_line2 = self.restore_param_by_token(arg)
             # print(param_line2)
 
-            type_name = self.resolve_swig_type_name(class_name, arg.type)
-            type_name2 = self.hotfix_typename_ifenum_asint(class_name, arg, arg.type)
-            type_name = type_name2 if type_name2 is not None else type_name
+            if self.check_skip_param(arg, method_name) is False:
+                self.generateUseForRust(ctx, arg.type, arg)
+            # type_name = self.resolve_swig_type_name(class_name, arg.type)
+            # type_name2 = self.hotfix_typename_ifenum_asint(class_name, arg, arg.type)
+            # type_name = type_name2 if type_name2 is not None else type_name
             type_name = self.tyconv.TypeCXX2RustExtern(arg.type, arg)
-            if self.is_qt_class(type_name) and self.check_skip_param(arg, method_name) is False:
-                seg = self.get_qt_class(type_name)
-                if seg != class_name:
-                    self.CP.APU('use', "use super::%s::%s;\n" % (seg.lower(), seg))
+            # if self.is_qt_class(type_name) and self.check_skip_param(arg, method_name) is False:
+            #    seg = self.get_qt_class(type_name)
+            #    if seg != class_name:
+            #        ctx.CP.APU('use', "use super::%s::%s;\n" % (seg.lower(), seg))
 
             arg_name = 'arg%s' % idx if arg.displayname == '' else arg.displayname
             argelem = "arg%s: %s" % (idx-1, type_name)
@@ -569,7 +699,7 @@ class GenerateForRust(GenerateBase):
         if cursor.result_type.kind != clang.cindex.TypeKind.VOID and has_return:
             return_piece_proto = ' -> %s' % (return_type_name)
         extargs = ctx.params_ext
-        self.CP.AP('ext', "  fn %s(%s)%s;\n" % (mangled_name, extargs, return_piece_proto))
+        ctx.CP.AP('ext', "  fn %s(%s)%s;" % (mangled_name, extargs, return_piece_proto))
 
         return has_return, return_type_name
 
@@ -624,6 +754,36 @@ class GenerateForRust(GenerateBase):
         if class_name == 'QChar' and method_cursor.spelling == 'unicode': has_return = False
 
         return has_return
+
+    def generateUseForRust(self, ctx, aty, cursor):
+        class_name = ctx.class_name
+        # type_name = self.resolve_swig_type_name(class_name, arg.type)
+        # type_name2 = self.hotfix_typename_ifenum_asint(class_name, arg, arg.type)
+        # type_name = type_name2 if type_name2 is not None else type_name
+        type_name = self.tyconv.TypeCXX2Rust(aty, cursor)
+        if type_name.startswith('&'): type_name = type_name.replace('&', "&'a ")
+        if self.is_qt_class(type_name):
+            seg = self.get_qt_class(type_name)
+            # 不但不能是当前类，并且也不能是当前文件中的类
+            if seg != class_name:
+                if seg in self.gctx.classes:
+                    ncursor = self.gctx.classes[seg]
+                    seg_code_file = self.gutil.get_code_file(ncursor)
+                    cur_code_file = self.gutil.get_code_file(cursor)
+                    seg_mod = self.gutil.get_decl_mod(ncursor)
+                    cur_mod = self.gutil.get_decl_mod(cursor)
+
+                    if seg_mod != cur_mod:  # 引用的类不在当前mod中
+                        ctx.CP.APU('use', "use super::super::%s::%s::%s; // 771" % (seg_mod, seg_code_file, seg))
+                    else:
+                        if seg_code_file == cur_code_file:
+                            ctx.CP.APU('use', "// use super::%s::%s; // 773" % (seg_code_file, seg))
+                        else:
+                            ctx.CP.APU('use', "use super::%s::%s; // 773" % (seg_code_file, seg))
+                else:
+                    # 不在类列表中的引用不了，如果有使用的地方，还是再找原因比较好
+                    ctx.CP.APU('use', "// use super::%s::%s; // 775" % (seg.lower(), seg))
+        return
 
     def dedup_return_const_diff_method(self, methods):
         dupremove = []
@@ -824,6 +984,37 @@ class GenerateForRust(GenerateBase):
 
         return False
 
+    def check_skip_class(self, class_cursor):
+        cursor = class_cursor
+        name = cursor.spelling
+        dname = cursor.displayname
+
+        if name in ['QTypeInfo']: return True
+
+        # for template
+        if self.gctx.is_template(cursor): return True
+
+        def has_template_brother(cursor):
+            for key in self.gctx.classes:
+                tc = self.gctx.classes[key]
+                if tc != cursor and tc.spelling == cursor.spelling and tc.kind == clidx.CursorKind.CLASS_TEMPLATE:
+                    return True
+            return False
+
+        hastb = has_template_brother(cursor)
+        if hastb: return True
+
+        # like QIntegerForSize<1/2/3>
+        if '<' in dname: return True
+
+        # if 'QFuture<' in dname:
+        #     for it in cursor.walk_preorder():
+        #         print(it.kind, it.displayname, it.location)
+        #     print(cursor.get_num_template_arguments())
+        #     exit(0)
+
+        return False
+
     def method_is_inline(self, method_cursor):
         for token in method_cursor.get_tokens():
             if token.spelling == 'inline':
@@ -916,22 +1107,48 @@ class GenerateForRust(GenerateBase):
             tokens.append(token.spelling)
         return ' '.join(tokens)
 
-    def write_code(self, module, fname, code):
-        # module = 'QtCore'  # 全部生成的文件都放在一个目录吧
-        fpath = "src/core/%s.rs" % (fname)
-        # fpath = "src/%s/%s.rs" % (module[2:].lower(), fname)
+    def genpass_write_codes(self):
+        for key in self.gctx.codes:
+            cp = self.gctx.codes[key]
+            code = cp.exportCode(self.class_blocks)
+
+            mod = self.gctx.get_decl_mod_by_path(key)
+            fname = self.gctx.get_code_file_by_path(key)
+            if mod not in ['core', 'gui', 'widgets', 'network', 'dbus']:
+                print('Omit unknown mod code...:', mod, fname, key)
+                continue
+
+            self.write_code(mod, fname, code)
+            # self.write_file(fpath, code)
+
+        # class mod define
+        # self.write_modrs(module, self.MP.exportCode(['main']))
+        for mod in self.modrss:
+            cp = self.modrss[mod]
+            code = cp.exportCode(['main'])
+            lines = cp.totalLine()
+            print('write mod.rs:', mod, len(code), lines)
+            self.write_modrs(mod, code)
+        return
+
+    def write_code(self, mod, fname, code):
+        # mod = 'core'
+        # fpath = "src/core/%s.rs" % (fname)
+        fpath = "src/%s/%s.rs" % (mod, fname)
+        self.write_file(fpath, code)
+        return
+
+    # TODO dir is exists
+    def write_file(self, fpath, code):
         f = os.open(fpath, os.O_CREAT | os.O_TRUNC | os.O_RDWR)
         os.write(f, code)
         os.close(f)
 
         return
 
-    def write_modrs(self, module, code):
-        # fpath = "src/%s/mod.rs" % (module[2:].lower())
-        fpath = "src/core/%s.rs" % (module[2:].lower())
-        f = os.open(fpath, os.O_CREAT | os.O_TRUNC | os.O_RDWR)
-        os.write(f, code)
-        os.close(f)
+    def write_modrs(self, mod, code):
+        fpath = "src/%s/mod.rs" % (mod)
+        self.write_file(fpath, code)
         return
     pass
 
