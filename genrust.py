@@ -24,6 +24,29 @@ from genbase import GenerateBase
 # qt模板类型的封装实现
 # 代码整理, GenContext -- OK
 # 生成个简单文档？然后生成文档。
+# 一些c++字符串类型，是不是可以使用CString, OsString这些表示呢?
+
+
+class GenClassContext(object):
+    def __init__(self, cursor):
+        self.tyconv = TypeConvForRust()
+
+        self.ctysz = max(32, cursor.type.get_size())  # 可能这个get_size()的值不准确啊。
+        self.class_cursor = cursor
+        self.class_name = cursor.spelling
+        self.cursor = cursor
+
+        # inherit
+        self.base_class = None
+        self.base_class_name = ''
+        self.has_base = False
+
+        # aux
+        self.tymap = None
+        # simple init
+
+        self.CP = None
+        return
 
 
 class GenMethodContext(object):
@@ -208,9 +231,18 @@ class GenerateForRust(GenerateBase):
         CP = self.gctx.codes[decl_file]
         ctysz = cursor.type.get_size()
 
+        # TODO 计算了两遍
+        bases = self.gutil.get_base_class(cursor)
+        base_class = bases[0] if len(bases) > 0 else None
+
         CP.AP('body', "// class sizeof(%s)=%s" % (class_name, ctysz))
         # generate struct of class
         CP.AP('body', "pub struct %s {" % (class_name))
+        if base_class is None:
+            CP.AP('body', "  // qbase: %s," % (base_class))
+        else:
+            # TODO 需要use 基类
+            CP.AP('body', "  qbase: %s," % (base_class.spelling))
         CP.AP('body', "  pub qclsinst: *mut c_void,")
         CP.AP('body', "}\n")
 
@@ -225,6 +257,7 @@ class GenerateForRust(GenerateBase):
             methods = self.gutil.get_methods(cursor)
             bases = self.gutil.get_base_class(cursor)
             base_class = bases[0] if len(bases) > 0 else None
+            self.generateInheritEmulate(cursor, base_class)
             self.generateClass(class_name, cursor, methods, base_class)
             # break
         return
@@ -259,7 +292,7 @@ class GenerateForRust(GenerateBase):
 
     def generateClass(self, class_name, class_cursor, methods, base_class):
 
-        CP = self.gctx.getCodePager(class_cursor)
+        # CP = self.gctx.getCodePager(class_cursor)
 
         # ctysz = class_cursor.type.get_size()
         # CP.AP('body', "// class sizeof(%s)=%s\n" % (class_name, ctysz))
@@ -341,13 +374,71 @@ class GenerateForRust(GenerateBase):
 
         # base class
         ctx.base_class = base_class
-        ctx.base_class_name = base_class.spelling if base_class is not None else ''
+        ctx.base_class_name = base_class.spelling if base_class is not None else None
         ctx.has_base = True if base_class is not None else False
+        ctx.has_base = base_class is not None
 
         # aux
         ctx.tymap = TypeConvForRust.tymap
 
         return ctx
+
+    def createMiniContext(self, cursor, base_class):
+        ctx = GenClassContext(cursor)
+        ctx.CP = self.gctx.getCodePager(cursor)
+
+        # base class
+        ctx.base_class = base_class
+        ctx.base_class_name = base_class.spelling if base_class is not None else None
+        ctx.has_base = True if base_class is not None else False
+        ctx.has_base = base_class is not None
+
+        # aux
+        ctx.tymap = TypeConvForRust.tymap
+        return ctx
+
+    def generateInheritEmulate(self, cursor, base_class):
+        # minictx
+        ctx = self.createMiniContext(cursor, base_class)
+
+        # ctx.CP.AP('body', '/*')
+        ctx.CP.AP('body', 'impl /*struct*/ %s {' % (ctx.class_name))
+        ctx.CP.AP('body', '  pub fn inheritFrom(qthis: *mut c_void) -> %s {' % (ctx.class_name))
+        if ctx.has_base:
+            ctx.CP.AP('body', '    return %s{qbase: %s::inheritFrom(qthis), qclsinst: qthis};' %
+                  (ctx.class_name, ctx.base_class_name))
+        else:
+            ctx.CP.AP('body', '    return %s{qclsinst: qthis};' % (ctx.class_name))
+        ctx.CP.AP('body', '  }')
+        ctx.CP.AP('body', '}')
+        # ctx.CP.AP('body', '*/\n')
+
+        if ctx.has_base:
+            self.generateUseForRust(ctx, ctx.base_class.type, ctx.cursor)
+
+        ctx.CP.APU('use', 'use std::ops::Deref;')
+
+        if ctx.has_base:
+            # ctx.CP.AP('body', '/*')
+            ctx.CP.AP('body', 'impl Deref for %s {' % (ctx.class_name))
+            ctx.CP.AP('body', '  type Target = %s;' % (ctx.base_class_name))
+            ctx.CP.AP('body', '')
+            ctx.CP.AP('body', '  fn deref(&self) -> &%s {' % (ctx.base_class_name))
+            ctx.CP.AP('body', '    return &self.qbase;')
+            ctx.CP.AP('body', '  }')
+            ctx.CP.AP('body', '}')
+            # ctx.CP.AP('body', '*/\n')
+
+        if ctx.has_base:
+            # ctx.CP.AP('body', '/*')
+            ctx.CP.AP('body', 'impl AsRef<%s> for %s {' % (ctx.base_class_name, ctx.class_name))
+            ctx.CP.AP('body', '  fn as_ref(&self) -> &%s {' % (ctx.base_class_name))
+            ctx.CP.AP('body', '    return &self.qbase;')
+            ctx.CP.AP('body', '  }')
+            ctx.CP.AP('body', '}')
+            # ctx.CP.AP('body', '*/\n')
+
+        return
 
     def generateMethod(self, ctx):
         cursor = ctx.cursor
@@ -432,7 +523,12 @@ class GenerateForRust(GenerateBase):
             ctx.CP.AP('body', "    unsafe {%s(qthis%s)};" % (mangled_name, call_params))
         else:
             ctx.CP.AP('body', "    unsafe {%s(qthis, %s)};" % (mangled_name, call_params))
-        ctx.CP.AP('body', "    let rsthis = %s{qclsinst: qthis};" % (class_name))
+        if ctx.has_base:
+            # TODO 如果父类再有父类呢，这个初始化不对，需要更强的生成函数
+            ctx.CP.AP('body', "    let rsthis = %s{/**/qbase: %s::inheritFrom(qthis), /**/qclsinst: qthis};" %
+                      (class_name, ctx.base_class_name))
+        else:
+            ctx.CP.AP('body', "    let rsthis = %s{qclsinst: qthis};" % (class_name))
         ctx.CP.AP('body', "    return rsthis;")
         ctx.CP.AP('body', "    // return 1;")
         ctx.CP.AP('body', "  }")
@@ -481,7 +577,7 @@ class GenerateForRust(GenerateBase):
         # elif return_type_name_ext == '*mut c_void' or return_type_name_ext == '*const c_void':  # no const now
         elif iscvoidstar(return_type_name_ext) and not isrstar(return_type_name_rs):
             # 应该是返回一个qt class对象，由于无法返回&mut类型的对象
-            if has_return: ctx.CP.AP('body', "    let mut ret1 = %s{qclsinst: ret};" % (return_type_name_rs))
+            if has_return: ctx.CP.AP('body', "    let mut ret1 = %s::inheritFrom(ret);" % (return_type_name_rs))
             if has_return: ctx.CP.AP('body', "    return ret1;")
         else:
             if has_return: ctx.CP.AP('body', "    return ret as %s;" % (return_type_name_rs))

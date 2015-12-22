@@ -35,6 +35,8 @@ class GenUtil:
 
         return decl_module
 
+    # TODO 好像有点bug。
+    # QListData会推导出基类是NotIndirectLayout。而实际上QListData没有基类。
     def get_base_class(self, cursor):
         bases = []
         for x in cursor.walk_preorder():
@@ -42,7 +44,11 @@ class GenUtil:
             if x.kind == clidx.CursorKind.CXX_BASE_SPECIFIER:
                 decl = x.get_definition().type.get_declaration()
                 # print(x.kind, decl.kind, decl.spelling)
-                bases.append(decl)
+                # fix, 需要decl.semantic_parent.kind == TRANSLATION_UNIT
+                # 而这个遍历是有可能进入到类内部的，所以不准确
+                if decl.semantic_parent.kind == clidx.CursorKind.TRANSLATION_UNIT:
+                    bases.append(decl)
+                else: break  # 提前跳出结束执行
         return bases
 
     def get_methods(self, class_cursor):

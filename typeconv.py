@@ -309,7 +309,7 @@ class TypeConvForRust(TypeConv):
         if is_const(cxxtype): mut_or_no = ''
 
         if cxxtype.kind == clidx.TypeKind.LVALUEREFERENCE:
-
+            # TODO 为什么std::string &的can_type_name是i32呢？
             if ctx.can_type_name in raw_type_map:
                 if self.IsCharType(ctx.can_type_name) or self.IsCharType(ctx.convable_type_name):
                     return "&%s String" % (mut_or_no)
