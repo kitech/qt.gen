@@ -290,7 +290,7 @@ class TypeConvForRust(TypeConv):
         return rety
 
     # @param cxxtype clidx.Type
-    def TypeCXX2Rust(self, cxxtype, cursor, method_name=None):
+    def TypeCXX2Rust(self, cxxtype, cursor, inty=False):
         # TODO c++ char => rust char
         raw_type_map = TypeConvForRust.tymap
         ctx = self.createContext(cxxtype, cursor)
@@ -314,8 +314,6 @@ class TypeConvForRust(TypeConv):
                 if self.IsCharType(ctx.can_type_name) or self.IsCharType(ctx.convable_type_name):
                     return "&%s String" % (mut_or_no)
                 else:
-                    if method_name == 'fromStdWString':
-                        self.dumpContext(ctx)
                     return "&%s %s" % (mut_or_no, raw_type_map[ctx.can_type_name][0])
 
         if cxxtype.kind == clidx.TypeKind.POINTER or \
@@ -331,7 +329,8 @@ class TypeConvForRust(TypeConv):
                     return "&%s Vec<%s>" % (mut_or_no, raw_type_map[ctx.can_type_name][0])
 
             if ctx.can_type.kind == clidx.TypeKind.RECORD:
-                return ctx.can_type_name
+                if inty is True: return '&' + ctx.can_type_name
+                else: return ctx.can_type_name
             if ctx.can_type.kind == clidx.TypeKind.FUNCTIONPROTO:
                 return ctx.cursor.spelling
             if ctx.can_type.kind == clidx.TypeKind.VOID:

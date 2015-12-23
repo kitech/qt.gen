@@ -9,6 +9,8 @@
 #![allow(unused_mut)]
 #![allow(unused_attributes)]
 #![allow(unused_imports)]
+// #![cfg_attr(lte_rustc_1_5, allow(raw_pointer_derive))]
+// #![allow(custom_derive)]
 
 pub mod QtCore;
 pub mod qtfn;

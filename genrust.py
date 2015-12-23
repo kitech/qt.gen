@@ -73,8 +73,8 @@ class GenMethodContext(object):
 
         self.static_str = 'static' if self.static else ''
         self.static_suffix = '_s' if self.static else ''
-        self.static_self_struct = '' if self.static else '&mut self, '
-        self.static_self_trait = '' if self.static else ', rsthis: &mut %s' % (self.class_name)
+        self.static_self_struct = '' if self.static else '& self, '
+        self.static_self_trait = '' if self.static else ', rsthis: & %s' % (self.class_name)
         self.static_self_call = '' if self.static else 'self'
 
         self.params_cpp = ''
@@ -237,6 +237,7 @@ class GenerateForRust(GenerateBase):
 
         CP.AP('body', "// class sizeof(%s)=%s" % (class_name, ctysz))
         # generate struct of class
+        # CP.AP('body', '#[derive(Sized)]')
         CP.AP('body', "pub struct %s {" % (class_name))
         if base_class is None:
             CP.AP('body', "  // qbase: %s," % (base_class))
@@ -335,8 +336,10 @@ class GenerateForRust(GenerateBase):
         ctx.unique_methods = unique_methods
         ctx.CP = self.gctx.getCodePager(class_cursor)
 
-        if ctx.ctor: ctx.method_name_rewrite = 'New%s' % (ctx.method_name)
-        if ctx.dtor: ctx.method_name_rewrite = 'Free%s' % (ctx.method_name[1:])
+        # if ctx.ctor: ctx.method_name_rewrite = 'New%s' % (ctx.method_name)
+        # if ctx.dtor: ctx.method_name_rewrite = 'Free%s' % (ctx.method_name[1:])
+        if ctx.ctor: ctx.method_name_rewrite = 'New'
+        if ctx.dtor: ctx.method_name_rewrite = 'Free'
         if self.is_conflict_method_name(ctx.method_name):
             ctx.method_name_rewrite = ctx.method_name + '_'
         if ctx.static:
@@ -424,7 +427,7 @@ class GenerateForRust(GenerateBase):
             ctx.CP.AP('body', '  type Target = %s;' % (ctx.base_class_name))
             ctx.CP.AP('body', '')
             ctx.CP.AP('body', '  fn deref(&self) -> &%s {' % (ctx.base_class_name))
-            ctx.CP.AP('body', '    return &self.qbase;')
+            ctx.CP.AP('body', '    return & self.qbase;')
             ctx.CP.AP('body', '  }')
             ctx.CP.AP('body', '}')
             # ctx.CP.AP('body', '*/\n')
@@ -432,8 +435,8 @@ class GenerateForRust(GenerateBase):
         if ctx.has_base:
             # ctx.CP.AP('body', '/*')
             ctx.CP.AP('body', 'impl AsRef<%s> for %s {' % (ctx.base_class_name, ctx.class_name))
-            ctx.CP.AP('body', '  fn as_ref(&self) -> &%s {' % (ctx.base_class_name))
-            ctx.CP.AP('body', '    return &self.qbase;')
+            ctx.CP.AP('body', '  fn as_ref(& self) -> & %s {' % (ctx.base_class_name))
+            ctx.CP.AP('body', '    return & self.qbase;')
             ctx.CP.AP('body', '  }')
             ctx.CP.AP('body', '}')
             # ctx.CP.AP('body', '*/\n')
@@ -716,7 +719,7 @@ class GenerateForRust(GenerateBase):
             # type_name = self.resolve_swig_type_name(class_name, arg.type)
             # type_name2 = self.hotfix_typename_ifenum_asint(class_name, arg, arg.type)
             # type_name = type_name2 if type_name2 is not None else type_name
-            type_name = self.tyconv.TypeCXX2Rust(arg.type, arg, method_name)
+            type_name = self.tyconv.TypeCXX2Rust(arg.type, arg, inty=True)
             if type_name.startswith('&'): type_name = type_name.replace('&', "&'a ")
             # if self.is_qt_class(type_name) and self.check_skip_param(arg, method_name) is False:
             #     seg = self.get_qt_class(type_name)
