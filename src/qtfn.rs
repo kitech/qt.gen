@@ -17,9 +17,9 @@ use std::env;
 use std::vec;
 
 
-#[link(name = "Qt5Core")]
-#[link(name = "Qt5Gui")]
-#[link(name = "Qt5Widgets")]
+// #[link(name = "Qt5Core")]
+// #[link(name = "Qt5Gui")]
+// #[link(name = "Qt5Widgets")]
 extern {
     fn _Z5qrandv() -> int32_t;
     fn _Z6qsrandj(a: uint32_t) ;

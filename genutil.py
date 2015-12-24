@@ -46,6 +46,9 @@ class GenUtil:
                 # print(x.kind, decl.kind, decl.spelling)
                 # fix, 需要decl.semantic_parent.kind == TRANSLATION_UNIT
                 # 而这个遍历是有可能进入到类内部的，所以不准确
+                if decl.semantic_parent is None:
+                    print(decl.kind, decl.spelling, x.kind, x.spelling)
+                    exit(0)
                 if decl.semantic_parent.kind == clidx.CursorKind.TRANSLATION_UNIT:
                     bases.append(decl)
                 else: break  # 提前跳出结束执行

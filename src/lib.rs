@@ -12,6 +12,13 @@
 // #![cfg_attr(lte_rustc_1_5, allow(raw_pointer_derive))]
 // #![allow(custom_derive)]
 
+#[link(name = "Qt5Core")]
+#[link(name = "Qt5Gui")]
+#[link(name = "Qt5Widgets")]
+#[link(name = "QtInline")]
+extern {}  // 这行还是需要的
+
+
 pub mod QtCore;
 pub mod qtfn;
 
