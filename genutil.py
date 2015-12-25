@@ -1,7 +1,6 @@
 # encoding: utf8
 
 import logging
-
 import clang
 import clang.cindex as clidx
 
@@ -12,7 +11,11 @@ logging.basicConfig(format=FORMAT, level=LOGLEVEL)
 glog = logging.getLogger()
 
 
-class GenUtil:
+class GenUtil(object):
+    def __init__(self):
+        self.conflib = clang.cindex.conf.lib
+        return
+
     def get_code_file(self, cursor):
         loc = cursor.location
         code_file = loc.file.name.split('/')[-1].split('.')[0]
@@ -62,15 +65,25 @@ class GenUtil:
             # TODO va_list type
             # if self.check_skip_method(m): continue
             mangled_name = m.mangled_name
-            if m.kind == clang.cindex.CursorKind.CXX_METHOD:
+            if m.kind == clidx.CursorKind.CONSTRUCTOR and not m.is_definition():
                 method_names[mangled_name] = m
-            if m.kind == clang.cindex.CursorKind.CONSTRUCTOR:
+            elif m.kind == clidx.CursorKind.DESTRUCTOR and not m.is_definition():
                 method_names[mangled_name] = m
-            if m.kind == clang.cindex.CursorKind.DESTRUCTOR:
+            elif m.kind == clidx.CursorKind.CXX_METHOD and not m.is_definition():
                 method_names[mangled_name] = m
 
         return method_names
 
+    # 还要验证基类是否有纯虚方法
+    def isAbstractClass(self, cursor):
+        for m in cursor.get_children():
+            pv = self.conflib.clang_CXXMethod_isPureVirtual(m)
+            if pv: return True
+        return False
+
+    # how
+    def isDisableCopy(self, cursor):
+        return False
     pass
 
 

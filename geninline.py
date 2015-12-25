@@ -170,6 +170,22 @@ class GenerateForInlineCXX(GenerateBase):
             umethod_name = cursor.spelling + static_suffix
             unique_methods[umethod_name] = True
 
+        isabstract = self.gutil.isAbstractClass(class_cursor)
+        if not isabstract and class_name.startswith('QAbstract'):
+            isabstract = True
+        if class_name in ['QAnimationGroup', 'QAccessibleObject', 'QLayoutItem']:
+            isabstract = True
+        if class_name in ['QSignalBlocker']:
+            isabstract = True
+
+        # 生成所有的构造方法封装
+        if not isabstract:
+            for mangled_name in methods:
+                cursor = methods[mangled_name]
+                method_name = cursor.spelling
+                ctx = self.createGenMethodContext(cursor, class_cursor, base_class, unique_methods)
+                self.generateCtors(ctx)
+
         # dupremove = self.dedup_return_const_diff_method(methods)
         dupremove = []
         # print(444, 'dupremove len:', len(dupremove), dupremove)
@@ -259,6 +275,96 @@ class GenerateForInlineCXX(GenerateBase):
         ctx.tymap = TypeConvForRust.tymap
         return ctx
 
+    # 生成所有的构造方法
+    def generateCtors(self, ctx):
+        method_cursor = ctx.cursor
+        if method_cursor.access_specifier != clidx.AccessSpecifier.PUBLIC:
+            return
+
+        method_name = ctx.method_name
+        mangled_name = ctx.mangled_name
+
+        if mangled_name in ['_ZN6QImageC1EPKhiiiNS_6FormatEPFvPvES3_',
+                            '_ZN6QImageC1EPKhiiNS_6FormatEPFvPvES3_',
+                            '_ZN6QImageC1EPhiiNS_6FormatEPFvPvES2_',
+                            '_ZN6QImageC1EPhiiiNS_6FormatEPFvPvES2_',
+                            '_ZN6QImageC1EPhiiNS_6FormatEPFvPvES2_',
+                            '_ZN6QImageC1EPKhiiNS_6FormatEPFvPvES3_',
+                            '_ZN6QImageC1EPKhiiiNS_6FormatEPFvPvES3_',
+                            '_ZN6QImageC1EPKPKc',
+                            '_ZN6QImageC1EPhiiiNS_6FormatEPFvPvES2_',
+                            '_ZN7QPixmapC1EPKPKc',
+                            '_ZN24QOpenGLFramebufferObjectC1Eiij',
+                            '_ZN24QOpenGLFramebufferObjectC1ERK5QSizej',]:
+            return
+
+        if method_name in ['QGraphicsObject']: return
+
+        # 不能实例化
+        # TODO 使用ispure做准确判断
+        # 移动到上面
+
+        if method_cursor.kind == clidx.CursorKind.CONSTRUCTOR:
+            self.generateCtorAlloc(ctx)
+
+        if method_cursor.kind == clidx.CursorKind.DESTRUCTOR:
+            self.generateDtorDelete(ctx)
+
+        return
+
+    # 重新生成新的ctor封装，在这里计算类大小，并分配空间，返回生成的对象
+    def generateCtorAlloc(self, ctx):
+
+        class_name = ctx.class_name
+        method_name = ctx.method_name
+        method_cursor = ctx.cursor
+
+        params = self.generateParams(class_name, method_name, method_cursor)
+        params = ', '.join(params)
+
+        full_class_name = ctx.class_name
+        # 类内类处理
+        if ctx.class_cursor.semantic_parent.kind == clidx.CursorKind.STRUCT_DECL or \
+           ctx.class_cursor.semantic_parent.kind == clidx.CursorKind.CLASS_DECL:
+            print('ooops', ctx.class_cursor.semantic_parent.kind, ctx.class_cursor.semantic_parent.spelling)
+            full_class_name = '%s::%s' % (ctx.class_cursor.semantic_parent.spelling, ctx.class_name)
+            # exit(0)
+
+        ctx.CP.AP('header', '// %s' % (method_cursor.displayname))
+        ctx.CP.AP('header', '%s* dector%s(%s)' % (full_class_name, ctx.mangled_name, params))
+        ctx.CP.AP('header', '{')
+        # 从这可以看出来ctx.ctysz这个大小完全不准确。
+        ctx.CP.AP('header', '  // static_assert(sizeof(%s) == %s, "tyszerr");' % (class_name, ctx.ctysz))
+        ctx.CP.AP('header', '  %s* rthis = new %s(%s);' % (full_class_name, full_class_name, ctx.params_call))
+        ctx.CP.AP('header', '  return rthis;')
+        ctx.CP.AP('header', '}\n')
+
+        return
+
+    # 重新生成新的ctor封装，在这里计算类大小，并分配空间，返回生成的对象
+    def generateDtorDelete(self, ctx):
+
+        class_name = ctx.class_name
+        method_name = ctx.method_name
+        method_cursor = ctx.cursor
+
+        full_class_name = ctx.class_name
+        # 类内类处理
+        if ctx.class_cursor.semantic_parent.kind == clidx.CursorKind.STRUCT_DECL or \
+           ctx.class_cursor.semantic_parent.kind == clidx.CursorKind.CLASS_DECL:
+            print('ooops', ctx.class_cursor.semantic_parent.kind, ctx.class_cursor.semantic_parent.spelling)
+            full_class_name = '%s::%s' % (ctx.class_cursor.semantic_parent.spelling, ctx.class_name)
+            # exit(0)
+
+        ctx.CP.AP('header', '// %s' % (method_cursor.displayname))
+        ctx.CP.AP('header', 'void dedtor%s(%s* that)' % (ctx.mangled_name, full_class_name))
+        ctx.CP.AP('header', '{')
+        ctx.CP.AP('header', '  %s* rthis = (%s*)that;' % (full_class_name, full_class_name))
+        ctx.CP.AP('header', '  delete rthis;')
+        ctx.CP.AP('header', '}\n')
+
+        return
+
     # def generateClass(self, class_name, cs, methods, base_class):
     #     code = ''
 
@@ -279,28 +385,23 @@ class GenerateForInlineCXX(GenerateBase):
         method_name = ctx.method_name
         method_cursor = ctx.cursor
         cursor = method_cursor
-        code = ''
 
         return_type = cursor.result_type
         return_real_type = self.real_type_name(return_type)
-        if '::' in return_real_type: return code
-        # if self.check_skip_params(cursor): return code
+        if '::' in return_real_type: return
+        # if self.check_skip_params(cursor): return
 
         inner_return = ''
         if cursor.kind == clidx.CursorKind.CONSTRUCTOR or \
            cursor.kind == clidx.CursorKind.DESTRUCTOR:
-            # code += " %s(" % (fixmthname)
-            code += "void "
             pass
         else:
             return_type_name = self.resolve_swig_type_name(class_name, return_type)
             return_type_name2 = self.hotfix_typename_ifenum_asint(class_name, method_cursor, return_type)
             return_type_name = return_type_name2 if return_type_name2 is not None else return_type_name
-            # code += " %s %s(" % (return_type_name, fixmthname)
-            code += "%s " % (return_type_name)
             inner_return = 'return' if return_type_name != 'void' else inner_return
 
-        params = self.generateParams(class_name, method_name, method_cursor);
+        params = self.generateParams(class_name, method_name, method_cursor)
         params = ', '.join(params)
         params = 'void *that, ' + params
         params = params.strip(', ')
@@ -309,25 +410,18 @@ class GenerateForInlineCXX(GenerateBase):
         ctx.CP.AP('header', ctx.fn_proto_cpp)
         mangled_name = method_cursor.mangled_name
         if return_type.kind == clidx.TypeKind.RECORD:
-            code += "%s(%s)\n" % (mangled_name, params)
-            ctx.CP.AP('header', "%s* %s(%s)\n" % (ret_type_name, mangled_name, params))
+            ctx.CP.AP('header', "%s* %s(%s)" % (ret_type_name, mangled_name, params))
         else:
-            code += "%s(%s)\n" % (mangled_name, params)
-            ctx.CP.AP('header', "%s %s(%s)\n" % (ret_type_name, mangled_name, params))
+            ctx.CP.AP('header', "%s %s(%s)" % (ret_type_name, mangled_name, params))
 
-        code += "{\n"
-        # code += "  fprintf(stderr, \"Do't call this function.\\n\"); exit(-1);\n"
         ctx.CP.AP('header', "{")
 
         call_params = self.generateParamsForCall(class_name, method_name, method_cursor)
         call_params = ', '.join(call_params)
-        code += "  %s *cthat = (%s *)that;\n" % (class_name, class_name)
         ctx.CP.AP('header', "  %s *cthat = (%s *)that;" % (class_name, class_name))
         if cursor.kind == clidx.CursorKind.CONSTRUCTOR:
-            code += "  auto _o = new(that) %s(%s);\n" % (method_name, call_params)
             ctx.CP.AP('header', "  auto _o = new(that) %s(%s);" % (method_name, call_params))
         else:
-            code += "  %s cthat->%s(%s);\n" % (inner_return, method_name, call_params)
             if ctx.ret_type_ref:
                 ctx.CP.AP('header', "  %s &cthat->%s(%s);" % (inner_return, method_name, call_params))
             else:
@@ -338,9 +432,9 @@ class GenerateForInlineCXX(GenerateBase):
                 else:
                     ctx.CP.AP('header', "  %s cthat->%s(%s);" % (inner_return, method_name, call_params))
 
-        code += "}\n"
         ctx.CP.AP('header', '}\n')
-        return code
+
+        return
 
     # @return []
     def generateParamsRaw(self, class_name, method_name, method_cursor):
@@ -460,6 +554,8 @@ class GenerateForInlineCXX(GenerateBase):
     # @return True | False
     def check_skip_method(self, cursor):
         method_name = cursor.spelling
+        mangled_name = cursor.mangled_name
+
         if method_name.startswith('operator'):
             # print("Omited operator method: " + mth)
             return True
@@ -493,6 +589,10 @@ class GenerateForInlineCXX(GenerateBase):
         fixmths_prefix = ['qt_check_for_']
         for p in fixmths_prefix:
             if method_name.startswith(p): return True
+
+        if method_name in ['QSignalBlocker']: return True
+        if method_name in ['QLayoutItem']: return True
+        if method_name in ['QGraphicsObject']: return True
 
         # 实现不知道怎么fix了，已经fix，原来是给clidx.parse中的-I不全，导致找不到类型。
         # fixmths3 = ['setQueryItems']
