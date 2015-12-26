@@ -275,6 +275,8 @@ class GenerateForRust(GenerateBase):
         if ctx.static:
             ctx.method_name_rewrite = ctx.method_name + ctx.static_suffix
 
+        ctx.isinline = self.method_is_inline(method_cursor)
+
         class_name = ctx.class_name
         method_name = ctx.method_name
 
@@ -506,7 +508,10 @@ class GenerateForRust(GenerateBase):
         ctx.CP.AP('body', "    // let qthis: *mut c_void = unsafe{calloc(1, %s)};" % (ctx.ctysz))
         ctx.CP.AP('body', "    // unsafe{%s()};" % (mangled_name))
         self.generateArgConvExprs(class_name, method_name, method_cursor, ctx)
-        ctx.CP.AP('body', "    %s unsafe {%s(%s)};" % (return_piece_code_return, mangled_name, call_params))
+        if ctx.isinline:
+            ctx.CP.AP('body', "    %s unsafe {demth%s(%s)};" % (return_piece_code_return, mangled_name, call_params))
+        else:
+            ctx.CP.AP('body', "    %s unsafe {%s(%s)};" % (return_piece_code_return, mangled_name, call_params))
 
         def iscvoidstar(tyname): return ' c_void' in tyname and '*' in tyname
         def isrstar(tyname): return '*' in tyname
@@ -739,7 +744,11 @@ class GenerateForRust(GenerateBase):
         if cursor.kind == clidx.CursorKind.CONSTRUCTOR:
             tpargs = ', '.join(ctx.params_ext_arr)
             ctx.CP.AP('ext', "  fn dector%s(%s) -> *mut c_void;" % (mangled_name, tpargs))
-        ctx.CP.AP('ext', "  fn %s(%s)%s;" % (mangled_name, extargs, return_piece_proto))
+
+        if ctx.isinline:
+            ctx.CP.AP('ext', "  fn demth%s(%s)%s;" % (mangled_name, extargs, return_piece_proto))
+        else:
+            ctx.CP.AP('ext', "  fn %s(%s)%s;" % (mangled_name, extargs, return_piece_proto))
 
         return has_return, return_type_name
 

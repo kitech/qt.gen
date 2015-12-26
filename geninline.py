@@ -224,6 +224,8 @@ class GenerateForInlineCXX(GenerateBase):
         if ctx.static:
             ctx.method_name_rewrite = ctx.method_name + ctx.static_suffix
 
+        ctx.isinline = self.method_is_inline(method_cursor)
+
         class_name = ctx.class_name
         method_name = ctx.method_name
 
@@ -427,9 +429,9 @@ class GenerateForInlineCXX(GenerateBase):
         ctx.CP.AP('header', ctx.fn_proto_cpp)
         mangled_name = method_cursor.mangled_name
         if return_type.kind == clidx.TypeKind.RECORD:
-            ctx.CP.AP('header', "%s* %s(%s)" % (ret_type_name, mangled_name, params))
+            ctx.CP.AP('header', "%s* demth%s(%s)" % (ret_type_name, mangled_name, params))
         else:
-            ctx.CP.AP('header', "%s %s(%s)" % (ret_type_name, mangled_name, params))
+            ctx.CP.AP('header', "%s demth%s(%s)" % (ret_type_name, mangled_name, params))
 
         ctx.CP.AP('header', "{")
 

@@ -36,6 +36,13 @@ class GenerateBase(object):
     def generateParams(self, class_name, method_name, method_cursor):
         return
 
+    def method_is_inline(self, method_cursor):
+        for token in method_cursor.get_tokens():
+            if token.spelling == 'inline':
+                parent = method_cursor.semantic_parent
+                # print(111, method_cursor.spelling, parent.spelling)
+                return True
+        return False
     pass
 
 
@@ -101,6 +108,8 @@ class GenMethodContext(object):
         self.static_self_struct = '' if self.static else '& self, '
         self.static_self_trait = '' if self.static else ', rsthis: & %s' % (self.class_name)
         self.static_self_call = '' if self.static else 'self'
+
+        self.isinline = False
 
         self.params_cpp = ''
         self.params_rs = ''
