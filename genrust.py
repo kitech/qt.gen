@@ -246,6 +246,7 @@ class GenerateForRust(GenerateBase):
         for mangled_name in methods:
             cursor = methods[mangled_name]
             method_name = cursor.spelling
+
             if self.check_skip_method(cursor):
                 # if method_name == 'QAction':
                     #print(433, 'whyyyyyyyyyyyyyy') # no
@@ -1080,10 +1081,15 @@ class GenerateForRust(GenerateBase):
         while tokens[0] in ['const', 'inline']:
             tokens = tokens[1:]
 
+        tydecl = atype.get_declaration()
+        tyloc = atype.get_declaration().location
+
         firstch = tokens[0][0:1]
         if firstch.upper() == firstch and firstch != 'Q':
-            print('Warning fix enum-as-int:', type_name, '=> %s::' % class_name, tokens[0])
-            return '%s::%s' % (class_name, tokens[0])
+            if tydecl is not None and tydecl.semantic_parent is not None \
+               and self.gutil.isqtloc(tydecl.semantic_parent):
+                print('Warning fix enum-as-int:', type_name, '=> %s::' % class_name, tokens[0])
+                return '%s::%s' % (class_name, tokens[0])
 
         if len(tokens) < 3: return None
         if firstch.upper() == firstch and firstch == 'Q' and tokens[1] == '::':

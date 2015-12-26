@@ -314,7 +314,9 @@ class GenerateForInlineCXX(GenerateBase):
                             '_ZN6QImageC1EPhiiiNS_6FormatEPFvPvES2_',
                             '_ZN7QPixmapC1EPKPKc',
                             '_ZN24QOpenGLFramebufferObjectC1Eiij',
-                            '_ZN24QOpenGLFramebufferObjectC1ERK5QSizej',]:
+                            '_ZN24QOpenGLFramebufferObjectC1ERK5QSizej',
+                            '_ZN22QTextStreamManipulatorC1EM11QTextStreamFviEi',
+                            '_ZN22QTextStreamManipulatorC1EM11QTextStreamFv5QCharES1_']:
             return
 
         if method_name in ['QGraphicsObject']: return
@@ -433,9 +435,9 @@ class GenerateForInlineCXX(GenerateBase):
 
         call_params = self.generateParamsForCall(class_name, method_name, method_cursor)
         call_params = ', '.join(call_params)
-        ctx.CP.AP('header', "  %s *cthat = (%s *)that;" % (class_name, class_name))
+        ctx.CP.AP('header', "  %s *cthat = (%s *)that;" % (ctx.full_class_name, ctx.full_class_name))
         if cursor.kind == clidx.CursorKind.CONSTRUCTOR:
-            ctx.CP.AP('header', "  auto _o = new(that) %s(%s);" % (method_name, call_params))
+            ctx.CP.AP('header', "  auto _o = new(that) %s(%s);" % (ctx.full_class_name, call_params))
         else:
             if ctx.ret_type_ref:
                 ctx.CP.AP('header', "  %s &cthat->%s(%s);" % (inner_return, method_name, call_params))
@@ -672,10 +674,15 @@ class GenerateForInlineCXX(GenerateBase):
         while tokens[0] in ['const', 'inline']:
             tokens = tokens[1:]
 
+        tydecl = atype.get_declaration()
+        tyloc = atype.get_declaration().location
+
         firstch = tokens[0][0:1]
         if firstch.upper() == firstch and firstch != 'Q':
-            print('Warning fix enum-as-int:', type_name, '=> %s::' % class_name, tokens[0])
-            return '%s::%s' % (class_name, tokens[0])
+            if tydecl is not None and tydecl.semantic_parent is not None \
+               and self.gutil.isqtloc(tydecl.semantic_parent):
+                print('Warning fix enum-as-int:', type_name, '=> %s::' % class_name, tokens[0])
+                return '%s::%s' % (class_name, tokens[0])
 
         if len(tokens) < 3: return None
         if firstch.upper() == firstch and firstch == 'Q' and tokens[1] == '::':

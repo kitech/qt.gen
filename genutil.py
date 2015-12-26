@@ -64,12 +64,14 @@ class GenUtil(object):
             # print(m.kind, m.spelling)
             # TODO va_list type
             # if self.check_skip_method(m): continue
+            method_name = m.spelling
             mangled_name = m.mangled_name
-            if m.kind == clidx.CursorKind.CONSTRUCTOR and not m.is_definition():
+            # 这里不需要检测是否是definition，因为这是在类内部的，全部要考虑的
+            if m.kind == clidx.CursorKind.CONSTRUCTOR:  # and not m.is_definition():
                 method_names[mangled_name] = m
-            elif m.kind == clidx.CursorKind.DESTRUCTOR and not m.is_definition():
+            elif m.kind == clidx.CursorKind.DESTRUCTOR:  # and not m.is_definition():
                 method_names[mangled_name] = m
-            elif m.kind == clidx.CursorKind.CXX_METHOD and not m.is_definition():
+            elif m.kind == clidx.CursorKind.CXX_METHOD:  # and not m.is_definition():
                 method_names[mangled_name] = m
 
         return method_names
@@ -84,6 +86,9 @@ class GenUtil(object):
     # how
     def isDisableCopy(self, cursor):
         return False
+
+    def isqtloc(self, cursor):
+        return cursor.location.file.name.startswith('/usr/include/qt')
     pass
 
 
