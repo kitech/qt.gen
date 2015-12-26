@@ -8,6 +8,7 @@ set(CMAKE_CXX_FLAGS "-g -O2 -std=c++11")
 set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang++)
 
+set(CMAKE_AUTOMOC on)
 find_package(Qt5Core)
 find_package(Qt5Gui)
 find_package(Qt5Widgets)
@@ -21,12 +22,14 @@ find_package(Qt5Widgets)
 # set(qt5_inline_gui_srcs "")
 # set(qt5_inline_widgets_srcs "")
 
+set(CMAKE_INCLUDE_CURRENT_DIR on)
+
 include(src/core/mod.cmake)
 include(src/gui/mod.cmake)
 include(src/widgets/mod.cmake)
 
 
-set(all_qt5_inline_srcs ${qt5_inline_core_srcs} ${qt5_inline_gui_srcs} ${qt5_inline_widgets_srcs})
+set(all_qt5_inline_srcs src/proxyobject.cpp ${qt5_inline_core_srcs} ${qt5_inline_gui_srcs} ${qt5_inline_widgets_srcs})
 
 add_library(QtInline SHARED ${all_qt5_inline_srcs})
 qt5_use_modules(QtInline Core Gui Widgets)

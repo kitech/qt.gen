@@ -1,5 +1,5 @@
 [package]
-name = "rustqt"
+name = "qt5"
 version = "1.0.0"  # 必须3位
 authors = ["gzleo"]
 

@@ -1,11 +1,11 @@
 
-extern crate rustqt;
+extern crate qt5;
 
-use rustqt::*;
-use rustqt::QtCore::*;
-use rustqt::qtfn::*;
+use qt5::*;
+use qt5::QtCore::*;
+use qt5::qtfn::*;
 // use rustqt::core::*;
-use rustqt::bar::*;
+use qt5::bar::*;
 
 fn test_QCoreApplication() {
     // QCoreApplication::NewQCoreApplication2(); // ok
