@@ -170,6 +170,10 @@ class GenerateForInlineCXX(GenerateBase):
             umethod_name = cursor.spelling + static_suffix
             unique_methods[umethod_name] = True
 
+        # 生成计算类大小的方法
+        mctx = self.createMiniContext(class_cursor, base_class)
+        self.generateClassSize(mctx)
+
         isabstract = self.gutil.isAbstractClass(class_cursor)
         if not isabstract and class_name.startswith('QAbstract'):
             isabstract = True
@@ -275,6 +279,21 @@ class GenerateForInlineCXX(GenerateBase):
         ctx.tymap = TypeConvForRust.tymap
         return ctx
 
+    def generateClassSize(self, mctx):
+        # 获取类大小的封装，clang.py获取的类大小不对，如果有clang.cpp应该能够获取到正确值吧
+
+        ctx = mctx
+
+        # 类内类处理
+        full_class_name = ctx.full_class_name
+
+        ctx.CP.AP('header', 'int %s_Class_Size()' % (ctx.class_name))
+        ctx.CP.AP('header', '{')
+        ctx.CP.AP('header', '  return sizeof(%s);' % (full_class_name))
+        ctx.CP.AP('header', '}\n')
+
+        return
+
     # 生成所有的构造方法
     def generateCtors(self, ctx):
         method_cursor = ctx.cursor
@@ -299,6 +318,7 @@ class GenerateForInlineCXX(GenerateBase):
             return
 
         if method_name in ['QGraphicsObject']: return
+        if method_name.startswith('QOpenGLFunctions'): return
 
         # 不能实例化
         # TODO 使用ispure做准确判断
@@ -322,13 +342,8 @@ class GenerateForInlineCXX(GenerateBase):
         params = self.generateParams(class_name, method_name, method_cursor)
         params = ', '.join(params)
 
-        full_class_name = ctx.class_name
         # 类内类处理
-        if ctx.class_cursor.semantic_parent.kind == clidx.CursorKind.STRUCT_DECL or \
-           ctx.class_cursor.semantic_parent.kind == clidx.CursorKind.CLASS_DECL:
-            print('ooops', ctx.class_cursor.semantic_parent.kind, ctx.class_cursor.semantic_parent.spelling)
-            full_class_name = '%s::%s' % (ctx.class_cursor.semantic_parent.spelling, ctx.class_name)
-            # exit(0)
+        full_class_name = ctx.full_class_name
 
         ctx.CP.AP('header', '// %s' % (method_cursor.displayname))
         ctx.CP.AP('header', '%s* dector%s(%s)' % (full_class_name, ctx.mangled_name, params))

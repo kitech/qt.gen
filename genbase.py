@@ -48,6 +48,12 @@ class GenClassContext(object):
         self.class_name = cursor.spelling
         self.cursor = cursor
 
+        self.full_class_name = self.class_name
+        # 类内类处理
+        if self.cursor.semantic_parent.kind == clidx.CursorKind.STRUCT_DECL or \
+           self.cursor.semantic_parent.kind == clidx.CursorKind.CLASS_DECL:
+            self.full_class_name = '%s::%s' % (self.cursor.semantic_parent.spelling, self.class_name)
+
         # inherit
         self.base_class = None
         self.base_class_name = ''
@@ -73,6 +79,12 @@ class GenMethodContext(object):
         self.method_name_rewrite = self.method_name
         self.mangled_name = cursor.mangled_name
 
+        self.full_class_name = self.class_name
+        # 类内类处理
+        if self.class_cursor.semantic_parent.kind == clidx.CursorKind.STRUCT_DECL or \
+           self.class_cursor.semantic_parent.kind == clidx.CursorKind.CLASS_DECL:
+            self.full_class_name = '%s::%s' % (self.class_cursor.semantic_parent.spelling, self.class_name)
+
         self.ctor = cursor.kind == clidx.CursorKind.CONSTRUCTOR
         self.dtor = cursor.kind == clidx.CursorKind.DESTRUCTOR
 
@@ -93,6 +105,7 @@ class GenMethodContext(object):
         self.params_cpp = ''
         self.params_rs = ''
         self.params_call = ''
+        self.params_ext_arr = []
         self.params_ext = ''
 
         self.unique_methods = {}

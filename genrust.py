@@ -186,6 +186,7 @@ class GenerateForRust(GenerateBase):
             methods = self.gutil.get_methods(cursor)
             bases = self.gutil.get_base_class(cursor)
             base_class = bases[0] if len(bases) > 0 else None
+            self.generateClassSizeExt(cursor, base_class)
             self.generateInheritEmulate(cursor, base_class)
             self.generateClass(class_name, cursor, methods, base_class)
             # break
@@ -297,6 +298,7 @@ class GenerateForRust(GenerateBase):
         ctx.params_rs = trait_params
         ctx.params_call = call_params
         ctx.params_ext = extargs
+        ctx.params_ext_arr = extargs_array
 
         ctx.trait_proto = '%s::%s(%s)' % (class_name, method_name, trait_params)
         ctx.fn_proto_cpp = "  // proto: %s %s %s::%s(%s);" % \
@@ -369,6 +371,13 @@ class GenerateForRust(GenerateBase):
             ctx.CP.AP('body', '}')
             # ctx.CP.AP('body', '*/\n')
 
+        return
+
+    def generateClassSizeExt(self, cursor, base_class):
+        # minictx
+        ctx = self.createMiniContext(cursor, base_class)
+
+        ctx.CP.AP('ext', '  fn %s_Class_Size() -> c_int;' % (ctx.class_name))
         return
 
     def generateMethod(self, ctx):
@@ -447,13 +456,16 @@ class GenerateForRust(GenerateBase):
         ctx.CP.AP('body', ctx.fn_proto_cpp)
         ctx.CP.AP('body', "impl<'a> /*trait*/ %s_%s for (%s) {" % (class_name, method_name, trait_params))
         ctx.CP.AP('body', "  fn %s(self) -> %s {" % (method_name, class_name))
-        ctx.CP.AP('body', "    let qthis: *mut c_void = unsafe{calloc(1, %s)};" % (ctx.ctysz))
+        ctx.CP.AP('body', "    // let qthis: *mut c_void = unsafe{calloc(1, %s)};" % (ctx.ctysz))
         ctx.CP.AP('body', "    // unsafe{%s()};" % (mangled_name))
+        ctx.CP.AP('body', "    let ctysz: c_int = unsafe{%s_Class_Size()};" % (ctx.class_name))
+        ctx.CP.AP('body', "    let qthis_ph: *mut c_void = unsafe{calloc(1, ctysz as usize)};")
         self.generateArgConvExprs(class_name, method_name, method_cursor, ctx)
         if len(call_params) == 0:
-            ctx.CP.AP('body', "    unsafe {%s(qthis%s)};" % (mangled_name, call_params))
+            ctx.CP.AP('body', "    // unsafe {%s(qthis%s)};" % (mangled_name, call_params))
         else:
-            ctx.CP.AP('body', "    unsafe {%s(qthis, %s)};" % (mangled_name, call_params))
+            ctx.CP.AP('body', "    // unsafe {%s(qthis, %s)};" % (mangled_name, call_params))
+        ctx.CP.AP('body', "    let qthis: *mut c_void = unsafe {dector%s(%s)};" % (mangled_name, call_params))
         if ctx.has_base:
             # TODO 如果父类再有父类呢，这个初始化不对，需要更强的生成函数
             ctx.CP.AP('body', "    let rsthis = %s{/**/qbase: %s::inheritFrom(qthis), /**/qclsinst: qthis};" %
@@ -723,6 +735,9 @@ class GenerateForRust(GenerateBase):
         if cursor.result_type.kind != clang.cindex.TypeKind.VOID and has_return:
             return_piece_proto = ' -> %s' % (return_type_name)
         extargs = ctx.params_ext
+        if cursor.kind == clidx.CursorKind.CONSTRUCTOR:
+            tpargs = ', '.join(ctx.params_ext_arr)
+            ctx.CP.AP('ext', "  fn dector%s(%s) -> *mut c_void;" % (mangled_name, tpargs))
         ctx.CP.AP('ext', "  fn %s(%s)%s;" % (mangled_name, extargs, return_piece_proto))
 
         return has_return, return_type_name
