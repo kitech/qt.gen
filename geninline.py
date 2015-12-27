@@ -135,6 +135,7 @@ class GenerateForInlineCXX(GenerateBase):
             # self.generateInheritEmulate(cursor, base_class)
             self.generateClass(class_name, cursor, methods, base_class)
             # break
+
         return
 
     # def generateClasses(self, module, class_decls):
@@ -173,6 +174,7 @@ class GenerateForInlineCXX(GenerateBase):
         # 生成计算类大小的方法
         mctx = self.createMiniContext(class_cursor, base_class)
         self.generateClassSize(mctx)
+        self.generateSlotProxy(mctx)
 
         isabstract = self.gutil.isAbstractClass(class_cursor)
         if not isabstract and class_name.startswith('QAbstract'):
@@ -280,6 +282,103 @@ class GenerateForInlineCXX(GenerateBase):
         # aux
         ctx.tymap = TypeConvForRust.tymap
         return ctx
+
+    def generateSlotProxy(self, mctx):
+        ctx = mctx
+
+        isqobject = self.gutil.is_qobject_subclass(ctx.cursor)
+        if isqobject is False: return
+
+        # base_slot_proxy_class_name = ctx.base_class_name
+        signals = self.gutil.get_signals(ctx.cursor)
+
+        def gen_proto_line(mth):
+            argv = []
+            for arg in mth.get_arguments():
+                full_tyname = arg.type.spelling
+                tydecl = arg.type.get_declaration()
+                if tydecl is not None and tydecl.semantic_parent is not None:
+                    # print(tydecl.semantic_parent.spelling, tydecl.semantic_parent.kind)
+                    if tydecl.semantic_parent.spelling == mth.semantic_parent.spelling \
+                       and '::' not in full_tyname:
+                        full_tyname = '%s::%s' % (mth.semantic_parent.spelling, full_tyname)
+                        # print(arg.type.spelling, '==>', full_tyname)
+                argv.append('%s arg%s' % (full_tyname, len(argv)))
+            return ', ' .join(argv)
+
+        def gen_call_line(mth):
+            argv = []
+            for arg in mth.get_arguments():
+                argv.append('arg%s' % (len(argv)))
+            return ', ' .join(argv)
+
+        ctx.CP.AP('body', '// %s_SlotProxy here' % (ctx.class_name))
+        ctx.CP.AP('body', 'class %s_SlotProxy : public QObject' % (ctx.class_name))
+        ctx.CP.AP('body', '{')
+        ctx.CP.AP('body', '  Q_OBJECT;')
+        ctx.CP.AP('body', 'public:')
+        ctx.CP.AP('body', '   %s_SlotProxy():QObject(){}' % (ctx.class_name))
+        ctx.CP.AP('body', '')
+
+        ### signals
+        for sigmth in signals:
+            if '<' in sigmth.displayname: continue
+            if self.gutil.is_private_signal(sigmth): continue
+            proto_line = gen_proto_line(sigmth)
+            ctx.CP.AP('body', 'public slots:')
+            ctx.CP.AP('body', '  // %s' % (sigmth.displayname))
+            ctx.CP.AP('body', '  void slot_proxy_func_%s(%s);' % (sigmth.mangled_name, proto_line))
+            ctx.CP.AP('body', 'public:')
+            ctx.CP.AP('body', '  void (*slot_func_%s)(%s) = NULL;' % (sigmth.mangled_name, proto_line))
+
+        ctx.CP.AP('body', '};')
+
+        code_mod = self.gctx.get_decl_mod(ctx.cursor)
+        code_file = self.gctx.get_code_file(ctx.cursor)
+        ctx.CP.removeLine('body', '#include \"src/%s/%s.moc\"' % (code_mod, code_file))
+        ctx.CP.AP('body', '#include \"src/%s/%s.moc\"' % (code_mod, code_file))
+        ctx.CP.AP('body', '')
+
+        ctx.CP.AP('body', 'extern \"C\" {')
+        ctx.CP.AP('body', '  %s_SlotProxy* %s_SlotProxy_new()' % (ctx.class_name, ctx.class_name))
+        ctx.CP.AP('body', '  {')
+        ctx.CP.AP('body', '    return new %s_SlotProxy();' % (ctx.class_name))
+        ctx.CP.AP('body', '  }')
+        ctx.CP.AP('body', '};')
+        ctx.CP.AP('body', '')
+
+        for sigmth in signals:
+            if '<' in sigmth.displayname: continue
+            if self.gutil.is_private_signal(sigmth): continue
+            proto_line = gen_proto_line(sigmth)
+            call_line = gen_call_line(sigmth)
+            ctx.CP.AP('body', 'void %s_SlotProxy::slot_proxy_func_%s(%s) {'
+                      % (ctx.class_name, sigmth.mangled_name, proto_line))
+            ctx.CP.AP('body', '  if (this->slot_func_%s != NULL) {' % (sigmth.mangled_name))
+            ctx.CP.AP('body', '    // do smth...')
+            ctx.CP.AP('body', '    this->slot_func_%s(%s);' % (sigmth.mangled_name, call_line))
+            ctx.CP.AP('body', '  }')
+            ctx.CP.AP('body', '}')
+            ctx.CP.AP('body', 'extern \"C\"')
+            ctx.CP.AP('body', 'void* %s_SlotProxy_connect_%s(QObject* sender, void* fptr){'
+                      % (ctx.class_name, sigmth.mangled_name))
+            ctx.CP.AP('body', '  auto that = new %s_SlotProxy();' % (ctx.class_name))
+            ctx.CP.AP('body', '  that->slot_func_%s = (decltype(that->slot_func_%s))fptr;'
+                      % (sigmth.mangled_name, sigmth.mangled_name))
+            # 无法使用C++11的connect方式，有可能重载的方法，不适用。
+            ctx.CP.AP('body', '  QObject::connect((%s*)sender, SIGNAL(%s), that, SLOT(slot_proxy_func_%s(%s)));'
+                      % (ctx.class_name, sigmth.displayname, sigmth.mangled_name, proto_line))
+            ctx.CP.AP('body', '  return that;')
+            ctx.CP.AP('body', '}')
+            ctx.CP.AP('body', 'extern \"C\"')
+            ctx.CP.AP('body', 'void %s_SlotProxy_disconnect_%s(%s_SlotProxy* that) {'
+                      % (ctx.class_name, sigmth.mangled_name, ctx.class_name))
+            ctx.CP.AP('body', '  that->disconnect();')
+            ctx.CP.AP('body', '  delete that;')
+            ctx.CP.AP('body', '}')
+            ctx.CP.AP('body', '')
+
+        return
 
     def generateClassSize(self, mctx):
         # 获取类大小的封装，clang.py获取的类大小不对，如果有clang.cpp应该能够获取到正确值吧

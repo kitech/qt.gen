@@ -315,3 +315,9 @@ struct NList<T> {
 type NList1<T> = Vec<T>;
 type NMap<K,V> = HashMap<K, V>;
 
+
+// test demo signals
+
+pub trait QtConnectable {
+    fn connect();
+}

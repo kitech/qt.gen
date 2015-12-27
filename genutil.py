@@ -57,6 +57,13 @@ class GenUtil(object):
                 else: break  # 提前跳出结束执行
         return bases
 
+    def is_qobject_subclass(self, cursor):
+        bases = self.get_base_class(cursor)
+        if len(bases) > 0:
+            if bases[0].spelling == 'QObject': return True
+            else: return self.is_qobject_subclass(bases[0])
+        return False
+
     def get_methods(self, class_cursor):
         method_names = {}
 
@@ -75,6 +82,41 @@ class GenUtil(object):
                 method_names[mangled_name] = m
 
         return method_names
+
+    def get_signals(self, cursor):
+        # for it in cursor.walk_preorder():
+        #    print(it.kind, it.spelling, it.displayname)
+        methods = self.get_methods(cursor)
+        signals = []
+        insig = False
+        for tk in cursor.get_tokens():
+            # print(tk.kind, tk.spelling, tk.cursor.kind)
+            if tk.kind == clidx.TokenKind.IDENTIFIER and tk.spelling == 'Q_SIGNALS':
+                insig = True
+                continue
+            if tk.kind == clidx.TokenKind.IDENTIFIER \
+               and tk.cursor.kind == clidx.CursorKind.CXX_ACCESS_SPEC_DECL:
+                if insig is True:
+                    insig = False
+                    break
+            if tk.kind == clidx.TokenKind.IDENTIFIER and tk.spelling == 'Q_SLOTS':
+                if insig is True:
+                    insig = False
+                    break
+
+            if insig is True and tk.kind == clidx.TokenKind.IDENTIFIER \
+               and tk.cursor.kind == clidx.CursorKind.CXX_METHOD:
+                # print('got a signal:', tk.spelling, tk.cursor.displayname)
+                real_method = methods[tk.cursor.mangled_name]
+                signals.append(real_method)
+                # signals.append(tk.cursor)  # 这种方式拿到的method_cursor有问题
+
+        # print('got signals:', len(signals), signals)
+        return signals
+
+    def is_private_signal(self, method_cursor):
+        if 'QPrivateSignal' in method_cursor.displayname: return True
+        return False
 
     # 还要验证基类是否有纯虚方法
     def isAbstractClass(self, cursor):
@@ -144,6 +186,11 @@ class CodePaper:
     def removePoint(self, name):
         codes = self.insert_points.pop(name)
         return self.newline.join(codes)
+
+    def removeLine(self, name, code):
+        if code in self.insert_points[name]:
+            self.insert_points[name].remove(code)
+        return
 
     # 按照names给出的顺序合并并导出代码。
     def exportCode(self, names):
