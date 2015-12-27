@@ -12,6 +12,10 @@ glog = logging.getLogger()
 
 
 class GenUtil(object):
+    basecls = {}
+    methods = {}
+    signals = {}
+
     def __init__(self):
         self.conflib = clang.cindex.conf.lib
         return
@@ -41,6 +45,8 @@ class GenUtil(object):
     # TODO 好像有点bug。
     # QListData会推导出基类是NotIndirectLayout。而实际上QListData没有基类。
     def get_base_class(self, cursor):
+        if cursor.spelling in GenUtil.basecls:
+            return GenUtil.basecls[cursor.spelling]
         bases = []
         for x in cursor.walk_preorder():
             # print(x.kind, x.spelling)
@@ -55,6 +61,7 @@ class GenUtil(object):
                 if decl.semantic_parent.kind == clidx.CursorKind.TRANSLATION_UNIT:
                     bases.append(decl)
                 else: break  # 提前跳出结束执行
+        GenUtil.basecls[cursor.spelling] = bases
         return bases
 
     def is_qobject_subclass(self, cursor):
@@ -65,6 +72,9 @@ class GenUtil(object):
         return False
 
     def get_methods(self, class_cursor):
+        if class_cursor.spelling in GenUtil.methods:
+            return GenUtil.methods[class_cursor.spelling]
+
         method_names = {}
 
         for m in class_cursor.get_children():
@@ -81,13 +91,16 @@ class GenUtil(object):
             elif m.kind == clidx.CursorKind.CXX_METHOD:  # and not m.is_definition():
                 method_names[mangled_name] = m
 
+        GenUtil.methods[class_cursor.spelling] = method_names
         return method_names
 
     def get_signals(self, cursor):
+        if cursor.spelling in GenUtil.signals:
+            return GenUtil.signals[cursor.spelling]
         # for it in cursor.walk_preorder():
         #    print(it.kind, it.spelling, it.displayname)
         methods = self.get_methods(cursor)
-        signals = []
+        signals = {}
         insig = False
         for tk in cursor.get_tokens():
             # print(tk.kind, tk.spelling, tk.cursor.kind)
@@ -108,11 +121,21 @@ class GenUtil(object):
                and tk.cursor.kind == clidx.CursorKind.CXX_METHOD:
                 # print('got a signal:', tk.spelling, tk.cursor.displayname)
                 real_method = methods[tk.cursor.mangled_name]
-                signals.append(real_method)
+                signals[tk.cursor.mangled_name] = real_method
                 # signals.append(tk.cursor)  # 这种方式拿到的method_cursor有问题
 
         # print('got signals:', len(signals), signals)
+        GenUtil.signals[cursor.spelling] = signals
         return signals
+
+    def get_unique_signals(self, cursor):
+        signals = self.get_signals(cursor)
+        usignals = {}
+        for key in signals:
+            sigmth = signals[key]
+            usignals[sigmth.spelling] = sigmth
+
+        return usignals
 
     def is_private_signal(self, method_cursor):
         if 'QPrivateSignal' in method_cursor.displayname: return True

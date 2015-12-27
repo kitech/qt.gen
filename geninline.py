@@ -321,7 +321,8 @@ class GenerateForInlineCXX(GenerateBase):
         ctx.CP.AP('body', '')
 
         ### signals
-        for sigmth in signals:
+        for key in signals:
+            sigmth = signals[key]
             if '<' in sigmth.displayname: continue
             if self.gutil.is_private_signal(sigmth): continue
             proto_line = gen_proto_line(sigmth)
@@ -347,7 +348,8 @@ class GenerateForInlineCXX(GenerateBase):
         ctx.CP.AP('body', '};')
         ctx.CP.AP('body', '')
 
-        for sigmth in signals:
+        for key in signals:
+            sigmth = signals[key]
             if '<' in sigmth.displayname: continue
             if self.gutil.is_private_signal(sigmth): continue
             proto_line = gen_proto_line(sigmth)

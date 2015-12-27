@@ -136,6 +136,9 @@ class GenerateForRust(GenerateBase):
         print('gen classes...')
         self.genpass_classes()
 
+        print('gen signals...')
+        self.genpass_classes_signals()
+
         print('gen code endian...')
         self.genpass_code_endian()
 
@@ -162,19 +165,101 @@ class GenerateForRust(GenerateBase):
         # TODO 计算了两遍
         bases = self.gutil.get_base_class(cursor)
         base_class = bases[0] if len(bases) > 0 else None
+        usignals = self.gutil.get_unique_signals(cursor)
 
         CP.AP('body', "// class sizeof(%s)=%s" % (class_name, ctysz))
         # generate struct of class
         # CP.AP('body', '#[derive(Sized)]')
+        CP.AP('body', '#[derive(Default)]')
         CP.AP('body', "pub struct %s {" % (class_name))
         if base_class is None:
             CP.AP('body', "  // qbase: %s," % (base_class))
         else:
             # TODO 需要use 基类
             CP.AP('body', "  qbase: %s," % (base_class.spelling))
-        CP.AP('body', "  pub qclsinst: *mut c_void,")
+        CP.AP('body', "  pub qclsinst: u64 /* *mut c_void*/,")
+        for key in usignals:
+            sigmth = usignals[key]
+            CP.AP('body', '  pub _%s_1: %s_%s_signal,' % (sigmth.spelling, class_name, sigmth.spelling))
         CP.AP('body', "}\n")
 
+        return
+
+    def genpass_classes_signals(self):
+        for key in self.gctx.classes:
+            cursor = self.gctx.classes[key]
+            if self.check_skip_class(cursor): continue
+
+            class_name = cursor.displayname
+            methods = self.gutil.get_methods(cursor)
+            bases = self.gutil.get_base_class(cursor)
+            base_class = bases[0] if len(bases) > 0 else None
+            ctx = mctx = self.createMiniContext(cursor, base_class)
+            usignals = self.gutil.get_unique_signals(cursor)
+            for key in usignals:
+                sigmth = usignals[key]
+                ctx.CP.AP('body', '#[derive(Default)] // for %s_%s' % (class_name, sigmth.spelling))
+                ctx.CP.AP('body', 'pub struct %s_%s_signal{poi:u64}' % (class_name, sigmth.spelling))
+
+                ctx.CP.AP('body', 'impl /* struct */ %s {' % (class_name))
+                ctx.CP.AP('body', '  pub fn %s_1(self) -> %s_%s_signal {'
+                          % (sigmth.spelling, class_name, sigmth.spelling))
+                # ctx.CP.AP('body', '     self._%s_1.poi = self.qclsinst;' % (sigmth.spelling))
+                ctx.CP.AP('body', '     return %s_%s_signal{poi:self.qclsinst};' % (class_name, sigmth.spelling))
+                ctx.CP.AP('body', '  }')
+                ctx.CP.AP('body', '}')
+
+                ctx.CP.AP('body', 'impl /* struct */ %s_%s_signal {' % (class_name, sigmth.spelling))
+                ctx.CP.AP('body', '  pub fn connect<T: %s_%s_signal_connect>(self, overload_args: T) {'
+                          % (class_name, sigmth.spelling))
+                ctx.CP.AP('body', '    overload_args.connect(self);')
+                ctx.CP.AP('body', '  }')
+                ctx.CP.AP('body', '}')
+                ctx.CP.AP('body', 'pub trait %s_%s_signal_connect {' % (class_name, sigmth.spelling))
+                ctx.CP.AP('body', '  fn connect(self, sigthis: %s_%s_signal);' % (class_name, sigmth.spelling))
+                ctx.CP.AP('body', '}')
+                ctx.CP.AP('body', '')
+
+            idx = 0
+            for key in ctx.signals:
+                sigmth = ctx.signals[key]
+                if '<' in sigmth.displayname: continue
+                ctx = self.createGenMethodContext(sigmth, cursor, base_class, [])
+                params_ext_arr = self.generateParamsForExtern(class_name, sigmth.spelling, sigmth, ctx)
+                params_ext = ', '.join(params_ext_arr)
+                params_ext_tyarr = []
+                for arg in params_ext_arr:
+                    params_ext_tyarr.append(arg.split(':')[1].strip())
+                params_ext_ty = ', ' .join(params_ext_tyarr)
+
+                trait_params_array = self.generateParamsForTrait(class_name, sigmth.spelling, sigmth, ctx)
+                trait_params = ', '.join(trait_params_array)
+                trait_params = trait_params.replace("&'a ", '')
+                if '<' in trait_params: continue  # QModelIndexList => QList<QModelIndex>
+                if 'QPrivateSignal' in trait_params: continue
+
+                ctx.CP.AP('body', '// %s' % (sigmth.displayname))
+                ctx.CP.AP('body', 'extern fn %s_%s_signal_connect_cb_%s(%s) {'
+                          % (class_name, sigmth.spelling, idx, params_ext))
+                ctx.CP.AP('body', '  println!("{}:{}", file!(), line!());')
+                ctx.CP.AP('body', '}')
+                ctx.CP.AP('body', 'impl /* trait */ %s_%s_signal_connect for (extern fn(%s)) {'
+                          % (class_name, sigmth.spelling, trait_params))
+                ctx.CP.AP('body', '  fn connect(self, sigthis: %s_%s_signal) {' % (class_name, sigmth.spelling))
+                ctx.CP.AP('body', '    // do smth...')
+                # ctx.CP.AP('body', '    // %s_%s_signal_connect_cb_%s' % (class_name, sigmth.spelling, idx))
+                ctx.CP.AP('body', '    unsafe {%s_SlotProxy_connect_%s(sigthis.poi as *mut c_void, %s_%s_signal_connect_cb_%s as *mut c_void)};'
+                          %(class_name, sigmth.mangled_name, class_name, sigmth.spelling, idx))
+                ctx.CP.AP('body', '  }')
+                ctx.CP.AP('body', '}')
+                ctx.CP.AP('ext', '  fn %s_SlotProxy_connect_%s(qthis: *mut c_void, fptr: *mut c_void);'
+                          % (class_name, sigmth.mangled_name))
+                idx += 1
+
+            # self.generateClassSizeExt(cursor, base_class)
+            # self.generateInheritEmulate(cursor, base_class)
+            # self.generateClass(class_name, cursor, methods, base_class)
+            # break
         return
 
     def genpass_classes(self):
@@ -295,7 +380,7 @@ class GenerateForRust(GenerateBase):
 
         extargs_array = self.generateParamsForExtern(class_name, method_name, method_cursor, ctx)
         extargs = ', '.join(extargs_array)
-        if not ctx.static: extargs = ('qthis: *mut c_void, ' + extargs).strip(' ,')
+        if not ctx.static: extargs = ('qthis: u64 /* *mut c_void*/, ' + extargs).strip(' ,')
 
         ctx.params_cpp = raw_params
         ctx.params_rs = trait_params
@@ -339,12 +424,12 @@ class GenerateForRust(GenerateBase):
 
         # ctx.CP.AP('body', '/*')
         ctx.CP.AP('body', 'impl /*struct*/ %s {' % (ctx.class_name))
-        ctx.CP.AP('body', '  pub fn inheritFrom(qthis: *mut c_void) -> %s {' % (ctx.class_name))
+        ctx.CP.AP('body', '  pub fn inheritFrom(qthis: u64 /* *mut c_void*/) -> %s {' % (ctx.class_name))
         if ctx.has_base:
-            ctx.CP.AP('body', '    return %s{qbase: %s::inheritFrom(qthis), qclsinst: qthis};' %
+            ctx.CP.AP('body', '    return %s{qbase: %s::inheritFrom(qthis), qclsinst: qthis, ..Default::default()};' %
                   (ctx.class_name, ctx.base_class_name))
         else:
-            ctx.CP.AP('body', '    return %s{qclsinst: qthis};' % (ctx.class_name))
+            ctx.CP.AP('body', '    return %s{qclsinst: qthis, ..Default::default()};' % (ctx.class_name))
         ctx.CP.AP('body', '  }')
         ctx.CP.AP('body', '}')
         # ctx.CP.AP('body', '*/\n')
@@ -462,19 +547,21 @@ class GenerateForRust(GenerateBase):
         ctx.CP.AP('body', "    // let qthis: *mut c_void = unsafe{calloc(1, %s)};" % (ctx.ctysz))
         ctx.CP.AP('body', "    // unsafe{%s()};" % (mangled_name))
         ctx.CP.AP('body', "    let ctysz: c_int = unsafe{%s_Class_Size()};" % (ctx.class_name))
-        ctx.CP.AP('body', "    let qthis_ph: *mut c_void = unsafe{calloc(1, ctysz as usize)};")
+        # ctx.CP.AP('body', "    let qthis_ph: *mut c_void = unsafe{calloc(1, ctysz as usize)};")
+        ctx.CP.AP('body', "    let qthis_ph: u64 = unsafe{calloc(1, ctysz as usize)} as u64;")
         self.generateArgConvExprs(class_name, method_name, method_cursor, ctx)
         if len(call_params) == 0:
             ctx.CP.AP('body', "    // unsafe {%s(qthis%s)};" % (mangled_name, call_params))
         else:
             ctx.CP.AP('body', "    // unsafe {%s(qthis, %s)};" % (mangled_name, call_params))
-        ctx.CP.AP('body', "    let qthis: *mut c_void = unsafe {dector%s(%s)};" % (mangled_name, call_params))
+        # ctx.CP.AP('body', "    let qthis: *mut c_void = unsafe {dector%s(%s)};" % (mangled_name, call_params))
+        ctx.CP.AP('body', "    let qthis: u64 = unsafe {dector%s(%s)} as u64;" % (mangled_name, call_params))
         if ctx.has_base:
             # TODO 如果父类再有父类呢，这个初始化不对，需要更强的生成函数
-            ctx.CP.AP('body', "    let rsthis = %s{/**/qbase: %s::inheritFrom(qthis), /**/qclsinst: qthis};" %
+            ctx.CP.AP('body', "    let rsthis = %s{qbase: %s::inheritFrom(qthis), qclsinst: qthis, ..Default::default()};" %
                       (class_name, ctx.base_class_name))
         else:
-            ctx.CP.AP('body', "    let rsthis = %s{qclsinst: qthis};" % (class_name))
+            ctx.CP.AP('body', "    let rsthis = %s{qclsinst: qthis, ..Default::default()};" % (class_name))
         ctx.CP.AP('body', "    return rsthis;")
         ctx.CP.AP('body', "    // return 1;")
         ctx.CP.AP('body', "  }")
@@ -526,7 +613,7 @@ class GenerateForRust(GenerateBase):
         # elif return_type_name_ext == '*mut c_void' or return_type_name_ext == '*const c_void':  # no const now
         elif iscvoidstar(return_type_name_ext) and not isrstar(return_type_name_rs):
             # 应该是返回一个qt class对象，由于无法返回&mut类型的对象
-            if has_return: ctx.CP.AP('body', "    let mut ret1 = %s::inheritFrom(ret);" % (return_type_name_rs))
+            if has_return: ctx.CP.AP('body', "    let mut ret1 = %s::inheritFrom(ret as u64);" % (return_type_name_rs))
             if has_return: ctx.CP.AP('body', "    return ret1;")
         else:
             if has_return: ctx.CP.AP('body', "    return ret as %s;" % (return_type_name_rs))
@@ -900,7 +987,7 @@ class GenerateForRust(GenerateBase):
             if arg.type.kind == clang.cindex.TypeKind.RVALUEREFERENCE: return True
             if 'QPrivate' in type_name: return True
             if 'Private' in type_name: return True
-            if 'QAbstract' in type_name: return True
+            # if 'QAbstract' in type_name: return True
             if 'QLatin1String' == type_name: return True
             if 'QLatin1Char' == type_name: return True
             if 'QStringRef' in type_name: return True

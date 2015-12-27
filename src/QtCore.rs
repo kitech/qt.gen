@@ -121,7 +121,7 @@ impl RString_read<()> for (i32, i64) {
 impl RString_read<()> for (i32, i64) {
     fn read(self, this:&mut RString) {
         return (); // OK
-        return; // OK
+        // return; // OK
     }
 }
 
@@ -255,11 +255,21 @@ impl RByteArray_arg for (i32) {
     }
 }
 
-// 继承
+// 继承，方法与成员
+#[derive(Default)]
+pub struct NWidget_clicked_signal;
 
+#[derive(Default)]
 pub struct NWidget {
-    pub qclsinst: *mut c_void,
+    // pub qclsinst: *mut c_void,
+    pub qclsinst: u64,
+    clicked_1: NWidget_clicked_signal,
 }
+// impl Default for NWidget{
+    // 为什么会有个warning: function cannot return without recurring, #[warn(unconditional_recursion)] on by default
+    // 不能在Default中在用Default，应该放在其他方法中就能够使用 .. Default::default()了
+    // fn default() -> NWidget {NWidget{qclsinst: 0,}}
+// }
 
 impl NWidget {
     pub fn hehe(&self) {
@@ -277,8 +287,10 @@ pub struct NButton {
 impl NButton {
     pub fn new() -> NButton {
         let mut i = 1 as *mut c_void;
-        let mut b = NWidget{qclsinst: i};
-        return NButton{vbase: b, qclsinst: i};
+        // let mut b = NWidget{qclsinst: i};
+        let mut b: NWidget = Default::default();
+        let mut noself = NButton{vbase: b, qclsinst: i};
+        return noself;
     }
     pub fn haha(&self) {
         println!("hahahahhaha");

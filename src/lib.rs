@@ -11,6 +11,7 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 #![allow(dead_code)]
+// #![allow(unconditional_recursion)]  // ..Default::default()
 // #![cfg_attr(lte_rustc_1_5, allow(raw_pointer_derive))]
 // #![allow(custom_derive)]
 

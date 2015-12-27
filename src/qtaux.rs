@@ -1,6 +1,7 @@
 extern crate libc;
 use self::libc::c_void;
 
+pub type c_pointer = u64;
 pub type c_char16 = i16;
 pub type c_uchar16 = u16;
 pub type c_char32 = i32;
@@ -16,3 +17,12 @@ pub type c_funcp = *mut c_void;
 pub type QVector<T> = Vec<T>;
 pub type QList<T> = Vec<T>;
 
+//
+pub trait AsCPtr {
+    fn as_mut_ptr(self) -> *mut c_void;
+    fn as_const_ptr(self) -> *const c_void;
+}
+impl AsCPtr for c_pointer {
+    fn as_mut_ptr(self) -> *mut c_void {self as *mut c_void}
+    fn as_const_ptr(self) -> *const c_void {self as *const c_void}
+}

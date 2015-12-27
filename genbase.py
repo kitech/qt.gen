@@ -48,6 +48,7 @@ class GenerateBase(object):
 
 class GenClassContext(object):
     def __init__(self, cursor):
+        self.gutil = GenUtil()
         self.tyconv = TypeConvForRust()
 
         self.ctysz = max(32, cursor.type.get_size())  # 可能这个get_size()的值不准确啊。
@@ -66,6 +67,9 @@ class GenClassContext(object):
         self.base_class_name = ''
         self.has_base = False
 
+        # signals
+        self.signals = self.gutil.get_signals(cursor)
+
         # aux
         self.tymap = None
         # simple init
@@ -76,6 +80,7 @@ class GenClassContext(object):
 
 class GenMethodContext(object):
     def __init__(self, cursor, class_cursor):
+        self.gutil = GenUtil()
         self.tyconv = TypeConvForRust()
 
         self.ctysz = max(32, class_cursor.type.get_size())  # 可能这个get_size()的值不准确啊。
@@ -127,6 +132,9 @@ class GenMethodContext(object):
         self.base_class = None
         self.base_class_name = ''
         self.has_base = False
+
+        # signals
+        self.signals = self.gutil.get_signals(class_cursor)
 
         # aux
         self.tymap = None
