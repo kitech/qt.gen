@@ -292,8 +292,9 @@ class GenerateForInlineCXX(GenerateBase):
         # base_slot_proxy_class_name = ctx.base_class_name
         signals = self.gutil.get_signals(ctx.cursor)
 
-        def gen_proto_line(mth):
-            argv = []
+        def gen_proto_line(mth, fptr=False):
+            argv = ['void* rsfptr'] if fptr else []
+            idx = 0
             for arg in mth.get_arguments():
                 full_tyname = arg.type.spelling
                 tydecl = arg.type.get_declaration()
@@ -303,13 +304,14 @@ class GenerateForInlineCXX(GenerateBase):
                        and '::' not in full_tyname:
                         full_tyname = '%s::%s' % (mth.semantic_parent.spelling, full_tyname)
                         # print(arg.type.spelling, '==>', full_tyname)
-                argv.append('%s arg%s' % (full_tyname, len(argv)))
+                argv.append('%s arg%s' % (full_tyname, idx))
+                idx += 1
             return ', ' .join(argv)
 
         def gen_call_line(mth):
-            argv = []
+            argv = ['this->rsfptr']
             for arg in mth.get_arguments():
-                argv.append('arg%s' % (len(argv)))
+                argv.append('arg%s' % (len(argv)-1))
             return ', ' .join(argv)
 
         ctx.CP.AP('body', '// %s_SlotProxy here' % (ctx.class_name))
@@ -326,12 +328,14 @@ class GenerateForInlineCXX(GenerateBase):
             if '<' in sigmth.displayname: continue
             if self.gutil.is_private_signal(sigmth): continue
             proto_line = gen_proto_line(sigmth)
+            proto_line_fptr = gen_proto_line(sigmth, True)
             ctx.CP.AP('body', 'public slots:')
             ctx.CP.AP('body', '  // %s' % (sigmth.displayname))
             ctx.CP.AP('body', '  void slot_proxy_func_%s(%s);' % (sigmth.mangled_name, proto_line))
             ctx.CP.AP('body', 'public:')
-            ctx.CP.AP('body', '  void (*slot_func_%s)(%s) = NULL;' % (sigmth.mangled_name, proto_line))
+            ctx.CP.AP('body', '  void (*slot_func_%s)(%s) = NULL;' % (sigmth.mangled_name, proto_line_fptr))
 
+        ctx.CP.AP('body', 'public: void* rsfptr = NULL;')
         ctx.CP.AP('body', '};')
 
         code_mod = self.gctx.get_decl_mod(ctx.cursor)
@@ -361,17 +365,20 @@ class GenerateForInlineCXX(GenerateBase):
             ctx.CP.AP('body', '    this->slot_func_%s(%s);' % (sigmth.mangled_name, call_line))
             ctx.CP.AP('body', '  }')
             ctx.CP.AP('body', '}')
+
             ctx.CP.AP('body', 'extern \"C\"')
-            ctx.CP.AP('body', 'void* %s_SlotProxy_connect_%s(QObject* sender, void* fptr){'
+            ctx.CP.AP('body', 'void* %s_SlotProxy_connect_%s(QObject* sender, void* ffifptr, void* rsfptr){'
                       % (ctx.class_name, sigmth.mangled_name))
             ctx.CP.AP('body', '  auto that = new %s_SlotProxy();' % (ctx.class_name))
-            ctx.CP.AP('body', '  that->slot_func_%s = (decltype(that->slot_func_%s))fptr;'
+            ctx.CP.AP('body', '  that->rsfptr = rsfptr;')
+            ctx.CP.AP('body', '  that->slot_func_%s = (decltype(that->slot_func_%s))ffifptr;'
                       % (sigmth.mangled_name, sigmth.mangled_name))
             # 无法使用C++11的connect方式，有可能重载的方法，不适用。
             ctx.CP.AP('body', '  QObject::connect((%s*)sender, SIGNAL(%s), that, SLOT(slot_proxy_func_%s(%s)));'
                       % (ctx.class_name, sigmth.displayname, sigmth.mangled_name, proto_line))
             ctx.CP.AP('body', '  return that;')
             ctx.CP.AP('body', '}')
+
             ctx.CP.AP('body', 'extern \"C\"')
             ctx.CP.AP('body', 'void %s_SlotProxy_disconnect_%s(%s_SlotProxy* that) {'
                       % (ctx.class_name, sigmth.mangled_name, ctx.class_name))

@@ -202,7 +202,7 @@ class GenerateForRust(GenerateBase):
                 ctx.CP.AP('body', 'pub struct %s_%s_signal{poi:u64}' % (class_name, sigmth.spelling))
 
                 ctx.CP.AP('body', 'impl /* struct */ %s {' % (class_name))
-                ctx.CP.AP('body', '  pub fn %s_1(self) -> %s_%s_signal {'
+                ctx.CP.AP('body', '  pub fn %s_1(&self) -> %s_%s_signal {'
                           % (sigmth.spelling, class_name, sigmth.spelling))
                 # ctx.CP.AP('body', '     self._%s_1.poi = self.qclsinst;' % (sigmth.spelling))
                 ctx.CP.AP('body', '     return %s_%s_signal{poi:self.qclsinst};' % (class_name, sigmth.spelling))
@@ -225,6 +225,14 @@ class GenerateForRust(GenerateBase):
                 sigmth = ctx.signals[key]
                 if '<' in sigmth.displayname: continue
                 ctx = self.createGenMethodContext(sigmth, cursor, base_class, [])
+
+                trait_params_array = self.generateParamsForTrait(class_name, sigmth.spelling, sigmth, ctx)
+                trait_params = ', '.join(trait_params_array)
+                trait_params = trait_params.replace("&'a mut ", '')
+                trait_params = trait_params.replace("&'a ", '')
+                if '<' in trait_params: continue  # QModelIndexList => QList<QModelIndex>
+                if 'QPrivateSignal' in trait_params: continue
+
                 params_ext_arr = self.generateParamsForExtern(class_name, sigmth.spelling, sigmth, ctx)
                 params_ext = ', '.join(params_ext_arr)
                 params_ext_tyarr = []
@@ -232,27 +240,49 @@ class GenerateForRust(GenerateBase):
                     params_ext_tyarr.append(arg.split(':')[1].strip())
                 params_ext_ty = ', ' .join(params_ext_tyarr)
 
-                trait_params_array = self.generateParamsForTrait(class_name, sigmth.spelling, sigmth, ctx)
-                trait_params = ', '.join(trait_params_array)
-                trait_params = trait_params.replace("&'a ", '')
-                if '<' in trait_params: continue  # QModelIndexList => QList<QModelIndex>
-                if 'QPrivateSignal' in trait_params: continue
-
                 ctx.CP.AP('body', '// %s' % (sigmth.displayname))
-                ctx.CP.AP('body', 'extern fn %s_%s_signal_connect_cb_%s(%s) {'
-                          % (class_name, sigmth.spelling, idx, params_ext))
+                ctx.CP.AP('body', 'extern fn %s_%s_signal_connect_cb_%s(rsfptr:fn(%s), %s) {'
+                          % (class_name, sigmth.spelling, idx, trait_params,  params_ext))
                 ctx.CP.AP('body', '  println!("{}:{}", file!(), line!());')
                 ctx.CP.AP('body', '}')
-                ctx.CP.AP('body', 'impl /* trait */ %s_%s_signal_connect for (extern fn(%s)) {'
+                ctx.CP.AP('body', 'extern fn %s_%s_signal_connect_cb_box_%s(rsfptr_raw:*mut c_void, %s) {'
+                          % (class_name, sigmth.spelling, idx, params_ext))
+                ctx.CP.AP('body', '  println!("{}:{}", file!(), line!());')
+                ctx.CP.AP('body', '  let rsfptr = unsafe{Box::from_raw(rsfptr_raw)};')
+                ctx.CP.AP('body', '}')
+                # impl xxx for fn(%s)
+                ctx.CP.AP('body', 'impl /* trait */ %s_%s_signal_connect for fn(%s) {'
                           % (class_name, sigmth.spelling, trait_params))
                 ctx.CP.AP('body', '  fn connect(self, sigthis: %s_%s_signal) {' % (class_name, sigmth.spelling))
                 ctx.CP.AP('body', '    // do smth...')
+                ctx.CP.AP('body', '    self as u64;')
+                ctx.CP.AP('body', '    self as *mut c_void;')
+                ctx.CP.AP('body', '    let arg0 = sigthis.poi as *mut c_void;')
+                ctx.CP.AP('body', '    let arg1 = %s_%s_signal_connect_cb_%s as *mut c_void;'
+                          % (class_name, sigmth.spelling, idx))
+                ctx.CP.AP('body', '    let arg2 = self as *mut c_void;')
                 # ctx.CP.AP('body', '    // %s_%s_signal_connect_cb_%s' % (class_name, sigmth.spelling, idx))
-                ctx.CP.AP('body', '    unsafe {%s_SlotProxy_connect_%s(sigthis.poi as *mut c_void, %s_%s_signal_connect_cb_%s as *mut c_void)};'
-                          %(class_name, sigmth.mangled_name, class_name, sigmth.spelling, idx))
+                ctx.CP.AP('body', '    unsafe {%s_SlotProxy_connect_%s(arg0, arg1, arg2)};'
+                          % (class_name, sigmth.mangled_name))
                 ctx.CP.AP('body', '  }')
                 ctx.CP.AP('body', '}')
-                ctx.CP.AP('ext', '  fn %s_SlotProxy_connect_%s(qthis: *mut c_void, fptr: *mut c_void);'
+                # impl xx for Box<fn(%s)>
+                ctx.CP.AP('body', 'impl /* trait */ %s_%s_signal_connect for Box<fn(%s)> {'
+                          % (class_name, sigmth.spelling, trait_params))
+                ctx.CP.AP('body', '  fn connect(self, sigthis: %s_%s_signal) {' % (class_name, sigmth.spelling))
+                ctx.CP.AP('body', '    // do smth...')
+                ctx.CP.AP('body', '    // Box::into_raw(self) as u64;')
+                ctx.CP.AP('body', '    // Box::into_raw(self) as *mut c_void;')
+                ctx.CP.AP('body', '    let arg0 = sigthis.poi as *mut c_void;')
+                ctx.CP.AP('body', '    let arg1 = %s_%s_signal_connect_cb_box_%s as *mut c_void;'
+                          % (class_name, sigmth.spelling, idx))
+                ctx.CP.AP('body', '    let arg2 = Box::into_raw(self) as *mut c_void;')
+                # ctx.CP.AP('body', '    // %s_%s_signal_connect_cb_%s' % (class_name, sigmth.spelling, idx))
+                ctx.CP.AP('body', '    unsafe {%s_SlotProxy_connect_%s(arg0, arg1, arg2)};'
+                          % (class_name, sigmth.mangled_name))
+                ctx.CP.AP('body', '  }')
+                ctx.CP.AP('body', '}')
+                ctx.CP.AP('ext', '  fn %s_SlotProxy_connect_%s(qthis: *mut c_void, ffifptr: *mut c_void, rsfptr: *mut c_void);'
                           % (class_name, sigmth.mangled_name))
                 idx += 1
 
