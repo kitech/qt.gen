@@ -242,13 +242,42 @@ class GenerateForRust(GenerateBase):
 
                 ctx.CP.AP('body', '// %s' % (sigmth.displayname))
                 ctx.CP.AP('body', 'extern fn %s_%s_signal_connect_cb_%s(rsfptr:fn(%s), %s) {'
-                          % (class_name, sigmth.spelling, idx, trait_params,  params_ext))
+                          % (class_name, sigmth.spelling, idx, trait_params, params_ext))
                 ctx.CP.AP('body', '  println!("{}:{}", file!(), line!());')
+                rsargs = []
+                for arg in sigmth.get_arguments():
+                    sidx = len(rsargs)
+                    sty = params_ext_arr[sidx]
+                    dty = trait_params_array[sidx]
+                    if self.is_qt_class(arg.type.spelling):
+                        arg_class_name = self.get_qt_class(arg.type.spelling)
+                        ctx.CP.AP('body', '  let rsarg%s = %s::inheritFrom(arg%s as u64);'
+                                  % (sidx, arg_class_name, sidx))
+                    else:
+                        ctx.CP.AP('body', '  let rsarg%s = arg%s as %s;' % (sidx, sidx, dty))
+                    rsargs.append('rsarg%s' % (sidx))
+
+                ctx.CP.AP('body', '  rsfptr(%s);' % (','.join(rsargs)))
                 ctx.CP.AP('body', '}')
-                ctx.CP.AP('body', 'extern fn %s_%s_signal_connect_cb_box_%s(rsfptr_raw:*mut c_void, %s) {'
-                          % (class_name, sigmth.spelling, idx, params_ext))
+                ctx.CP.AP('body', 'extern fn %s_%s_signal_connect_cb_box_%s(rsfptr_raw:*mut fn(%s), %s) {'
+                          % (class_name, sigmth.spelling, idx, trait_params, params_ext))
                 ctx.CP.AP('body', '  println!("{}:{}", file!(), line!());')
                 ctx.CP.AP('body', '  let rsfptr = unsafe{Box::from_raw(rsfptr_raw)};')
+
+                rsargs = []
+                for arg in sigmth.get_arguments():
+                    sidx = len(rsargs)
+                    sty = params_ext_arr[sidx]
+                    dty = trait_params_array[sidx]
+                    if self.is_qt_class(arg.type.spelling):
+                        arg_class_name = self.get_qt_class(arg.type.spelling)
+                        ctx.CP.AP('body', '  let rsarg%s = %s::inheritFrom(arg%s as u64);'
+                                  % (sidx, arg_class_name, sidx))
+                    else:
+                        ctx.CP.AP('body', '  let rsarg%s = arg%s as %s;' % (sidx, sidx, dty))
+                    rsargs.append('rsarg%s' % (sidx))
+
+                ctx.CP.AP('body', '  rsfptr(%s);' % (','.join(rsargs)))
                 ctx.CP.AP('body', '}')
                 # impl xxx for fn(%s)
                 ctx.CP.AP('body', 'impl /* trait */ %s_%s_signal_connect for fn(%s) {'
