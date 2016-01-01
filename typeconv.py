@@ -134,6 +134,108 @@ class TypeConv(object):
     pass
 
 
+class TypeConvForGo(TypeConv):
+    def __init__(self):
+        super(TypeConvForGo, self).__init__()
+        return
+
+    def ArgType2GoReflectType(self, cxxtype, cursor):
+        ctx = self.createContext(cxxtype, cursor)
+
+        if ctx.convable_type.kind == clidx.TypeKind.BOOL:
+            return 'qtrt.BoolTy(false)'
+        if ctx.convable_type.kind == clidx.TypeKind.SHORT \
+           or ctx.convable_type.kind == clidx.TypeKind.USHORT:
+            return 'qtrt.Int16Ty(false)'
+        if ctx.convable_type.kind == clidx.TypeKind.INT \
+           or ctx.convable_type.kind == clidx.TypeKind.UINT \
+           or ctx.convable_type.kind == clidx.TypeKind.LONG \
+           or ctx.convable_type.kind == clidx.TypeKind.ULONG:
+            return 'qtrt.Int32Ty(false)'
+        if ctx.convable_type.kind == clidx.TypeKind.LONGLONG \
+           or ctx.convable_type.kind == clidx.TypeKind.ULONGLONG:
+            return 'qtrt.Int64Ty(false)'
+
+        if ctx.convable_type.kind == clidx.TypeKind.DOUBLE:
+            return 'qtrt.DoubleTy(false)'
+        if ctx.convable_type.kind == clidx.TypeKind.FLOAT:
+            return 'qtrt.FloatTy(false)'
+
+        if ctx.convable_type.kind == clidx.TypeKind.UCHAR \
+           or ctx.convable_type.kind == clidx.TypeKind.CHAR_S:
+            return 'qtrt.ByteTy(false)'
+
+        if ctx.convable_type.kind == clidx.TypeKind.ENUM:
+            return 'qtrt.Int32Ty(false)'
+
+        if ctx.convable_type.kind == clidx.TypeKind.LVALUEREFERENCE:
+            if ctx.can_type_name.startswith('Q'):
+                return 'reflect.TypeOf(%s{})' % (ctx.can_type_name)
+            if ctx.can_type.kind == clidx.TypeKind.CHAR_S:
+                return 'qtrt.StringTy(false)'
+            if ctx.can_type.kind == clidx.TypeKind.UINT \
+               or ctx.can_type.kind == clidx.TypeKind.INT:
+                return 'qtrt.Int32Ty(false)'
+            self.dumpContext(ctx)
+
+        if ctx.convable_type.kind == clidx.TypeKind.RECORD:
+            return 'reflect.TypeOf(%s{})' % (ctx.can_type_name)
+
+        if ctx.convable_type.kind == clidx.TypeKind.POINTER:
+            if ctx.can_type.kind == clidx.TypeKind.RECORD:
+                # TODO like QListData::Data
+                # if '::' not in ctx.can_type_name:
+                return 'reflect.TypeOf(%s{})' % (ctx.can_type_name)
+                self.dumpContext(ctx)
+            if ctx.can_type.kind == clidx.TypeKind.BOOL:
+                return 'qtrt.BoolTy(true)'
+            if ctx.can_type.kind == clidx.TypeKind.CHAR_S \
+               or ctx.can_type.kind == clidx.TypeKind.UCHAR:
+                return 'qtrt.ByteTy(true)'
+            if ctx.can_type.kind == clidx.TypeKind.WCHAR:
+                return 'qtrt.StringTy(false)'
+            if ctx.can_type.kind == clidx.TypeKind.USHORT \
+               or ctx.can_type.kind == clidx.TypeKind.USHORT:
+                return 'qtrt.Int16Ty(true)'
+            if ctx.can_type.kind == clidx.TypeKind.UINT \
+               or ctx.can_type.kind == clidx.TypeKind.INT:
+                return 'qtrt.Int32Ty(true)'
+            if ctx.can_type.kind == clidx.TypeKind.FLOAT:
+                return 'qtrt.FloatTy(true)'
+            if ctx.can_type.kind == clidx.TypeKind.DOUBLE:
+                return 'qtrt.DoubleTy(true)'
+            if ctx.can_type.kind == clidx.TypeKind.ULONGLONG \
+               or ctx.can_type.kind == clidx.TypeKind.LONGLONG:
+                return 'qtrt.Int64Ty(true)'
+            if ctx.can_type.kind == clidx.TypeKind.ULONG \
+               or ctx.can_type.kind == clidx.TypeKind.LONG:
+                return 'qtrt.Int32Ty(true)'
+            if ctx.can_type.kind == clidx.TypeKind.VOID:
+                return 'qtrt.VoidpTy()'
+
+        if ctx.convable_type.kind == clidx.TypeKind.FUNCTIONPROTO:
+            return 'qtrt.VoidpTy()'
+
+        if ctx.convable_type.kind == clidx.TypeKind.UNEXPOSED:
+            if ctx.can_type.kind == clidx.TypeKind.ENUM:
+                return 'qtrt.Int32Ty(false)'
+            if ctx.can_type.kind == clidx.TypeKind.RECORD:
+                if ctx.can_type_name.startswith('QFlags<'):
+                    return 'qtrt.Int64Ty(false)'
+                # TODO
+                if ctx.can_type_name.startswith('QList<'):
+                    return 'qtrt.VoidpTy()'
+
+        if ctx.convable_type.kind == clidx.TypeKind.CONSTANTARRAY:
+            return 'qtrt.VoidpTy()'
+
+        if ctx.orig_type.kind == clidx.TypeKind.TYPEDEF:
+            return self.ArgType2GoReflectType(ctx.can_type, cursor)
+
+        self.dumpContext(ctx)
+        return
+
+
 class TypeConvForRust(TypeConv):
     tymap = {
         'bool': ['i8', 'c_char'], 'int': ['i32', 'c_int'], 'uint': ['u32', 'c_uint'],
@@ -150,7 +252,6 @@ class TypeConvForRust(TypeConv):
     def __init__(self):
         super(TypeConvForRust, self).__init__()
         return
-
 
     # @param cxxtype clidx.Type
     # @return str
