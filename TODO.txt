@@ -27,3 +27,4 @@
 # 生成个简单文档？然后生成文档。
 # 一些c++字符串类型，是不是可以使用CString, OsString这些表示呢?
 # 好像qt.inline偏向rust了，要通用点的。
+# 添加#![derive(Debug)] 调试，或者实现fmt::Display，使用Qt的meta机制。

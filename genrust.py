@@ -13,21 +13,6 @@ from typeconv import TypeConv, TypeConvForRust
 from genbase import GenerateBase, GenClassContext, GenMethodContext
 
 
-# TODO
-# 静态方法与动态方法同名
-# 参数默认值
-# 内联方法
-# enum类型成员
-# qt 全局函数
-# C++类的继承方法
-# 继承依赖继承链，而中间可能有QAbstractxxx类，需要处理。
-# 集合参数或返回值的转换，像Vec<T> <=> QList<T>, 或者Vec<T> <=> T **
-# qt模板类型的封装实现
-# 代码整理, GenContext -- OK
-# 生成个简单文档？然后生成文档。
-# 一些c++字符串类型，是不是可以使用CString, OsString这些表示呢?
-
-
 class GenerateForRust(GenerateBase):
     def __init__(self):
         super(GenerateForRust, self).__init__()
@@ -259,7 +244,7 @@ class GenerateForRust(GenerateBase):
 
                 ctx.CP.AP('body', '  rsfptr(%s);' % (','.join(rsargs)))
                 ctx.CP.AP('body', '}')
-                ctx.CP.AP('body', 'extern fn %s_%s_signal_connect_cb_box_%s(rsfptr_raw:*mut fn(%s), %s) {'
+                ctx.CP.AP('body', 'extern fn %s_%s_signal_connect_cb_box_%s(rsfptr_raw:*mut Fn(%s), %s) {'
                           % (class_name, sigmth.spelling, idx, trait_params, params_ext))
                 ctx.CP.AP('body', '  println!("{}:{}", file!(), line!());')
                 ctx.CP.AP('body', '  let rsfptr = unsafe{Box::from_raw(rsfptr_raw)};')
@@ -284,7 +269,8 @@ class GenerateForRust(GenerateBase):
                           % (class_name, sigmth.spelling, trait_params))
                 ctx.CP.AP('body', '  fn connect(self, sigthis: %s_%s_signal) {' % (class_name, sigmth.spelling))
                 ctx.CP.AP('body', '    // do smth...')
-                ctx.CP.AP('body', '    self as u64;')
+                ctx.CP.AP('body', '    // self as u64; // error for Fn, Ok for fn')
+                ctx.CP.AP('body', '    self as *mut c_void as u64;')
                 ctx.CP.AP('body', '    self as *mut c_void;')
                 ctx.CP.AP('body', '    let arg0 = sigthis.poi as *mut c_void;')
                 ctx.CP.AP('body', '    let arg1 = %s_%s_signal_connect_cb_%s as *mut c_void;'
@@ -296,7 +282,7 @@ class GenerateForRust(GenerateBase):
                 ctx.CP.AP('body', '  }')
                 ctx.CP.AP('body', '}')
                 # impl xx for Box<fn(%s)>
-                ctx.CP.AP('body', 'impl /* trait */ %s_%s_signal_connect for Box<fn(%s)> {'
+                ctx.CP.AP('body', 'impl /* trait */ %s_%s_signal_connect for Box<Fn(%s)> {'
                           % (class_name, sigmth.spelling, trait_params))
                 ctx.CP.AP('body', '  fn connect(self, sigthis: %s_%s_signal) {' % (class_name, sigmth.spelling))
                 ctx.CP.AP('body', '    // do smth...')
@@ -410,10 +396,8 @@ class GenerateForRust(GenerateBase):
         ctx.unique_methods = unique_methods
         ctx.CP = self.gctx.getCodePager(class_cursor)
 
-        # if ctx.ctor: ctx.method_name_rewrite = 'New%s' % (ctx.method_name)
-        # if ctx.dtor: ctx.method_name_rewrite = 'Free%s' % (ctx.method_name[1:])
-        if ctx.ctor: ctx.method_name_rewrite = 'New'
-        if ctx.dtor: ctx.method_name_rewrite = 'Free'
+        if ctx.ctor: ctx.method_name_rewrite = 'new'
+        if ctx.dtor: ctx.method_name_rewrite = 'free'
         if self.is_conflict_method_name(ctx.method_name):
             ctx.method_name_rewrite = ctx.method_name + '_'
         if ctx.static:
