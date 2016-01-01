@@ -165,7 +165,7 @@ class GenerateForRust(GenerateBase):
         CP.AP('body', "  pub qclsinst: u64 /* *mut c_void*/,")
         for key in usignals:
             sigmth = usignals[key]
-            CP.AP('body', '  pub _%s_1: %s_%s_signal,' % (sigmth.spelling, class_name, sigmth.spelling))
+            CP.AP('body', '  pub _%s: %s_%s_signal,' % (sigmth.spelling, class_name, sigmth.spelling))
         CP.AP('body', "}\n")
 
         return
@@ -187,9 +187,8 @@ class GenerateForRust(GenerateBase):
                 ctx.CP.AP('body', 'pub struct %s_%s_signal{poi:u64}' % (class_name, sigmth.spelling))
 
                 ctx.CP.AP('body', 'impl /* struct */ %s {' % (class_name))
-                ctx.CP.AP('body', '  pub fn %s_1(&self) -> %s_%s_signal {'
+                ctx.CP.AP('body', '  pub fn %s(&self) -> %s_%s_signal {'
                           % (sigmth.spelling, class_name, sigmth.spelling))
-                # ctx.CP.AP('body', '     self._%s_1.poi = self.qclsinst;' % (sigmth.spelling))
                 ctx.CP.AP('body', '     return %s_%s_signal{poi:self.qclsinst};' % (class_name, sigmth.spelling))
                 ctx.CP.AP('body', '  }')
                 ctx.CP.AP('body', '}')
@@ -244,7 +243,7 @@ class GenerateForRust(GenerateBase):
 
                 ctx.CP.AP('body', '  rsfptr(%s);' % (','.join(rsargs)))
                 ctx.CP.AP('body', '}')
-                ctx.CP.AP('body', 'extern fn %s_%s_signal_connect_cb_box_%s(rsfptr_raw:*mut Fn(%s), %s) {'
+                ctx.CP.AP('body', 'extern fn %s_%s_signal_connect_cb_box_%s(rsfptr_raw:*mut Box<Fn(%s)>, %s) {'
                           % (class_name, sigmth.spelling, idx, trait_params, params_ext))
                 ctx.CP.AP('body', '  println!("{}:{}", file!(), line!());')
                 ctx.CP.AP('body', '  let rsfptr = unsafe{Box::from_raw(rsfptr_raw)};')
@@ -262,7 +261,8 @@ class GenerateForRust(GenerateBase):
                         ctx.CP.AP('body', '  let rsarg%s = arg%s as %s;' % (sidx, sidx, dty))
                     rsargs.append('rsarg%s' % (sidx))
 
-                ctx.CP.AP('body', '  rsfptr(%s);' % (','.join(rsargs)))
+                ctx.CP.AP('body', '  // rsfptr(%s);' % (','.join(rsargs)))
+                ctx.CP.AP('body', '  unsafe{(*rsfptr_raw)(%s)};' % (','.join(rsargs)))
                 ctx.CP.AP('body', '}')
                 # impl xxx for fn(%s)
                 ctx.CP.AP('body', 'impl /* trait */ %s_%s_signal_connect for fn(%s) {'
@@ -291,7 +291,7 @@ class GenerateForRust(GenerateBase):
                 ctx.CP.AP('body', '    let arg0 = sigthis.poi as *mut c_void;')
                 ctx.CP.AP('body', '    let arg1 = %s_%s_signal_connect_cb_box_%s as *mut c_void;'
                           % (class_name, sigmth.spelling, idx))
-                ctx.CP.AP('body', '    let arg2 = Box::into_raw(self) as *mut c_void;')
+                ctx.CP.AP('body', '    let arg2 = Box::into_raw(Box::new(self)) as *mut c_void;')
                 # ctx.CP.AP('body', '    // %s_%s_signal_connect_cb_%s' % (class_name, sigmth.spelling, idx))
                 ctx.CP.AP('body', '    unsafe {%s_SlotProxy_connect_%s(arg0, arg1, arg2)};'
                           % (class_name, sigmth.mangled_name))
@@ -371,6 +371,7 @@ class GenerateForRust(GenerateBase):
             umethod_name = cursor.spelling + static_suffix
             unique_methods[umethod_name] = True
 
+        signals = self.gutil.get_signals(class_cursor)
         dupremove = self.dedup_return_const_diff_method(methods)
         # print(444, 'dupremove len:', len(dupremove), dupremove)
         for mangled_name in methods:
@@ -384,6 +385,8 @@ class GenerateForRust(GenerateBase):
                 continue
             if mangled_name in dupremove:
                 # print(333, 'skip method:', mangled_name)
+                continue
+            if mangled_name in signals:
                 continue
 
             ctx = self.createGenMethodContext(cursor, class_cursor, base_class, unique_methods)

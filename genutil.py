@@ -97,6 +97,7 @@ class GenUtil(object):
     def get_signals(self, cursor):
         if cursor.spelling in GenUtil.signals:
             return GenUtil.signals[cursor.spelling]
+
         # for it in cursor.walk_preorder():
         #    print(it.kind, it.spelling, it.displayname)
         methods = self.get_methods(cursor)
