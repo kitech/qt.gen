@@ -75,19 +75,29 @@ class GenerateForGo(GenerateBase):
         for key in self.gctx.codes:
             CP = self.gctx.codes[key]
             CP.AP('header', self.generateHeader(''))
+            CP.AP('use', 'import "fmt"')
+            CP.AP('use', 'import "reflect"')
+            CP.AP('use', 'import "unsafe"')
+            CP.AP('use', 'import "qtrt"')
+
             CP.AP('ext', "// #[link(name = \"Qt5Core\")]")
             CP.AP('ext', "// #[link(name = \"Qt5Gui\")]")
             CP.AP('ext', "// #[link(name = \"Qt5Widgets\")]")
             CP.AP('ext', "// #[link(name = \"QtInline\")]\n")
-            CP.AP('ext', "// extern {")
-            CP.AP('ext', 'import "fmt"')
-            CP.AP('ext', 'import "reflect"')
-            CP.AP('ext', 'import "qtrt"')
-            CP.AP('ext', 'func init() {')
-            CP.AP('ext', '  if false {qtrt.KeepMe()}')
-            CP.AP('ext', '  if false {fmt.Println(123)}')
-            CP.AP('ext', '  if false {reflect.TypeOf(123)}')
-            CP.AP('ext', '}\n')
+            # CP.AP('ext', "// extern {")
+            CP.AP('ext', "/*")
+            CP.AP('ext', "#include <stdlib.h>")
+            CP.AP('ext', "#include <stdbool.h>")
+            CP.AP('ext', "#include <stdint.h>")
+            CP.AP('ext', "#include <wchar.h>")
+            CP.AP('ext', "#include <uchar.h>")
+
+            CP.AP('body', 'func init() {')
+            CP.AP('body', '  if false {qtrt.KeepMe()}')
+            CP.AP('body', '  if false {fmt.Println(123)}')
+            CP.AP('body', '  if false {reflect.TypeOf(123)}')
+            CP.AP('body', '  if false {reflect.TypeOf(unsafe.Sizeof(0))}')
+            CP.AP('body', '}\n')
         return
 
     def genpass_code_endian(self):
@@ -95,6 +105,7 @@ class GenerateForGo(GenerateBase):
             CP = self.gctx.codes[key]
             for blk in self.class_blocks:
                 if blk == 'ext':
+                    CP.append(blk, '*/\nimport "C"')
                     CP.append(blk, "// } // <= %s block end\n" % (blk))
                 else:
                     CP.append(blk, "// <= %s block end\n" % (blk))
@@ -421,7 +432,7 @@ class GenerateForGo(GenerateBase):
         method_name = ctx.method_name
 
         # ctx.ret_type_name_rs = self.tyconv.Type2RustRet(ctx.ret_type, method_cursor)
-        # ctx.ret_type_name_ext = self.tyconv.TypeCXX2RustExtern(ctx.ret_type, method_cursor)
+        ctx.ret_type_name_ext = self.tyconv.ArgType2FFIExt(ctx.ret_type, method_cursor)
 
         raw_params_array = self.generateParamsRaw(class_name, method_name, method_cursor)
         raw_params = ', '.join(raw_params_array)
@@ -433,19 +444,19 @@ class GenerateForGo(GenerateBase):
         # call_params = ', '.join(call_params_array)
         # if not ctx.static and not ctx.ctor: call_params = ('rsthis.qclsinst, ' + call_params).strip(' ,')
 
-        # extargs_array = self.generateParamsForExtern(class_name, method_name, method_cursor, ctx)
-        # extargs = ', '.join(extargs_array)
-        # if not ctx.static: extargs = ('qthis: u64 /* *mut c_void*/, ' + extargs).strip(' ,')
+        extargs_array = self.generateParamsForExtern(class_name, method_name, method_cursor, ctx)
+        extargs = ', '.join(extargs_array)
+        if not ctx.static: extargs = ('void* qthis, ' + extargs).strip(' ,')
 
-        # ctx.params_cpp = raw_params
+        ctx.params_cpp = raw_params
         # ctx.params_rs = trait_params
         # ctx.params_call = call_params
-        # ctx.params_ext = extargs
-        # ctx.params_ext_arr = extargs_array
+        ctx.params_ext = extargs
+        ctx.params_ext_arr = extargs_array
 
         # ctx.trait_proto = '%s::%s(%s)' % (class_name, method_name, trait_params)
-        # ctx.fn_proto_cpp = "  // proto: %s %s %s::%s(%s);" % \
-        #                    (ctx.static_str, ctx.ret_type_name_cpp, ctx.class_name, ctx.method_name, ctx.params_cpp)
+        ctx.fn_proto_cpp = "  // proto: %s %s %s::%s(%s);" % \
+                            (ctx.static_str, ctx.ret_type_name_cpp, ctx.class_name, ctx.method_name, ctx.params_cpp)
         ctx.has_return = self.methodHasReturn(ctx)
 
         # base class
@@ -552,8 +563,8 @@ class GenerateForGo(GenerateBase):
         #     else: self.generateImplTraitMethod(ctx)
 
         # extern
-        # ctx.CP.AP('ext', ctx.fn_proto_cpp)
-        # self.generateDeclForFFIExt(ctx)
+        ctx.CP.AP('ext', ctx.fn_proto_cpp)
+        self.generateDeclForFFIExt(ctx)
 
         return
 
@@ -881,10 +892,6 @@ class GenerateForGo(GenerateBase):
         idx = 0
         argv = []
 
-        if method_cursor.kind == clang.cindex.CursorKind.CONSTRUCTOR:
-            # argv.append('qthis: *mut c_void')
-            pass
-
         for arg in method_cursor.get_arguments():
             idx += 1
             # print('%s, %s, ty:%s, kindty:%s' % (method_name, arg.displayname, arg.type.spelling, arg.kind))
@@ -892,19 +899,19 @@ class GenerateForGo(GenerateBase):
             # param_line2 = self.restore_param_by_token(arg)
             # print(param_line2)
 
-            if self.check_skip_param(arg, method_name) is False:
-                self.generateUseForRust(ctx, arg.type, arg)
+            # if self.check_skip_param(arg, method_name) is False:
+            #    self.generateUseForRust(ctx, arg.type, arg)
             # type_name = self.resolve_swig_type_name(class_name, arg.type)
             # type_name2 = self.hotfix_typename_ifenum_asint(class_name, arg, arg.type)
             # type_name = type_name2 if type_name2 is not None else type_name
-            type_name = self.tyconv.TypeCXX2RustExtern(arg.type, arg)
+            type_name = self.tyconv.ArgType2FFIExt(arg.type, arg)
             # if self.is_qt_class(type_name) and self.check_skip_param(arg, method_name) is False:
             #    seg = self.get_qt_class(type_name)
             #    if seg != class_name:
             #        ctx.CP.APU('use', "use super::%s::%s;\n" % (seg.lower(), seg))
 
             arg_name = 'arg%s' % idx if arg.displayname == '' else arg.displayname
-            argelem = "arg%s: %s" % (idx-1, type_name)
+            argelem = "%s arg%s" % (type_name, idx-1)
             argv.append(argelem)
 
         return argv
@@ -932,21 +939,22 @@ class GenerateForGo(GenerateBase):
         cursor = ctx.cursor
         has_return = ctx.has_return
         # calc ext type name
-        return_type_name = self.tyconv.TypeCXX2RustExtern(ctx.ret_type, cursor)
+        return_type_name = 'void'
+        # return_type_name = self.tyconv.TypeCXX2RustExtern(ctx.ret_type, cursor)
 
         mangled_name = ctx.mangled_name
-        return_piece_proto = ''
-        if cursor.result_type.kind != clang.cindex.TypeKind.VOID and has_return:
-            return_piece_proto = ' -> %s' % (return_type_name)
+        return_piece_proto = 'void'
+        if cursor.result_type.kind != clidx.TypeKind.VOID and has_return:
+            return_piece_proto = '%s' % (return_type_name)
         extargs = ctx.params_ext
         if cursor.kind == clidx.CursorKind.CONSTRUCTOR:
             tpargs = ', '.join(ctx.params_ext_arr)
-            ctx.CP.AP('ext', "  fn dector%s(%s) -> *mut c_void;" % (mangled_name, tpargs))
+            ctx.CP.AP('ext', "extern void* dector%s(%s);" % (mangled_name, tpargs))
 
         if ctx.isinline:
-            ctx.CP.AP('ext', "  fn demth%s(%s)%s;" % (mangled_name, extargs, return_piece_proto))
+            ctx.CP.AP('ext', "extern %s demth%s(%s);" % (return_piece_proto, mangled_name, extargs))
         else:
-            ctx.CP.AP('ext', "  fn %s(%s)%s;" % (mangled_name, extargs, return_piece_proto))
+            ctx.CP.AP('ext', "extern %s %s(%s);" % (return_piece_proto, mangled_name, extargs))
 
         return has_return, return_type_name
 
