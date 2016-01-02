@@ -441,9 +441,9 @@ class GenerateForGo(GenerateBase):
         # trait_params_array = self.generateParamsForTrait(class_name, method_name, method_cursor, ctx)
         # trait_params = ', '.join(trait_params_array)
 
-        # call_params_array = self.generateParamsForCall(class_name, method_name, method_cursor)
-        # call_params = ', '.join(call_params_array)
-        # if not ctx.static and not ctx.ctor: call_params = ('rsthis.qclsinst, ' + call_params).strip(' ,')
+        call_params_array = self.generateParamsForCall(class_name, method_name, method_cursor)
+        call_params = ', '.join(call_params_array)
+        if not ctx.static and not ctx.ctor: call_params = ('this.qclsinst, ' + call_params).strip(' ,')
 
         extargs_array = self.generateParamsForExtern(class_name, method_name, method_cursor, ctx)
         extargs = ', '.join(extargs_array)
@@ -451,7 +451,7 @@ class GenerateForGo(GenerateBase):
 
         ctx.params_cpp = raw_params
         # ctx.params_rs = trait_params
-        # ctx.params_call = call_params
+        ctx.params_call = call_params
         ctx.params_ext = extargs
         ctx.params_ext_arr = extargs_array
 
@@ -751,14 +751,26 @@ class GenerateForGo(GenerateBase):
         return
 
     def generateVTableInvoke(self, ctx, overload_methods):
+        movs = {}
+        for mth in overload_methods:
+            movs[mth.mangled_name] = mth
+        dedup_methods = self.dedup_return_const_diff_method(movs)
         midx = -1
         ctx.CP.AP('body', '  switch matched_index {')
         for mth in overload_methods:
+            if mth.mangled_name in dedup_methods: continue
+            if self.check_skip_method(mth): continue
+            if self.check_skip_params(mth): continue
             midx += 1
             ctx.CP.AP('body', '  case %s:' % (midx))
             ctx.CP.AP('body', '    // invoke: %s' % (mth.mangled_name))
+            ctx.CP.AP('body', '    // invoke: %s %s' % (mth.result_type.spelling, mth.displayname))
             nctx = self.createGenMethodContext(mth, ctx.class_cursor, ctx.base_class, ctx.unique_methods)
             self.generateArgConvExprs(ctx.class_name, mth.spelling, mth, nctx)
+            if nctx.isinline:
+                ctx.CP.AP('body', '    C.demth%s(%s)' % (mth.mangled_name, nctx.params_call))
+            else:
+                ctx.CP.AP('body', '    C.%s(%s)' % (mth.mangled_name, nctx.params_call))
 
         ctx.CP.AP('body', '  default:')
         ctx.CP.AP('body', '    qtrt.ErrorResolve("%s", "%s", args)' % (ctx.class_name, ctx.method_name))
@@ -845,7 +857,7 @@ class GenerateForGo(GenerateBase):
 
     # @return []
     def generateParamsForCall(self, class_name, method_name, method_cursor):
-        idx = 0
+        idx = -1
         argv = []
 
         for arg in method_cursor.get_arguments():
@@ -855,13 +867,14 @@ class GenerateForGo(GenerateBase):
             # param_line2 = self.restore_param_by_token(arg)
             # print(param_line2)
 
-            type_name = self.resolve_swig_type_name(class_name, arg.type)
-            type_name2 = self.hotfix_typename_ifenum_asint(class_name, arg, arg.type)
-            type_name = type_name2 if type_name2 is not None else type_name
+            # type_name = self.resolve_swig_type_name(class_name, arg.type)
+            # type_name2 = self.hotfix_typename_ifenum_asint(class_name, arg, arg.type)
+            # type_name = type_name2 if type_name2 is not None else type_name
 
-            type_name_extern = self.tyconv.TypeCXX2RustExtern(arg.type, arg)
-            arg_name = 'arg%s' % idx if arg.displayname == '' else arg.displayname
-            argelem = "arg%s" % (idx - 1)
+            # type_name_extern = self.tyconv.TypeCXX2RustExtern(arg.type, arg)
+            # arg_name = 'arg%s' % idx if arg.displayname == '' else arg.displayname
+            # argelem = "arg%s" % (idx - 1)
+            argelem = 'arg%s' % (idx)
             argv.append(argelem)
 
         return argv
@@ -1199,6 +1212,8 @@ class GenerateForGo(GenerateBase):
         # _ZNKR7QString7toUpperEv, _ZNO7QString7toUpperEv
         mangled_name = cursor.mangled_name
         if mangled_name.startswith('_ZNO'): return True
+        if mangled_name == '_ZN10QArrayData4dataEv': return True
+        if mangled_name == '_ZN11QBasicTimer5startEiN2Qt9TimerTypeEP7QObject': return True
         # TODO fix QString::data() vs. QString::data() const
         # _ZN7QString4dataEv, _ZNK7QString4dataEv
         # TODO 这种情况还挺多的。函数名相同，返回值不回的重载方法 。需要想办法处理。
@@ -1279,14 +1294,6 @@ class GenerateForGo(GenerateBase):
         #     print(cursor.get_num_template_arguments())
         #     exit(0)
 
-        return False
-
-    def method_is_inline(self, method_cursor):
-        for token in method_cursor.get_tokens():
-            if token.spelling == 'inline':
-                parent = method_cursor.semantic_parent
-                # print(111, method_cursor.spelling, parent.spelling)
-                return True
         return False
 
     # def hotfix_typename_ifenum_asint(self, class_name, arg):

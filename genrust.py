@@ -1197,14 +1197,6 @@ class GenerateForRust(GenerateBase):
 
         return False
 
-    def method_is_inline(self, method_cursor):
-        for token in method_cursor.get_tokens():
-            if token.spelling == 'inline':
-                parent = method_cursor.semantic_parent
-                # print(111, method_cursor.spelling, parent.spelling)
-                return True
-        return False
-
     # def hotfix_typename_ifenum_asint(self, class_name, arg):
     def hotfix_typename_ifenum_asint(self, class_name, token_cursor, atype):
         type_name = self.resolve_swig_type_name(class_name, atype)

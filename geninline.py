@@ -721,6 +721,8 @@ class GenerateForInlineCXX(GenerateBase):
         if method_name in ['QLayoutItem']: return True
         if method_name in ['QGraphicsObject']: return True
 
+        if 'iterator' in cursor.result_type.spelling: return True
+
         # 实现不知道怎么fix了，已经fix，原来是给clidx.parse中的-I不全，导致找不到类型。
         # fixmths3 = ['setQueryItems']
         # if method_name in fixmths3: return True
@@ -756,14 +758,6 @@ class GenerateForInlineCXX(GenerateBase):
         #     print(cursor.get_num_template_arguments())
         #     exit(0)
 
-        return False
-
-    def method_is_inline(self, method_cursor):
-        for token in method_cursor.get_tokens():
-            if token.spelling == 'inline':
-                parent = method_cursor.semantic_parent
-                # print(111, method_cursor.spelling, parent.spelling)
-                return True
         return False
 
     # def hotfix_typename_ifenum_asint(self, class_name, arg):

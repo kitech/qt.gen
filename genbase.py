@@ -42,6 +42,11 @@ class GenerateBase(object):
                 parent = method_cursor.semantic_parent
                 # print(111, method_cursor.spelling, parent.spelling)
                 return True
+
+        if not method_cursor.is_definition():
+            defn = method_cursor.get_definition()
+            if defn is not None: return self.method_is_inline(defn)
+
         return False
     pass
 
