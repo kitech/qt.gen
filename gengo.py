@@ -9,7 +9,8 @@ import clang.cindex
 import clang.cindex as clidx
 
 from genutil import *
-from typeconv import TypeConv, TypeConvForRust, TypeConvForGo
+from typeconv import TypeConv, TypeConvForRust
+from typeconvgo import TypeConvForGo
 from genbase import GenerateBase, GenClassContext, GenMethodContext
 
 
@@ -750,12 +751,15 @@ class GenerateForGo(GenerateBase):
         return
 
     def generateVTableInvoke(self, ctx, overload_methods):
-        midx = 0
+        midx = -1
         ctx.CP.AP('body', '  switch matched_index {')
         for mth in overload_methods:
+            midx += 1
             ctx.CP.AP('body', '  case %s:' % (midx))
             ctx.CP.AP('body', '    // invoke: %s' % (mth.mangled_name))
-            midx += 1
+            nctx = self.createGenMethodContext(mth, ctx.class_cursor, ctx.base_class, ctx.unique_methods)
+            self.generateArgConvExprs(ctx.class_name, mth.spelling, mth, nctx)
+
         ctx.CP.AP('body', '  default:')
         ctx.CP.AP('body', '    qtrt.ErrorResolve("%s", "%s", args)' % (ctx.class_name, ctx.method_name))
         ctx.CP.AP('body', '  }\n')
@@ -769,22 +773,28 @@ class GenerateForGo(GenerateBase):
         def isrstr(tyname): return 'String' in tyname.split(' ')
 
         for idx, (arg) in enumerate(method_cursor.get_arguments()):
-            srctype = self.tyconv.TypeCXX2Rust(arg.type, arg)
-            astype = self.tyconv.TypeCXX2RustExtern(arg.type, arg)
-            astype = ' as %s' % (astype)
-            asptr = ''
-            if self.tyconv.IsPointer(arg.type) and self.tyconv.IsCharType(arg.type.spelling):
-                asptr = '.as_ptr()'
-            elif isvec(srctype): asptr = '.as_ptr()'
-            elif isrstr(srctype): asptr = '.as_ptr()'
+            # srctype = self.tyconv.ArgType2Go(arg.type, arg)
+            # astype = self.tyconv.ArgType2FFIExt(arg.type, arg)
+            # astype = '%s' % (astype)
+            # asptr = ''
+            # if self.tyconv.IsPointer(arg.type) and self.tyconv.IsCharType(arg.type.spelling):
+            #     asptr = '.as_ptr()'
+            # elif isvec(srctype): asptr = '.as_ptr()'
+            # elif isrstr(srctype): asptr = '.as_ptr()'
 
-            qclsinst = ''
-            can_name = self.tyconv.TypeCanName(arg.type)
-            if self.is_qt_class(can_name): qclsinst = '.qclsinst'
-            if argc == 1:  # fix shit rust tuple index
-                ctx.CP.AP('body', "    let arg%s = self%s%s %s;" % (idx, qclsinst, asptr, astype))
+            # qclsinst = ''
+            # can_name = self.tyconv.TypeCanName(arg.type)
+            # if self.is_qt_class(can_name): qclsinst = '.qclsinst'
+            atc = self.tyconv.ArgType2CGO(arg.type, arg)
+            if '%s' not in atc:
+                print(123, atc)
+                raise '123'
+            atc = atc % ('args[%s]' % (idx))
+            if '<' in atc or '::' in atc:
+                ctx.CP.AP('body', "    // var arg%s = %s" % (idx, atc))
             else:
-                ctx.CP.AP('body', "    let arg%s = self.%s%s%s %s;" % (idx, idx, qclsinst, asptr, astype))
+                ctx.CP.AP('body', "    var arg%s = %s" % (idx, atc))
+                ctx.CP.AP('body', '    if false {fmt.Println(arg%s)}' % (idx))
         return
 
     def generateParamsTypeForResolve(self, ctx, method_cursor, method_index):
