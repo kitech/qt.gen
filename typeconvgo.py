@@ -30,16 +30,16 @@ class TypeConvForGo(TypeConv):
 
         if ctx.convable_type.kind == clidx.TypeKind.BOOL:
             return 'qtrt.BoolTy(false)'
-        if ctx.convable_type.kind == clidx.TypeKind.SHORT \
-           or ctx.convable_type.kind == clidx.TypeKind.USHORT:
+        if ctx.convable_type.kind == clidx.TypeKind.USHORT \
+           or ctx.convable_type.kind == clidx.TypeKind.SHORT:
             return 'qtrt.Int16Ty(false)'
         if ctx.convable_type.kind == clidx.TypeKind.INT \
            or ctx.convable_type.kind == clidx.TypeKind.UINT \
            or ctx.convable_type.kind == clidx.TypeKind.LONG \
            or ctx.convable_type.kind == clidx.TypeKind.ULONG:
             return 'qtrt.Int32Ty(false)'
-        if ctx.convable_type.kind == clidx.TypeKind.LONGLONG \
-           or ctx.convable_type.kind == clidx.TypeKind.ULONGLONG:
+        if ctx.convable_type.kind == clidx.TypeKind.ULONGLONG \
+           or ctx.convable_type.kind == clidx.TypeKind.LONGLONG:
             return 'qtrt.Int64Ty(false)'
 
         if ctx.convable_type.kind == clidx.TypeKind.DOUBLE:
@@ -79,9 +79,9 @@ class TypeConvForGo(TypeConv):
                or ctx.can_type.kind == clidx.TypeKind.UCHAR:
                 return 'qtrt.ByteTy(true)'
             if ctx.can_type.kind == clidx.TypeKind.WCHAR:
-                return 'qtrt.StringTy(false)'
+                return 'qtrt.RuneTy(false)'
             if ctx.can_type.kind == clidx.TypeKind.USHORT \
-               or ctx.can_type.kind == clidx.TypeKind.USHORT:
+               or ctx.can_type.kind == clidx.TypeKind.SHORT:
                 return 'qtrt.Int16Ty(true)'
             if ctx.can_type.kind == clidx.TypeKind.UINT \
                or ctx.can_type.kind == clidx.TypeKind.INT:
@@ -191,7 +191,7 @@ class TypeConvForGo(TypeConv):
                or ctx.can_type.kind == clidx.TypeKind.UCHAR:
                 return 'unsigned char*'
             if ctx.can_type.kind == clidx.TypeKind.WCHAR:
-                return '%s*' % (ctx.can_type_name)
+                return 'wchar_t*'
             if ctx.can_type.kind == clidx.TypeKind.CHAR32:
                 return '%s*' % (ctx.can_type_name)
             if ctx.can_type.kind == clidx.TypeKind.CHAR16:
@@ -300,13 +300,19 @@ class TypeConvForGo(TypeConv):
     def Byte2Charp(self):
         return '(*C.uchar)((unsafe.Pointer)(reflect.ValueOf(%s.([]byte)).UnsafeAddr()))'
 
+    def Rune2WCharp(self):
+        return '(*C.wchar_t)((unsafe.Pointer)(reflect.ValueOf(%s.([]rune)).UnsafeAddr()))'
+
+    def AnyArr2Pointer(self, cty, goty):
+        return '(**C.%s)((unsafe.Pointer)(reflect.ValueOf(%%s.([][]%s)).UnsafeAddr()))' % (cty, goty)
+
     def ArgType2CGO(self, cxxtype, cursor):
         ctx = self.createContext(cxxtype, cursor)
 
         if ctx.convable_type.kind == clidx.TypeKind.BOOL:
             return 'C.bool(%s.(bool))'
-        if ctx.convable_type.kind == clidx.TypeKind.SHORT \
-           or ctx.convable_type.kind == clidx.TypeKind.USHORT:
+        if ctx.convable_type.kind == clidx.TypeKind.USHORT \
+           or ctx.convable_type.kind == clidx.TypeKind.SHORT:
             return 'C.int16_t(%s.(int16))'
         if ctx.convable_type.kind == clidx.TypeKind.INT \
            or ctx.convable_type.kind == clidx.TypeKind.UINT \
@@ -369,7 +375,7 @@ class TypeConvForGo(TypeConv):
                or ctx.can_type.kind == clidx.TypeKind.UCHAR:
                 return self.Byte2Charp()  # 'qtrt.Byte2Charp(%s)'
             if ctx.can_type.kind == clidx.TypeKind.WCHAR:
-                return 'C.CString(%s.(string))'
+                return self.Rune2WCharp()  # '(*C.wchar_t)(%s.(*rune))'
             if ctx.can_type.kind == clidx.TypeKind.CHAR32:
                 return 'C.CString(%s.(string))'
             if ctx.can_type.kind == clidx.TypeKind.CHAR16:
@@ -462,11 +468,23 @@ class TypeConvForGo(TypeConv):
         if ctx.convable_type.kind == clidx.TypeKind.CONSTANTARRAY:
             adim = self.ArrayDim(ctx.convable_type)
             # return '%s%s' % (ctx.can_type_name.split(' ')[0], ''.zfill(adim).replace('0', '*'))
-            return '%s.(unsafe.Pointer)'
+            cty = ctx.can_type_name.split(' ')[0]
+            if adim == 2 and cty == 'float':
+                return self.AnyArr2Pointer(cty, 'float32')
+            if adim == 2 and cty == 'double':
+                return self.AnyArr2Pointer(cty, 'float64')
+            self.dumpContext(ctx)
+            # return '%s.(unsafe.Pointer)'
         if ctx.convable_type.kind == clidx.TypeKind.INCOMPLETEARRAY:
             adim = self.ArrayDim(ctx.convable_type)
             # return '%s%s' % (ctx.can_type_name.split(' ')[0], ''.zfill(adim).replace('0', '*'))
-            return '%s.(unsafe.Pointer)'
+            cty = ctx.can_type_name.split(' ')[0]
+            if adim == 2 and cty == 'float':
+                return self.AnyArr2Pointer(cty, 'float32')
+            if adim == 2 and cty == 'double':
+                return self.AnyArr2Pointer(cty, 'float64')
+            self.dumpContext(ctx)
+            # return '%s.(unsafe.Pointer)'
 
         if ctx.orig_type.kind == clidx.TypeKind.TYPEDEF:
             return self.ArgType2FFIExt(ctx.can_type, cursor)
@@ -493,16 +511,13 @@ class TypeConvForGo(TypeConv):
         if ctx.convable_type.kind == clidx.TypeKind.LONGLONG \
            or ctx.convable_type.kind == clidx.TypeKind.ULONGLONG:
             return 'int64'
-
         if ctx.convable_type.kind == clidx.TypeKind.DOUBLE:
             return 'float64'
         if ctx.convable_type.kind == clidx.TypeKind.FLOAT:
             return 'float32'
-
         if ctx.convable_type.kind == clidx.TypeKind.UCHAR \
            or ctx.convable_type.kind == clidx.TypeKind.CHAR_S:
             return 'byte'
-
         if ctx.convable_type.kind == clidx.TypeKind.ENUM:
             return 'int32'
 
@@ -547,7 +562,7 @@ class TypeConvForGo(TypeConv):
                or ctx.can_type.kind == clidx.TypeKind.UCHAR:
                 return '[]byte'
             if ctx.can_type.kind == clidx.TypeKind.WCHAR:
-                return 'string'
+                return '[]rune'
             if ctx.can_type.kind == clidx.TypeKind.CHAR32:
                 return 'string'
             if ctx.can_type.kind == clidx.TypeKind.CHAR16:
