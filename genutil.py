@@ -5,7 +5,7 @@ import clang
 import clang.cindex as clidx
 
 FORMAT = '%(asctime)-15s %(filename)s:%(lineno)d %(funcName)s %(message)s'
-LOGLEVEL= logging.DEBUG
+LOGLEVEL = logging.DEBUG
 # LOGLEVEL = logging.ERROR
 logging.basicConfig(format=FORMAT, level=LOGLEVEL)
 glog = logging.getLogger()
@@ -15,6 +15,8 @@ class GenUtil(object):
     basecls = {}
     methods = {}
     signals = {}
+    clstokens = {}  # clsname => tokens[]
+    inline_methods = {}  # clsname => mangled method name[]
 
     def __init__(self):
         self.conflib = clang.cindex.conf.lib
@@ -57,7 +59,7 @@ class GenUtil(object):
                 # 而这个遍历是有可能进入到类内部的，所以不准确
                 if decl.semantic_parent is None:
                     print(decl.kind, decl.spelling, x.kind, x.spelling)
-                    exit(0)
+                    raise 'wtf'
                 if decl.semantic_parent.kind == clidx.CursorKind.TRANSLATION_UNIT:
                     bases.append(decl)
                 else: break  # 提前跳出结束执行
@@ -128,6 +130,69 @@ class GenUtil(object):
         # print('got signals:', len(signals), signals)
         GenUtil.signals[cursor.spelling] = signals
         return signals
+
+    # qt中inline方法的5种实现方式。
+    def get_inline_methods(self, cursor):
+        tokens = []
+        if cursor.spelling not in GenUtil.clstokens:
+            for token in cursor.get_tokens():
+                tokens.append(token)
+            GenUtil.clstokens[cursor.spelling] = tokens
+        else:
+            tokens = GenUtil.clstokens[cursor.spelling]
+
+        def care_cond(token):
+            if cursor.spelling == 'QByteArray' and token.cursor.spelling == 'insert':
+                return False
+            return False
+
+        inline_methods = []
+        if cursor.spelling not in GenUtil.inline_methods:
+            all_methods = self.get_methods(cursor)
+            pidx = -1
+            bidx = 0
+            for token in tokens:
+                pidx += 1
+                if token.cursor.kind == clidx.CursorKind.CXX_METHOD:
+                    if care_cond(token):
+                        for tk in tokens[pidx-5:pidx+5]:
+                            print(tk.kind, tk.spelling)
+                    bidx = pidx
+                    while bidx > 0 and tokens[bidx].spelling not in [';', '}', 'Q_DECL_CONSTEXPR']:
+                        if tokens[bidx].spelling == 'inline':
+                            if care_cond(token):
+                                print('found inline 1')
+                            inline_methods.append(token.cursor.mangled_name)
+                            break
+                        bidx -= 1
+                    if token.cursor.is_definition():
+                        if care_cond(token):
+                            print('found inline 2')
+                        inline_methods.append(token.cursor.mangled_name)
+                    else:
+                        if token.cursor.mangled_name not in all_methods:
+                            # print('whyyyy,', token.cursor.mangled_name)
+                            pass
+                        else:
+                            mc = all_methods[token.cursor.mangled_name]
+                            defn = mc.get_definition()
+                            if defn is not None and not mc.is_definition():
+                                if care_cond(token):
+                                    print('found inline 3', defn.kind, defn.spelling, defn.displayname, defn.location)
+                                    for tk in defn.get_tokens():
+                                        print(111, tk.kind, tk.spelling)
+                                inline_methods.append(token.cursor.mangled_name)
+                    # bidx = pidx
+                    # while bidx < len(tokens) and tokens[bidx].spelling not in [';']:  # 有方法体,但没inline标识
+                    #     if tokens[bidx].spelling == '{':
+                    #         inline_methods.append(token.cursor.mangled_name)
+                    #         break
+                    #     bidx += 1
+
+            GenUtil.inline_methods[cursor.spelling] = inline_methods
+        else:
+            inline_methods = GenUtil.inline_methods[cursor.spelling]
+        return inline_methods
 
     def get_unique_signals(self, cursor):
         signals = self.get_signals(cursor)

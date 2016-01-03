@@ -191,7 +191,6 @@ class TypeConvForRust(TypeConv):
             return self.Type2RustRetPrimitive(ctx)
 
         self.dumpContext(ctx)
-        exit(0)
         return ctx.orig_type.spelling
 
     # @param cxxtype clidx.Type
@@ -245,7 +244,6 @@ class TypeConvForRust(TypeConv):
             print(678, 'wtf, type not in tymap:', can_name, ctx.orig_type_name, ctx.orig_type.spelling,
                   ctx.cursor.spelling, ctx.cursor.kind, ctx.cursor.semantic_parent.spelling)
             self.dumpContext(ctx)
-            exit(0)
 
         raise('not possible')
         return
@@ -271,12 +269,10 @@ class TypeConvForRust(TypeConv):
             print(678, 'wtf, type not in tymap:', can_name, ctx.orig_type_name, ctx.orig_type.spelling,
                   ctx.cursor.spelling, ctx.cursor.kind, ctx.cursor.semantic_parent.spelling)
             self.dumpContext(ctx)
-            exit(0)
 
         self.dumpContext(ctx)
         raise('not possible')
 
-        exit(0)
         return
 
     def Type2RustRetPrimitive(self, ctx):

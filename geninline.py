@@ -126,6 +126,14 @@ class GenerateForInlineCXX(GenerateBase):
     def genpass_classes(self):
         for key in self.gctx.classes:
             cursor = self.gctx.classes[key]
+            if cursor.spelling == 'QByteArray':
+                print(self.gutil.get_inline_methods(cursor))
+                for sc in cursor.get_children():
+                    if sc.spelling == 'insert':
+                        print(sc.mangled_name, sc.displayname, self.method_is_inline(sc))
+                exit(0)
+        for key in self.gctx.classes:
+            cursor = self.gctx.classes[key]
             if self.check_skip_class(cursor): continue
 
             class_name = cursor.displayname
@@ -533,7 +541,9 @@ class GenerateForInlineCXX(GenerateBase):
         params = 'void *that, ' + params
         params = params.strip(', ')
 
-        ret_type_name = ctx.ret_type_name_cpp.replace('&', '*') if ctx.ret_type_ref else ctx.ret_type_name_cpp
+        rvref = '&&' in ctx.ret_type_name_cpp and ctx.ret_type_ref
+        ret_type_name = ctx.ret_type_name_cpp
+        if ctx.ret_type_ref and not rvref: ret_type_name = ctx.ret_type_name_cpp.replace('&', '*') 
         ctx.CP.AP('header', ctx.fn_proto_cpp)
         mangled_name = method_cursor.mangled_name
         if return_type.kind == clidx.TypeKind.RECORD:
@@ -545,11 +555,11 @@ class GenerateForInlineCXX(GenerateBase):
 
         call_params = self.generateParamsForCall(class_name, method_name, method_cursor)
         call_params = ', '.join(call_params)
-        ctx.CP.AP('header', "  %s *cthat = (%s *)that;" % (ctx.full_class_name, ctx.full_class_name))
+        ctx.CP.AP('header', "  %s *cthat = (%s*)that;" % (ctx.full_class_name, ctx.full_class_name))
         if cursor.kind == clidx.CursorKind.CONSTRUCTOR:
             ctx.CP.AP('header', "  auto _o = new(that) %s(%s);" % (ctx.full_class_name, call_params))
         else:
-            if ctx.ret_type_ref:
+            if ctx.ret_type_ref and not rvref:
                 ctx.CP.AP('header', "  %s &cthat->%s(%s);" % (inner_return, method_name, call_params))
             else:
                 if return_type.kind == clidx.TypeKind.RECORD:

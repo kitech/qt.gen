@@ -37,9 +37,9 @@ class GenerateBase(object):
         return
 
     def method_is_inline(self, method_cursor):
+        parent = method_cursor.semantic_parent
         for token in method_cursor.get_tokens():
             if token.spelling == 'inline':
-                parent = method_cursor.semantic_parent
                 # print(111, method_cursor.spelling, parent.spelling)
                 return True
 
@@ -47,7 +47,26 @@ class GenerateBase(object):
             defn = method_cursor.get_definition()
             if defn is not None: return self.method_is_inline(defn)
 
+        return self.method_is_inline_ex(method_cursor)
         return False
+
+    # 只好遍历整个 类的token了
+    # 太慢无用
+    def method_is_inline_ex(self, method_cursor):
+        parent = method_cursor.semantic_parent
+        inline_methods = self.gutil.get_inline_methods(parent)
+        if method_cursor.mangled_name in inline_methods:
+            return True
+        return False
+
+    def method_is_pure_virtual(self, method_cursor):
+        tokens = []
+        for token in method_cursor.get_tokens():
+            tokens.append(token.spelling)
+        if ''.join(tokens[-3:]) == '=0;':
+            return True
+        return False
+
     pass
 
 

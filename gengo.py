@@ -183,7 +183,7 @@ class GenerateForGo(GenerateBase):
         else:
             # TODO 需要use 基类
             CP.AP('body', "  /*qbase*/ %s;" % (base_class.spelling))
-        CP.AP('body', "  qclsinst uint64 /* *mut c_void*/;")
+        CP.AP('body', "  qclsinst unsafe.Pointer /* *C.void */;")
         for key in usignals:
             sigmth = usignals[key]
             CP.AP('body', '//  _%s %s_%s_signal;' % (sigmth.spelling, class_name, sigmth.spelling))
@@ -1198,6 +1198,8 @@ class GenerateForGo(GenerateBase):
 
         istatic = cursor.is_static_method()
         # if istatic is True: return True
+        ispv = self.method_is_pure_virtual(cursor)
+        if ispv is True: return True
 
         # fix method
         fixmths = ['tr', 'trUtf8', 'qt_metacall', 'qt_metacast', 'data_ptr',
@@ -1258,6 +1260,8 @@ class GenerateForGo(GenerateBase):
         # if class_name == 'QTextDecoder' and method_name == 'toUnicode': return True
         # if class_name == 'QCryptographicHash' and method_name == 'addData': return True
         # if class_name == 'QMessageAuthenticationCode' and method_name == 'addData': return True
+
+        if 'iterator' in cursor.result_type.spelling: return True
 
         # 实现不知道怎么fix了，已经fix，原来是给clang.cindex.parse中的-I不全，导致找不到类型。
         # fixmths3 = ['setQueryItems']
