@@ -298,13 +298,13 @@ class TypeConvForGo(TypeConv):
         return
 
     def Byte2Charp(self):
-        return '(*C.uchar)((unsafe.Pointer)(reflect.ValueOf(%s.([]byte)).UnsafeAddr()))'
+        return '(*C.uchar)((unsafe.Pointer)(reflect.ValueOf(%s.([]byte)).Pointer()))'
 
     def Rune2WCharp(self):
-        return '(*C.wchar_t)((unsafe.Pointer)(reflect.ValueOf(%s.([]rune)).UnsafeAddr()))'
+        return '(*C.wchar_t)((unsafe.Pointer)(reflect.ValueOf(%s.([]rune)).Pointer()))'
 
     def AnyArr2Pointer(self, cty, goty):
-        return '(**C.%s)((unsafe.Pointer)(reflect.ValueOf(%%s.([][]%s)).UnsafeAddr()))' % (cty, goty)
+        return '(**C.%s)((unsafe.Pointer)(reflect.ValueOf(%%s.([][]%s)).Pointer()))' % (cty, goty)
 
     def ArgType2CGO(self, cxxtype, cursor):
         ctx = self.createContext(cxxtype, cursor)
