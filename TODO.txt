@@ -15,7 +15,7 @@
 # 写一些供内部使用的宏。(变参重载)？
 # 命令行参数。
 # OK - 静态方法与动态方法同名
-# 参数默认值，怎么用rs表达呢？有可能还要继续加重载方法实现。Default::default
+# 参数默认值，怎么用rs表达呢？有可能还要继续加重载方法实现。Default::default。把默认值转换为对应的Rust值。
 # OK - Qt类的内联方法
 # enum类型成员
 # qt 全局函数
@@ -28,3 +28,4 @@
 # 一些c++字符串类型，是不是可以使用CString, OsString这些表示呢?
 # 好像qt.inline偏向rust了，要通用点的。
 # 添加#![derive(Debug)] 调试，或者实现fmt::Display，使用Qt的meta机制。
+# operatorx方法的支持。
