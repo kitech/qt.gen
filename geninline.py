@@ -66,6 +66,7 @@ class GenerateForInlineCXX(GenerateBase):
             # CP.AP('ext', "#[link(name = \"Qt5Gui\")]")
             # CP.AP('ext', "#[link(name = \"Qt5Widgets\")]\n")
             # CP.AP('ext', "extern {")
+            CP.AP('main', 'void __keep_%s_inline_symbols() {' % (code_file))
 
         return
 
@@ -73,6 +74,7 @@ class GenerateForInlineCXX(GenerateBase):
         for key in self.gctx.codes:
             CP = self.gctx.codes[key]
             CP.append('header', "}; // <= extern \"C\" block end\n")
+            CP.append('main', "} // <= main block end\n")
             for blk in self.class_blocks:
                 CP.append(blk, "// <= %s block end\n" % (blk))
                 # if blk == 'ext':
@@ -124,14 +126,6 @@ class GenerateForInlineCXX(GenerateBase):
         return
 
     def genpass_classes(self):
-        for key in self.gctx.classes:
-            cursor = self.gctx.classes[key]
-            if cursor.spelling == 'QByteArray':
-                print(self.gutil.get_inline_methods(cursor))
-                for sc in cursor.get_children():
-                    if sc.spelling == 'insert':
-                        print(sc.mangled_name, sc.displayname, self.method_is_inline(sc))
-                exit(0)
         for key in self.gctx.classes:
             cursor = self.gctx.classes[key]
             if self.check_skip_class(cursor): continue
@@ -459,8 +453,8 @@ class GenerateForInlineCXX(GenerateBase):
         method_name = ctx.method_name
         method_cursor = ctx.cursor
 
-        params = self.generateParams(class_name, method_name, method_cursor)
-        params = ', '.join(params)
+        params_arr = self.generateParams(class_name, method_name, method_cursor)
+        params = ', '.join(params_arr)
 
         # 类内类处理
         full_class_name = ctx.full_class_name
@@ -648,7 +642,9 @@ class GenerateForInlineCXX(GenerateBase):
         # if cursor.spelling == 'buttons':
         #     print(666, has_return, return_type_name, cursor.spelling, return_type.kind, cursor.semantic_parent.spelling)
         #     exit(0)
-        if '<' in return_type_name: has_return = False
+        if '<' in return_type_name:
+            # print(556, return_type_name, ctx.fn_proto_cpp)
+            has_return = False
         if "QStringList" in return_type_name: has_return = False
         if "QObjectList" in return_type_name: has_return = False
         if '::' in return_type_name: has_return = False

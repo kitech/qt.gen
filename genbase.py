@@ -67,6 +67,22 @@ class GenerateBase(object):
             return True
         return False
 
+    def is_qt_class(self, type_name):
+        # should be qt class name
+        for seg in type_name.split(' '):
+            if seg[0:1] == 'Q' and seg[1:2].upper() == seg[1:2] and '::' not in seg:  # should be qt class name
+                return True
+        return False
+
+    def get_qt_class(self, type_name):
+        # should be qt class name
+        for seg in type_name.split(' '):
+            if seg[0:1] == 'Q' and seg[1:2].upper() == seg[1:2] and '::' not in seg:  # should be qt class name
+                if '<' in seg:
+                    return seg.split('<')[0]
+                return seg
+        return None
+
     pass
 
 

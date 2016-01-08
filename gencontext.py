@@ -73,6 +73,10 @@ class GenContext(object):
         # /QtWidgets/{qwhatthis}.h
         return path.split('/')[-1].split('.')[0]
 
+    def get_code_file_by_class_name(self, class_name):
+        class_cursor = self.classes[class_name]
+        return self.get_code_file(class_cursor)
+
     def get_decl_file(self, cursor):
         loc = cursor.location
         prefix = '/usr/include/qt'
