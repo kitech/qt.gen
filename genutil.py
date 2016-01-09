@@ -142,7 +142,7 @@ class GenUtil(object):
             tokens = GenUtil.clstokens[cursor.spelling]
 
         def care_cond(token):
-            if cursor.spelling == 'QByteArray' and token.cursor.spelling == 'insert':
+            if cursor.spelling == 'QModelIndex' and token.cursor.spelling == 'QModelIndex':
                 return False
             return False
 
@@ -153,7 +153,8 @@ class GenUtil(object):
             bidx = 0
             for token in tokens:
                 pidx += 1
-                if token.cursor.kind == clidx.CursorKind.CXX_METHOD:
+                if token.cursor.kind == clidx.CursorKind.CONSTRUCTOR \
+                   or token.cursor.kind == clidx.CursorKind.CXX_METHOD:
                     if care_cond(token):
                         for tk in tokens[pidx-5:pidx+5]:
                             print(tk.kind, tk.spelling)

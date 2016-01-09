@@ -541,7 +541,6 @@ class GenerateForGo(GenerateBase):
         return_type = cursor.result_type
         return_real_type = self.real_type_name(return_type)
         if '::' in return_real_type: return
-        if self.check_skip_params(cursor): return
 
         static_suffix = ctx.static_suffix
 
@@ -575,6 +574,33 @@ class GenerateForGo(GenerateBase):
 
         ctx.CP.AP('body', ctx.fn_proto_cpp)
         ctx.CP.AP('body', 'func %s(args ...interface{}) %s {' % (method_name, class_name))
+
+        class_methods = self.gutil.get_methods(ctx.class_cursor)
+        overload_methods = []
+        for key in class_methods:
+            mth = class_methods[key]
+            if mth.spelling == class_name:
+                if self.check_skip_params(mth): continue
+                overload_methods.append(mth)
+
+        for mth in overload_methods:
+            ctx.CP.AP('body', "  // %s" % (mth.displayname))
+
+        ctx.CP.AP('body', '  var vtys = make(map[int32]map[int32]reflect.Type)')
+        ctx.CP.AP('body', "  if false {fmt.Println(vtys)}")
+
+        midx = 0
+        for mth in overload_methods:
+            ctx.CP.AP('body', '  vtys[%s] = make(map[int32]reflect.Type)' % (midx))
+            self.generateParamsTypeForResolve(ctx, mth, midx)
+            midx += 1
+
+        ctx.CP.AP('body', '')
+        ctx.CP.AP('body', "  var matched_index = qtrt.SymbolResolve(args, vtys)")
+        ctx.CP.AP('body', "  if false {fmt.Println(matched_index)}")
+
+        self.generateVTableInvoke(ctx, overload_methods)
+
         ctx.CP.AP('body', '  return %s{}' % (class_name))
         ctx.CP.AP('body', "}\n")
 
@@ -603,6 +629,7 @@ class GenerateForGo(GenerateBase):
         for key in class_methods:
             mth = class_methods[key]
             if mth.spelling == method_name:
+                if self.check_skip_params(mth): continue
                 overload_methods.append(mth)
 
         for mth in overload_methods:
@@ -762,13 +789,17 @@ class GenerateForGo(GenerateBase):
             if self.check_skip_method(mth): continue
             if self.check_skip_params(mth): continue
             midx += 1
+            deprefix = 'dector' if ctx.ctor else 'demth'
             ctx.CP.AP('body', '  case %s:' % (midx))
             ctx.CP.AP('body', '    // invoke: %s' % (mth.mangled_name))
             ctx.CP.AP('body', '    // invoke: %s %s' % (mth.result_type.spelling, mth.displayname))
             nctx = self.createGenMethodContext(mth, ctx.class_cursor, ctx.base_class, ctx.unique_methods)
             self.generateArgConvExprs(ctx.class_name, mth.spelling, mth, nctx)
+            if nctx.ctor:
+                ctx.CP.AP('body', '    var qthis = unsafe.Pointer(C.malloc(5))')
+                ctx.CP.AP('body', '    if false {reflect.TypeOf(qthis)}')
             if nctx.isinline:
-                ctx.CP.AP('body', '    C.demth%s(%s)' % (mth.mangled_name, nctx.params_call))
+                ctx.CP.AP('body', '    C.%s%s(%s)' % (deprefix, mth.mangled_name, nctx.params_call))
             else:
                 ctx.CP.AP('body', '    C.%s(%s)' % (mth.mangled_name, nctx.params_call))
 
@@ -970,12 +1001,14 @@ class GenerateForGo(GenerateBase):
         if cursor.result_type.kind != clidx.TypeKind.VOID and has_return:
             return_piece_proto = '%s' % (return_type_name)
         extargs = ctx.params_ext
-        if cursor.kind == clidx.CursorKind.CONSTRUCTOR:
-            tpargs = ', '.join(ctx.params_ext_arr)
-            ctx.CP.AP('ext', "extern void* dector%s(%s);" % (mangled_name, tpargs))
 
+        deprefix = 'dector' if ctx.ctor else 'demth'
         if ctx.isinline:
-            ctx.CP.AP('ext', "extern %s demth%s(%s);" % (return_piece_proto, mangled_name, extargs))
+            if ctx.ctor:
+                tpargs = ', '.join(ctx.params_ext_arr)
+                ctx.CP.AP('ext', "extern void* %s%s(%s);" % (deprefix, mangled_name, tpargs))
+            else:
+                ctx.CP.AP('ext', "extern %s %s%s(%s);" % (return_piece_proto, deprefix, mangled_name, extargs))
         else:
             ctx.CP.AP('ext', "extern %s %s(%s);" % (return_piece_proto, mangled_name, extargs))
 
@@ -1186,20 +1219,23 @@ class GenerateForGo(GenerateBase):
         if cursor.access_specifier == clang.cindex.AccessSpecifier.PUBLIC:
             pass
         if cursor.access_specifier == clang.cindex.AccessSpecifier.PROTECTED:
-            if cursor.kind == clang.cindex.CursorKind.CONSTRUCTOR or \
-               cursor.kind == clang.cindex.CursorKind.DESTRUCTOR:
-                pass
-            else: return True
+            return True
         if cursor.access_specifier == clang.cindex.AccessSpecifier.PRIVATE:
-            if cursor.kind == clang.cindex.CursorKind.CONSTRUCTOR or \
-               cursor.kind == clang.cindex.CursorKind.DESTRUCTOR:
-                pass
-            else: return True
+            return True
 
         istatic = cursor.is_static_method()
         # if istatic is True: return True
         ispv = self.method_is_pure_virtual(cursor)
         if ispv is True: return True
+
+        if method_name in ['QSignalBlocker']: return True
+        # if method_name in ['QLayoutItem']: return True
+        # if method_name in ['QGraphicsObject']: return True
+        if 'QOpenGLFunctions_' in method_name: return True
+        if 'QOpenGLFunctionsPrivate' == method_name: return True
+        if 'QAbstractOpenGLFunctionsPrivate' == method_name: return True
+        if 'QTextStreamManipulator' == method_name: return True
+        if 'QRunnable' == method_name: return True
 
         # fix method
         fixmths = ['tr', 'trUtf8', 'qt_metacall', 'qt_metacast', 'data_ptr',

@@ -64,6 +64,10 @@ class TypeConvForGo(TypeConv):
                 return 'qtrt.Int32Ty(false)'
             self.dumpContext(ctx)
 
+        if ctx.convable_type.kind == clidx.TypeKind.RVALUEREFERENCE:
+            if ctx.can_type.kind == clidx.TypeKind.RECORD:
+                return 'reflect.TypeOf(%s{})' % (ctx.can_type_name)
+            self.dumpContext(ctx)
         if ctx.convable_type.kind == clidx.TypeKind.RECORD:
             return 'reflect.TypeOf(%s{})' % (ctx.can_type_name)
 
@@ -101,6 +105,8 @@ class TypeConvForGo(TypeConv):
 
         if ctx.convable_type.kind == clidx.TypeKind.FUNCTIONPROTO:
             return 'qtrt.VoidpTy()'
+        if ctx.convable_type.kind == clidx.TypeKind.MEMBERPOINTER:
+            return 'qtrt.VoidpTy()'
 
         if ctx.convable_type.kind == clidx.TypeKind.UNEXPOSED:
             if ctx.can_type.kind == clidx.TypeKind.ENUM:
@@ -111,8 +117,17 @@ class TypeConvForGo(TypeConv):
                 # TODO
                 if ctx.can_type_name.startswith('QList<'):
                     return 'qtrt.VoidpTy()'
+                if ctx.can_type_name.startswith('std::initializer_list<'):
+                    return 'qtrt.VoidpTy()'
+            if ctx.convable_type_name.startswith('::quintptr'):  # should be WId
+                return 'qtrt.Int32Ty()'
+
+            self.dumpContext(ctx)
 
         if ctx.convable_type.kind == clidx.TypeKind.CONSTANTARRAY:
+            return 'qtrt.VoidpTy()'
+        if ctx.convable_type.kind == clidx.TypeKind.INCOMPLETEARRAY:
+            dim = self.ArrayDim(ctx.convable_type)
             return 'qtrt.VoidpTy()'
 
         if ctx.orig_type.kind == clidx.TypeKind.TYPEDEF:
@@ -235,7 +250,7 @@ class TypeConvForGo(TypeConv):
         # TODO UNEXPOSED 类型是不是应该试着查找类型定义的地方
         if ctx.convable_type.kind == clidx.TypeKind.UNEXPOSED:
             if ctx.can_type.kind == clidx.TypeKind.ENUM:
-                return ctx.convable_type.spelling
+                return 'int32_t'
             if ctx.can_type.kind == clidx.TypeKind.RECORD:
                 if ctx.can_type_name.startswith('QFlags<'):
                     return 'void*'
@@ -483,6 +498,8 @@ class TypeConvForGo(TypeConv):
                 return self.AnyArr2Pointer(cty, 'float32')
             if adim == 2 and cty == 'double':
                 return self.AnyArr2Pointer(cty, 'float64')
+            if adim == 2 and cty == 'char':
+                return 'C.CString(%s.(string))'
             self.dumpContext(ctx)
             # return '%s.(unsafe.Pointer)'
 

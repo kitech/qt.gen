@@ -700,16 +700,8 @@ class GenerateForInlineCXX(GenerateBase):
             pass
         if cursor.access_specifier == clidx.AccessSpecifier.PROTECTED:
             return True
-            # if cursor.kind == clidx.CursorKind.CONSTRUCTOR or \
-            #   cursor.kind == clidx.CursorKind.DESTRUCTOR:
-            #    pass
-            # else: return True
         if cursor.access_specifier == clidx.AccessSpecifier.PRIVATE:
             return True
-            # if cursor.kind == clidx.CursorKind.CONSTRUCTOR or \
-            #   cursor.kind == clidx.CursorKind.DESTRUCTOR:
-            #    pass
-            # else: return True
 
         istatic = cursor.is_static_method()
         # if istatic is True: return True
