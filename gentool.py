@@ -29,7 +29,7 @@ class GenTool:
     def __init__(self):
         self.cursors = {}  # module => clang.cindex.Cursor
         self.generator = GenerateForGo()
-        # self.generator = GenerateForInlineCXX()
+        self.generator = GenerateForInlineCXX()
         # self.generator = GenerateForRust()
         # self.builder = TestBuilderForGo()
         self.genres = {}  # key => True | False

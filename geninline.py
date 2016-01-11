@@ -7,12 +7,14 @@ import clang.cindex as clidx
 from genbase import GenerateBase, TestBuilder, GenMethodContext, GenClassContext
 from genutil import CodePaper, GenUtil
 from typeconv import TypeConvForRust
+from genfilter import GenFilterInline
 
 
 class GenerateForInlineCXX(GenerateBase):
     def __init__(self):
         super(GenerateForInlineCXX, self).__init__()
 
+        self.gfilter = GenFilterInline()
         self.modrss = {}  # mod => CodePaper
         self.class_blocks = ['header', 'main', 'use', 'ext', 'body']
         return
@@ -409,8 +411,9 @@ class GenerateForInlineCXX(GenerateBase):
     # 生成所有的构造方法
     def generateCtors(self, ctx):
         method_cursor = ctx.cursor
-        if method_cursor.access_specifier != clidx.AccessSpecifier.PUBLIC:
-            return
+        # 已经使用filter统一判断了
+        # if method_cursor.access_specifier != clidx.AccessSpecifier.PUBLIC:
+        #    return
 
         method_name = ctx.method_name
         mangled_name = ctx.mangled_name
@@ -459,14 +462,17 @@ class GenerateForInlineCXX(GenerateBase):
         # 类内类处理
         full_class_name = ctx.full_class_name
 
-        ctx.CP.AP('header', '// %s' % (method_cursor.displayname))
-        ctx.CP.AP('header', '%s* dector%s(%s)' % (full_class_name, ctx.mangled_name, params))
-        ctx.CP.AP('header', '{')
-        # 从这可以看出来ctx.ctysz这个大小完全不准确。
-        ctx.CP.AP('header', '  // static_assert(sizeof(%s) == %s, "tyszerr");' % (class_name, ctx.ctysz))
-        ctx.CP.AP('header', '  %s* rthis = new %s(%s);' % (full_class_name, full_class_name, ctx.params_call))
-        ctx.CP.AP('header', '  return rthis;')
-        ctx.CP.AP('header', '}\n')
+        ctx.CP.AP('main', '// %s' % (ctx.fn_proto_cpp))
+        ctx.CP.AP('main', 'if (false) {')
+        idx = 0
+        argv = []
+        for arg in ctx.cursor.get_arguments():
+            idx += 1
+            ctx.CP.AP('main', '  %s arg%s = nullptr;' % (arg.type.spelling, idx))
+            argv.append('arg%s' % (idx))
+        args = ', '.join(argv)
+        ctx.CP.AP('main', '  new %s(%s);' % (ctx.full_class_name, args))
+        ctx.CP.AP('main', '}')
 
         return
 
@@ -485,29 +491,12 @@ class GenerateForInlineCXX(GenerateBase):
             full_class_name = '%s::%s' % (ctx.class_cursor.semantic_parent.spelling, ctx.class_name)
             # exit(0)
 
-        ctx.CP.AP('header', '// %s' % (method_cursor.displayname))
-        ctx.CP.AP('header', 'void dedtor%s(%s* that)' % (ctx.mangled_name, full_class_name))
-        ctx.CP.AP('header', '{')
-        ctx.CP.AP('header', '  %s* rthis = (%s*)that;' % (full_class_name, full_class_name))
-        ctx.CP.AP('header', '  delete rthis;')
-        ctx.CP.AP('header', '}\n')
+        ctx.CP.AP('main', '// %s' % (ctx.fn_proto_cpp))
+        ctx.CP.AP('main', 'if (false) {')
+        ctx.CP.AP('main', '  delete ((%s*)0);' % (ctx.class_name))
+        ctx.CP.AP('main', '}')
 
         return
-
-    # def generateClass(self, class_name, cs, methods, base_class):
-    #     code = ''
-
-    #     ctysz = cs.type.get_size()
-    #     code += "// class sizeof(%s)=%s\n" % (class_name, ctysz)
-
-    #     for mth in methods:
-    #         cursor = methods[mth]
-    #         if self.check_skip_method(cursor): continue
-
-    #         code += self.generateMethod(class_name, mth, cursor)
-    #         # print(111, code)
-
-    #     return code
 
     def generateMethod(self, ctx):
         class_name = ctx.class_name
@@ -537,33 +526,21 @@ class GenerateForInlineCXX(GenerateBase):
 
         rvref = '&&' in ctx.ret_type_name_cpp and ctx.ret_type_ref
         ret_type_name = ctx.ret_type_name_cpp
-        if ctx.ret_type_ref and not rvref: ret_type_name = ctx.ret_type_name_cpp.replace('&', '*') 
-        ctx.CP.AP('header', ctx.fn_proto_cpp)
+        if ctx.ret_type_ref and not rvref: ret_type_name = ctx.ret_type_name_cpp.replace('&', '*')
         mangled_name = method_cursor.mangled_name
-        if return_type.kind == clidx.TypeKind.RECORD:
-            ctx.CP.AP('header', "%s* demth%s(%s)" % (ret_type_name, mangled_name, params))
-        else:
-            ctx.CP.AP('header', "%s demth%s(%s)" % (ret_type_name, mangled_name, params))
 
-        ctx.CP.AP('header', "{")
+        ctx.CP.AP('main', '// %s' % (ctx.fn_proto_cpp))
+        ctx.CP.AP('main', 'if (false) {')
 
-        call_params = self.generateParamsForCall(class_name, method_name, method_cursor)
-        call_params = ', '.join(call_params)
-        ctx.CP.AP('header', "  %s *cthat = (%s*)that;" % (ctx.full_class_name, ctx.full_class_name))
-        if cursor.kind == clidx.CursorKind.CONSTRUCTOR:
-            ctx.CP.AP('header', "  auto _o = new(that) %s(%s);" % (ctx.full_class_name, call_params))
-        else:
-            if ctx.ret_type_ref and not rvref:
-                ctx.CP.AP('header', "  %s &cthat->%s(%s);" % (inner_return, method_name, call_params))
-            else:
-                if return_type.kind == clidx.TypeKind.RECORD:
-                    ctx.CP.AP('header', "  auto recret = cthat->%s(%s);" % (method_name, call_params))
-                    ctx.CP.AP('header', "  %s new %s(recret);" % (inner_return, return_type.spelling))
-                    # ctx.CP.AP('header', "  %s std::move(cthat->%s(%s));" % (inner_return, method_name, call_params))
-                else:
-                    ctx.CP.AP('header', "  %s cthat->%s(%s);" % (inner_return, method_name, call_params))
-
-        ctx.CP.AP('header', '}\n')
+        idx = 0
+        argv = []
+        for arg in ctx.cursor.get_arguments():
+            idx += 1
+            ctx.CP.AP('main', '  %s arg%s = nullptr;' % (arg.type.spelling, idx))
+            argv.append('arg%s' % (idx))
+        args = ', '.join(argv);
+        ctx.CP.AP('main', '  ((%s*)0)->%s(%s);' % (ctx.full_class_name, method_name, args))
+        ctx.CP.AP('main', '}')
 
         return
 
@@ -686,6 +663,8 @@ class GenerateForInlineCXX(GenerateBase):
 
     # @return True | False
     def check_skip_method(self, cursor):
+        if True: return not self.gfilter.careMethod(cursor)
+
         method_name = cursor.spelling
         mangled_name = cursor.mangled_name
 
@@ -728,6 +707,8 @@ class GenerateForInlineCXX(GenerateBase):
         return False
 
     def check_skip_class(self, class_cursor):
+        if True: return not self.gfilter.careClass(class_cursor)
+
         cursor = class_cursor
         name = cursor.spelling
         dname = cursor.displayname

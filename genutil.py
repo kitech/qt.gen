@@ -49,18 +49,27 @@ class GenUtil(object):
     def get_base_class(self, cursor):
         if cursor.spelling in GenUtil.basecls:
             return GenUtil.basecls[cursor.spelling]
+
         bases = []
         for x in cursor.walk_preorder():
-            # print(x.kind, x.spelling)
+            if x.semantic_parent is not None and \
+               x.semantic_parent.kind != clidx.CursorKind.TRANSLATION_UNIT:
+                break  # 已经遍历进类内部了，应该需要跳出执行。
             if x.kind == clidx.CursorKind.CXX_BASE_SPECIFIER:
+                xdef = x.get_definition()
+                if xdef is None:
+                    # print(x.kind, x.spelling, cursor.spelling)
+                    continue
                 decl = x.get_definition().type.get_declaration()
-                # print(x.kind, decl.kind, decl.spelling)
-                # fix, 需要decl.semantic_parent.kind == TRANSLATION_UNIT
-                # 而这个遍历是有可能进入到类内部的，所以不准确
-                if decl.semantic_parent is None:
-                    print(decl.kind, decl.spelling, x.kind, x.spelling)
-                    raise 'wtf'
-                if decl.semantic_parent.kind == clidx.CursorKind.TRANSLATION_UNIT:
+
+                # if decl.semantic_parent is None:
+                if decl.kind == clidx.CursorKind.NO_DECL_FOUND:
+                    if xdef.kind != clidx.CursorKind.CLASS_TEMPLATE:
+                        print(decl.kind, decl.spelling, x.kind, x.spelling, xdef.kind,
+                              cursor.spelling, xdef.location, xdef)
+                        raise 'wtf'
+                    bases.append(xdef)
+                elif decl.semantic_parent.kind == clidx.CursorKind.TRANSLATION_UNIT:
                     bases.append(decl)
                 else: break  # 提前跳出结束执行
         GenUtil.basecls[cursor.spelling] = bases
