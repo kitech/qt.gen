@@ -96,7 +96,7 @@ class GenClassContext(object):
         self.class_name = cursor.spelling
         self.cursor = cursor
 
-        self.full_class_name = self.class_name
+        self.full_class_name = cursor.displayname
         # 类内类处理
         if self.cursor.semantic_parent.kind == clidx.CursorKind.STRUCT_DECL or \
            self.cursor.semantic_parent.kind == clidx.CursorKind.CLASS_DECL:
@@ -131,7 +131,7 @@ class GenMethodContext(object):
         self.method_name_rewrite = self.method_name
         self.mangled_name = cursor.mangled_name
 
-        self.full_class_name = self.class_name
+        self.full_class_name = self.class_cursor.displayname
         # 类内类处理
         if self.class_cursor.semantic_parent.kind == clidx.CursorKind.STRUCT_DECL or \
            self.class_cursor.semantic_parent.kind == clidx.CursorKind.CLASS_DECL:

@@ -67,7 +67,6 @@ class GenerateForInlineCXX(GenerateBase):
             # CP.AP('ext', "#[link(name = \"Qt5Core\")]")
             # CP.AP('ext', "#[link(name = \"Qt5Gui\")]")
             # CP.AP('ext', "#[link(name = \"Qt5Widgets\")]\n")
-            # CP.AP('ext', "extern {")
             CP.AP('main', 'void __keep_%s_inline_symbols() {' % (code_file))
 
         return
@@ -79,10 +78,6 @@ class GenerateForInlineCXX(GenerateBase):
             CP.append('main', "} // <= main block end\n")
             for blk in self.class_blocks:
                 CP.append(blk, "// <= %s block end\n" % (blk))
-                # if blk == 'ext':
-                #     CP.append(blk, "} // <= %s block end\n" % (blk))
-                # else:
-                #     CP.append(blk, "// <= %s block end\n" % (blk))
 
         return
 
@@ -104,8 +99,6 @@ class GenerateForInlineCXX(GenerateBase):
                 MP = self.modrss[decl_mod]
 
             MP = self.modrss[decl_mod]
-            # MP.APU('main', "pub mod %s;" % (code_file))
-            # MP.APU('main', "pub use self::%s::%s;\n" % (code_file, class_name))
             MP.APU('main', "set(qt5_inline_%s_srcs ${qt5_inline_%s_srcs} src/%s/%s.cxx)" %
                    (decl_mod, decl_mod, decl_mod, code_file))
         return
@@ -136,7 +129,6 @@ class GenerateForInlineCXX(GenerateBase):
             methods = self.gutil.get_methods(cursor)
             bases = self.gutil.get_base_class(cursor)
             base_class = bases[0] if len(bases) > 0 else None
-            # self.generateInheritEmulate(cursor, base_class)
             self.generateClass(class_name, cursor, methods, base_class)
             # break
 
@@ -161,11 +153,6 @@ class GenerateForInlineCXX(GenerateBase):
         # ctysz = class_cursor.type.get_size()
         # CP.AP('body', "// class sizeof(%s)=%s\n" % (class_name, ctysz))
 
-        # generate struct of class
-        # CP.AP('body', "pub struct %s {\n" % (class_name))
-        # CP.AP('body', "  pub qclsinst: *mut c_void,\n")
-        # CP.AP('body', "}\n\n")
-
         # 重载的方法，只生成一次trait
         unique_methods = {}
         for mangled_name in methods:
@@ -180,39 +167,35 @@ class GenerateForInlineCXX(GenerateBase):
         self.generateClassSize(mctx)
         self.generateSlotProxy(mctx)
 
-        isabstract = self.gutil.isAbstractClass(class_cursor)
-        if not isabstract and class_name.startswith('QAbstract'):
-            isabstract = True
-        if class_name in ['QAnimationGroup', 'QAccessibleObject', 'QLayoutItem']:
-            isabstract = True
-        if class_name in ['QSignalBlocker']:
-            isabstract = True
+        # isabstract = self.gutil.isAbstractClass(class_cursor)
+        # if not isabstract and class_name.startswith('QAbstract'):
+        #     isabstract = True
+        # if class_name in ['QAnimationGroup', 'QAccessibleObject', 'QLayoutItem']:
+        #     isabstract = True
+        # if class_name in ['QSignalBlocker']:
+        #     isabstract = True
 
         # 生成所有的构造方法封装
-        if not isabstract:
-            for mangled_name in methods:
-                cursor = methods[mangled_name]
-                method_name = cursor.spelling
-                ctx = self.createGenMethodContext(cursor, class_cursor, base_class, unique_methods)
-                self.generateCtors(ctx)
+        # if not isabstract:
+        #     for mangled_name in methods:
+        #         cursor = methods[mangled_name]
+        #         method_name = cursor.spelling
+        #         if cursor.kind == clidx.CursorKind.CONSTRUCTOR \
+        #            or cursor.kind == clidx.CursorKind.DESTRUCTOR:
+        #             ctx = self.createGenMethodContext(cursor, class_cursor, base_class, unique_methods)
+        #             self.generateCtors(ctx)
 
-        # dupremove = self.dedup_return_const_diff_method(methods)
-        dupremove = []
-        # print(444, 'dupremove len:', len(dupremove), dupremove)
         for mangled_name in methods:
             cursor = methods[mangled_name]
-            method_name = cursor.spelling
             if self.check_skip_method(cursor):
-                # if method_name == 'QAction':
-                    #print(433, 'whyyyyyyyyyyyyyy') # no
-                    # exit(0)
-                continue
-            if mangled_name in dupremove:
-                # print(333, 'skip method:', mangled_name)
                 continue
 
             ctx = self.createGenMethodContext(cursor, class_cursor, base_class, unique_methods)
-            self.generateMethod(ctx)
+            if cursor.kind == clidx.CursorKind.CONSTRUCTOR \
+               or cursor.kind == clidx.CursorKind.DESTRUCTOR:
+                self.generateCtors(ctx)
+            else:
+                self.generateMethod(ctx)
 
         return
 
@@ -221,8 +204,6 @@ class GenerateForInlineCXX(GenerateBase):
         ctx.unique_methods = unique_methods
         ctx.CP = self.gctx.getCodePager(class_cursor)
 
-        # if ctx.ctor: ctx.method_name_rewrite = 'New%s' % (ctx.method_name)
-        # if ctx.dtor: ctx.method_name_rewrite = 'Free%s' % (ctx.method_name[1:])
         if ctx.ctor: ctx.method_name_rewrite = 'New'
         if ctx.dtor: ctx.method_name_rewrite = 'Free'
         if self.is_conflict_method_name(ctx.method_name):
@@ -468,7 +449,7 @@ class GenerateForInlineCXX(GenerateBase):
         argv = []
         for arg in ctx.cursor.get_arguments():
             idx += 1
-            ctx.CP.AP('main', '  %s arg%s = nullptr;' % (arg.type.spelling, idx))
+            self.generateParamDeclExpr(ctx, arg, idx)
             argv.append('arg%s' % (idx))
         args = ', '.join(argv)
         ctx.CP.AP('main', '  new %s(%s);' % (ctx.full_class_name, args))
@@ -493,7 +474,7 @@ class GenerateForInlineCXX(GenerateBase):
 
         ctx.CP.AP('main', '// %s' % (ctx.fn_proto_cpp))
         ctx.CP.AP('main', 'if (false) {')
-        ctx.CP.AP('main', '  delete ((%s*)0);' % (ctx.class_name))
+        ctx.CP.AP('main', '  delete ((%s*)0);' % (ctx.full_class_name))
         ctx.CP.AP('main', '}')
 
         return
@@ -515,8 +496,8 @@ class GenerateForInlineCXX(GenerateBase):
             pass
         else:
             return_type_name = self.resolve_swig_type_name(class_name, return_type)
-            return_type_name2 = self.hotfix_typename_ifenum_asint(class_name, method_cursor, return_type)
-            return_type_name = return_type_name2 if return_type_name2 is not None else return_type_name
+            # return_type_name2 = self.hotfix_typename_ifenum_asint(class_name, method_cursor, return_type)
+            # return_type_name = return_type_name2 if return_type_name2 is not None else return_type_name
             inner_return = 'return' if return_type_name != 'void' else inner_return
 
         params = self.generateParams(class_name, method_name, method_cursor)
@@ -536,11 +517,55 @@ class GenerateForInlineCXX(GenerateBase):
         argv = []
         for arg in ctx.cursor.get_arguments():
             idx += 1
-            ctx.CP.AP('main', '  %s arg%s = nullptr;' % (arg.type.spelling, idx))
+            self.generateParamDeclExpr(ctx, arg, idx)
             argv.append('arg%s' % (idx))
-        args = ', '.join(argv);
+        args = ', '.join(argv)
         ctx.CP.AP('main', '  ((%s*)0)->%s(%s);' % (ctx.full_class_name, method_name, args))
         ctx.CP.AP('main', '}')
+
+        # 尝试添加正确的#include
+        self.generateUseForType(ctx, ctx.ret_type)
+
+        return
+
+    def generateParamDeclExpr(self, ctx, arg, idx):
+        aty = arg.type
+        tyname = aty.spelling
+        xdef = aty.get_declaration()
+
+        def removeQuality(tyname):
+            lst = tyname.replace('*', ' * ').split()
+            nlst = []
+            for e in lst:
+                if e not in ['const', '*', '&']:
+                    nlst.append(e)
+            return ' '.join(nlst)
+
+        if xdef is not None:
+            pdef = xdef.semantic_parent
+            if pdef is not None and pdef.kind == clidx.CursorKind.CLASS_DECL:
+                if '::' not in tyname and tyname[0] != 'Q':
+                    ctyname = removeQuality(tyname)
+                    ntyname = tyname.replace(ctyname, '%s::%s' % (pdef.spelling, ctyname))
+                    print(666, tyname, '=>', ntyname)
+                    tyname = ntyname
+
+        if aty.kind == clidx.TypeKind.LVALUEREFERENCE:
+            ctx.CP.AP('main', '  %s arg%s = *((%s*)0); // 1' % (tyname, idx, aty.get_pointee().spelling))
+        elif aty.kind == clidx.TypeKind.RVALUEREFERENCE:
+            # 引用折叠
+            ctx.CP.AP('main', '  %s arg%s = *((%s*)0); // 2' %
+                      (aty.spelling.replace('&&', '&'), idx, aty.get_pointee().spelling))
+        elif aty.kind == clidx.TypeKind.FUNCTIONNOPROTO:
+            ctx.CP.AP('main', '  %s = nullptr; // 3' %
+                      (aty.spelling.replace('(*)', '(*arg%s)' % (idx))))
+        elif aty.kind == clidx.TypeKind.POINTER and '(*)' in aty.spelling:
+            ctx.CP.AP('main', '  %s = nullptr; // 4' %
+                      (aty.spelling.replace('(*)', '(*arg%s)' % (idx))))
+        else:
+            ctx.CP.AP('main', '  %s arg%s; // 5' % (tyname, idx))
+
+        # 尝试添加正确的#include
 
         return
 
@@ -565,8 +590,8 @@ class GenerateForInlineCXX(GenerateBase):
             # print(param_line2)
 
             type_name = self.resolve_swig_type_name(class_name, arg.type)
-            type_name2 = self.hotfix_typename_ifenum_asint(class_name, arg, arg.type)
-            type_name = type_name2 if type_name2 is not None else type_name
+            # type_name2 = self.hotfix_typename_ifenum_asint(class_name, arg, arg.type)
+            # type_name = type_name2 if type_name2 is not None else type_name
 
             arg_name = 'arg%s' % idx if arg.displayname == '' else arg.displayname
             # try fix void (*)(void *) 函数指针
@@ -592,8 +617,8 @@ class GenerateForInlineCXX(GenerateBase):
             # print(param_line2)
 
             type_name = self.resolve_swig_type_name(class_name, arg.type)
-            type_name2 = self.hotfix_typename_ifenum_asint(class_name, arg, arg.type)
-            type_name = type_name2 if type_name2 is not None else type_name
+            # type_name2 = self.hotfix_typename_ifenum_asint(class_name, arg, arg.type)
+            # type_name = type_name2 if type_name2 is not None else type_name
 
             arg_name = 'arg%s' % idx if arg.displayname == '' else arg.displayname
             argelem = "%s" % (arg_name)
@@ -611,8 +636,8 @@ class GenerateForInlineCXX(GenerateBase):
         if ctx.ctor or ctx.dtor: pass
         else:
             return_type_name = self.resolve_swig_type_name(class_name, return_type)
-            return_type_name2 = self.hotfix_typename_ifenum_asint(class_name, method_cursor, return_type)
-            return_type_name = return_type_name2 if return_type_name2 is not None else return_type_name
+            # return_type_name2 = self.hotfix_typename_ifenum_asint(class_name, method_cursor, return_type)
+            # return_type_name = return_type_name2 if return_type_name2 is not None else return_type_name
 
         has_return = True
         if return_type_name == 'void': has_return = False
@@ -655,6 +680,30 @@ class GenerateForInlineCXX(GenerateBase):
 
         return has_return
 
+    # cursor, 当前位置，可以提供能确定所在文件的值
+    # cty, 如参数类型，或者返回值类型
+    def generateUseForType(self, ctx, cty):
+        if cty.kind == clidx.TypeKind.LVALUEREFERENCE \
+           or cty.kind == clidx.TypeKind.LVALUEREFERENCE:
+            cty = cty.get_pointee()
+        xdef = cty.get_declaration()
+        if xdef is not None:
+            cloc = ctx.cursor.location.file
+            xloc = xdef.location.file
+
+            if '<' in cty.spelling and cty.spelling.startswith('Q'):
+                chname = cloc.name.split('/')[-1]
+                xhname = xloc.name.split('/')[-1]
+                thname = cty.spelling.split('<')[0].lower() + '.h'
+                if chname != thname:
+                    ctx.CP.PPU('header', '#include <%s>' % (thname))
+
+            if xloc is not None and xloc.name != cloc.name:
+                chname = cloc.name.split('/')[-1]
+                xhname = xloc.name.split('/')[-1]
+                ctx.CP.PPU('header', '#include <%s>' % (xhname))
+        return
+
     def is_conflict_method_name(self, method_name):
         return False
         if method_name in ['match', 'type', 'move']:  # , 'select']:
@@ -663,7 +712,7 @@ class GenerateForInlineCXX(GenerateBase):
 
     # @return True | False
     def check_skip_method(self, cursor):
-        if True: return not self.gfilter.careMethod(cursor)
+        if True: return self.gfilter.skipMethod(cursor)
 
         method_name = cursor.spelling
         mangled_name = cursor.mangled_name
@@ -707,7 +756,7 @@ class GenerateForInlineCXX(GenerateBase):
         return False
 
     def check_skip_class(self, class_cursor):
-        if True: return not self.gfilter.careClass(class_cursor)
+        if True: return self.gfilter.skipClass(class_cursor)
 
         cursor = class_cursor
         name = cursor.spelling
@@ -739,7 +788,29 @@ class GenerateForInlineCXX(GenerateBase):
 
         return False
 
-    # def hotfix_typename_ifenum_asint(self, class_name, arg):
+    # 类似，QSurfaceFormat::FormatOptions
+    def hotfix_class_inner_type(self, cty):
+        tyname = cty.spelling
+        xdef = cty.get_declaration()
+
+        def removeQuality(tyname):
+            lst = tyname.replace('*', ' * ').split()
+            nlst = []
+            for e in lst:
+                if e not in ['const', '*', '&']:
+                    nlst.append(e)
+            return ' '.join(nlst)
+
+        if xdef is not None:
+            pdef = xdef.semantic_parent
+            if pdef is not None and pdef.kind == clidx.CursorKind.CLASS_DECL:
+                if '::' not in tyname and tyname[0] != 'Q':
+                    ctyname = removeQuality(tyname)
+                    ntyname = tyname.replace(ctyname, '%s::%s' % (pdef.spelling, ctyname))
+                    print(666, tyname, '=>', ntyname)
+                    tyname = ntyname
+        return tyname
+
     def hotfix_typename_ifenum_asint(self, class_name, token_cursor, atype):
         type_name = self.resolve_swig_type_name(class_name, atype)
         # if type_name not in ('int', 'int *', 'const int &'): return None

@@ -273,11 +273,19 @@ class CodePaper:
         self.insert_points[name].insert(0, code)
         return
 
+    def prependUnique(self, name, code):
+        if not self.hasPoint(name): self.addPoint(name)
+        if code not in self.insert_points[name]:
+            self.insert_points[name].insert(0, code)
+        return
+
     def AP(self, name, code): return self.append(name, code)
 
     def APU(self, name, code): return self.appendUnique(name, code)
 
     def PP(self, name, code): return self.prepend(name, code)
+
+    def PPU(self, name, code): return self.prependUnique(name, code)
 
     def getPoint(self, name):
         return self.newline.join(self.insert_points[name])

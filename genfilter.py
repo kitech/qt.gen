@@ -8,28 +8,36 @@ class GenFilter(object):
         super(GenFilter, self).__init__()
         return
 
-    def careDecl(self, cursor):
-        return True
+    def skipDecl(self, cursor):
+        return False
 
-    def careClass(self, cursor):
+    def skipClass(self, cursor):
         cname = cursor.spelling
-        if cname.startswith('QMetaTypeId'): return False
-        if cname.startswith('QTypeInfo'): return False
-        return True
+        if cname.startswith('QMetaTypeId'): return True
+        if cname.startswith('QTypeInfo'): return True
+        return False
 
-    def careMethod(self, cursor):
+    def skipMethod(self, cursor):
         if cursor.access_specifier != clidx.AccessSpecifier.PUBLIC:
-            return False
-        return True
+            return True
+        return False
 
-    def careArg(self, cursor):
-        return True
+    def skipArg(self, cursor):
+        return False
 
 
 class GenFilterInline(GenFilter):
     def __init__(self):
         super(GenFilterInline, self).__init__()
         return
+
+    def skipClass(self, cursor):
+        if GenFilter.skipClass(self, cursor): return True
+
+        cname = cursor.spelling
+        if cursor.kind == clidx.CursorKind.CLASS_TEMPLATE: return True
+
+        return False
 
 
 class GenFilterGo(GenFilter):
