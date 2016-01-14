@@ -13,7 +13,7 @@ glog = logging.getLogger()
 
 class GenUtil(object):
     basecls = {}
-    methods = {}
+    methods = {}  # cls displayname => class cursor
     signals = {}
     clstokens = {}  # clsname => tokens[]
     inline_methods = {}  # clsname => mangled method name[]
@@ -47,8 +47,8 @@ class GenUtil(object):
     # TODO 好像有点bug。
     # QListData会推导出基类是NotIndirectLayout。而实际上QListData没有基类。
     def get_base_class(self, cursor):
-        if cursor.spelling in GenUtil.basecls:
-            return GenUtil.basecls[cursor.spelling]
+        if cursor.displayname in GenUtil.basecls:
+            return GenUtil.basecls[cursor.displayname]
 
         bases = []
         for x in cursor.walk_preorder():
@@ -72,7 +72,7 @@ class GenUtil(object):
                 elif decl.semantic_parent.kind == clidx.CursorKind.TRANSLATION_UNIT:
                     bases.append(decl)
                 else: break  # 提前跳出结束执行
-        GenUtil.basecls[cursor.spelling] = bases
+        GenUtil.basecls[cursor.displayname] = bases
         return bases
 
     def is_qobject_subclass(self, cursor):
@@ -84,7 +84,7 @@ class GenUtil(object):
 
     def get_methods(self, class_cursor):
         if class_cursor.spelling in GenUtil.methods:
-            return GenUtil.methods[class_cursor.spelling]
+            return GenUtil.methods[class_cursor.displayname]
 
         method_names = {}
 
@@ -102,12 +102,12 @@ class GenUtil(object):
             elif m.kind == clidx.CursorKind.CXX_METHOD:  # and not m.is_definition():
                 method_names[mangled_name] = m
 
-        GenUtil.methods[class_cursor.spelling] = method_names
+        GenUtil.methods[class_cursor.displayname] = method_names
         return method_names
 
     def get_signals(self, cursor):
         if cursor.spelling in GenUtil.signals:
-            return GenUtil.signals[cursor.spelling]
+            return GenUtil.signals[cursor.displayname]
 
         # for it in cursor.walk_preorder():
         #    print(it.kind, it.spelling, it.displayname)
@@ -137,26 +137,26 @@ class GenUtil(object):
                 # signals.append(tk.cursor)  # 这种方式拿到的method_cursor有问题
 
         # print('got signals:', len(signals), signals)
-        GenUtil.signals[cursor.spelling] = signals
+        GenUtil.signals[cursor.displayname] = signals
         return signals
 
     # qt中inline方法的5种实现方式。
     def get_inline_methods(self, cursor):
         tokens = []
-        if cursor.spelling not in GenUtil.clstokens:
+        if cursor.displayname not in GenUtil.clstokens:
             for token in cursor.get_tokens():
                 tokens.append(token)
-            GenUtil.clstokens[cursor.spelling] = tokens
+            GenUtil.clstokens[cursor.displayname] = tokens
         else:
-            tokens = GenUtil.clstokens[cursor.spelling]
+            tokens = GenUtil.clstokens[cursor.displayname]
 
         def care_cond(token):
-            if cursor.spelling == 'QModelIndex' and token.cursor.spelling == 'QModelIndex':
+            if cursor.displayname == 'QModelIndex' and token.cursor.spelling == 'QModelIndex':
                 return False
             return False
 
         inline_methods = []
-        if cursor.spelling not in GenUtil.inline_methods:
+        if cursor.displayname not in GenUtil.inline_methods:
             all_methods = self.get_methods(cursor)
             pidx = -1
             bidx = 0
@@ -199,9 +199,9 @@ class GenUtil(object):
                     #         break
                     #     bidx += 1
 
-            GenUtil.inline_methods[cursor.spelling] = inline_methods
+            GenUtil.inline_methods[cursor.displayname] = inline_methods
         else:
-            inline_methods = GenUtil.inline_methods[cursor.spelling]
+            inline_methods = GenUtil.inline_methods[cursor.displayname]
         return inline_methods
 
     def get_unique_signals(self, cursor):
@@ -222,6 +222,10 @@ class GenUtil(object):
         for m in cursor.get_children():
             pv = self.conflib.clang_CXXMethod_isPureVirtual(m)
             if pv: return True
+
+        cname = cursor.spelling
+        if cname.startswith('QAbstract'): return True
+
         return False
 
     # how

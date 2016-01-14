@@ -1,11 +1,13 @@
 # encoding: utf8
 
 import clang.cindex as clidx
+from genutil import GenUtil
 
 
 class GenFilter(object):
     def __init__(self):
         super(GenFilter, self).__init__()
+        self.gutil = GenUtil()
         return
 
     def skipDecl(self, cursor):
@@ -36,6 +38,8 @@ class GenFilterInline(GenFilter):
 
         cname = cursor.spelling
         if cursor.kind == clidx.CursorKind.CLASS_TEMPLATE: return True
+
+        # 对于抽象类，还是要处理的
 
         return False
 

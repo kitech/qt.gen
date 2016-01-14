@@ -189,6 +189,8 @@ class GenerateForInlineCXX(GenerateBase):
             cursor = methods[mangled_name]
             if self.check_skip_method(cursor):
                 continue
+            if not self.method_is_inline(cursor):
+                continue
 
             ctx = self.createGenMethodContext(cursor, class_cursor, base_class, unique_methods)
             if cursor.kind == clidx.CursorKind.CONSTRUCTOR \
@@ -212,6 +214,7 @@ class GenerateForInlineCXX(GenerateBase):
             ctx.method_name_rewrite = ctx.method_name + ctx.static_suffix
 
         ctx.isinline = self.method_is_inline(method_cursor)
+        ctx.isabstract = self.gutil.isAbstractClass(class_cursor)
 
         class_name = ctx.class_name
         method_name = ctx.method_name
@@ -240,7 +243,7 @@ class GenerateForInlineCXX(GenerateBase):
 
         # ctx.trait_proto = '%s::%s(%s)' % (class_name, method_name, trait_params)
         ctx.fn_proto_cpp = "  // proto: %s %s %s::%s(%s);" % \
-                           (ctx.static_str, ctx.ret_type_name_cpp, ctx.class_name, ctx.method_name, ctx.params_cpp)
+                           (ctx.static_str, ctx.ret_type_name_cpp, ctx.full_class_name, ctx.method_name, ctx.params_cpp)
         ctx.has_return = self.methodHasReturn(ctx)
 
         # base class
@@ -381,8 +384,10 @@ class GenerateForInlineCXX(GenerateBase):
 
         # 类内类处理
         full_class_name = ctx.full_class_name
+        symbol_name = full_class_name.replace('<', '_').replace('>', '_').replace(' ', '_') \
+                      .replace('const', '').replace('*', '_').replace(':', '_').replace(',', '_')
 
-        ctx.CP.AP('header', 'int %s_Class_Size()' % (ctx.class_name))
+        ctx.CP.AP('header', 'int %s_Class_Size()' % (symbol_name))
         ctx.CP.AP('header', '{')
         ctx.CP.AP('header', '  return sizeof(%s);' % (full_class_name))
         ctx.CP.AP('header', '}\n')
@@ -447,12 +452,21 @@ class GenerateForInlineCXX(GenerateBase):
         ctx.CP.AP('main', 'if (false) {')
         idx = 0
         argv = []
+        prmv = []
         for arg in ctx.cursor.get_arguments():
             idx += 1
-            self.generateParamDeclExpr(ctx, arg, idx)
+            # self.generateParamDeclExpr(ctx, arg, idx)
             argv.append('arg%s' % (idx))
+            prme = self.generateParamForDecl(arg, idx)
+            prmv.append('%s' % (prme))
         args = ', '.join(argv)
-        ctx.CP.AP('main', '  new %s(%s);' % (ctx.full_class_name, args))
+        prms = ', '.join(prmv)
+        ctx.CP.AP('main', '  auto f = [](%s) {' % (prms))
+        if ctx.isabstract:
+            ctx.CP.AP('main', '    // new %s(%s);' % (ctx.full_class_name, args))
+        else:
+            ctx.CP.AP('main', '    new %s(%s);' % (ctx.full_class_name, args))
+        ctx.CP.AP('main', '  };')
         ctx.CP.AP('main', '}')
 
         return
@@ -487,7 +501,7 @@ class GenerateForInlineCXX(GenerateBase):
 
         return_type = cursor.result_type
         return_real_type = self.real_type_name(return_type)
-        if '::' in return_real_type: return
+        # if '::' in return_real_type: return
         # if self.check_skip_params(cursor): return
 
         inner_return = ''
@@ -510,21 +524,67 @@ class GenerateForInlineCXX(GenerateBase):
         if ctx.ret_type_ref and not rvref: ret_type_name = ctx.ret_type_name_cpp.replace('&', '*')
         mangled_name = method_cursor.mangled_name
 
+        ctx.CP.AP('main', '// %s' % (str(ctx.cursor.location)))
         ctx.CP.AP('main', '// %s' % (ctx.fn_proto_cpp))
         ctx.CP.AP('main', 'if (false) {')
 
         idx = 0
         argv = []
+        prmv = []
         for arg in ctx.cursor.get_arguments():
             idx += 1
-            self.generateParamDeclExpr(ctx, arg, idx)
+            # self.generateParamDeclExpr(ctx, arg, idx)
+            prme = self.generateParamForDecl(arg, idx)
+            prmv.append('%s' % (prme))
             argv.append('arg%s' % (idx))
         args = ', '.join(argv)
-        ctx.CP.AP('main', '  ((%s*)0)->%s(%s);' % (ctx.full_class_name, method_name, args))
+        prms = ', '.join(prmv)
+        ctx.CP.AP('main', '  auto f = [](%s) {' % (prms))
+        ctx.CP.AP('main', '    ((%s*)0)->%s(%s);' % (ctx.full_class_name, method_name, args))
+        ctx.CP.AP('main', '  };')
         ctx.CP.AP('main', '}')
+        ctx.CP.AP('main', '// %s %s' % (ctx.mangled_name, ctx.cursor.displayname))
 
         # 尝试添加正确的#include
         self.generateUseForType(ctx, ctx.ret_type)
+
+        return
+
+    def generateParamForDecl(self, arg, idx):
+        aty = arg.type
+        tyname = aty.spelling
+        xdef = aty.get_declaration()
+
+        def removeQuality(tyname):
+            lst = tyname.replace('*', ' * ').split()
+            nlst = []
+            for e in lst:
+                if e not in ['const', '*', '&']:
+                    nlst.append(e)
+            return ' '.join(nlst)
+
+        if xdef is not None:
+            pdef = xdef.semantic_parent
+            if pdef is not None and pdef.kind == clidx.CursorKind.CLASS_DECL:
+                if '::' not in tyname and tyname[0] != 'Q':
+                    ctyname = removeQuality(tyname)
+                    ntyname = tyname.replace(ctyname, '%s::%s' % (pdef.spelling, ctyname))
+                    print(666, tyname, '=>', ntyname)
+                    tyname = ntyname
+
+        if aty.kind == clidx.TypeKind.LVALUEREFERENCE:
+            return '%s arg%s' % (tyname, idx)
+        elif aty.kind == clidx.TypeKind.RVALUEREFERENCE:
+            # 引用折叠
+            return '%s arg%s' % (aty.spelling.replace('&&', '&&'), idx)
+        elif aty.kind == clidx.TypeKind.FUNCTIONNOPROTO:
+            return '%s' % (aty.spelling.replace('(*)', '(*arg%s)' % (idx)))
+        elif aty.kind == clidx.TypeKind.POINTER and '(*)' in aty.spelling:
+            return '%s' % (aty.spelling.replace('(*)', '(*arg%s)' % (idx)))
+        else:
+            return '%s arg%s' % (tyname, idx)
+
+        # 尝试添加正确的#include
 
         return
 
