@@ -232,6 +232,10 @@ class GenUtil(object):
     def isDisableCopy(self, cursor):
         return False
 
+    # how
+    def isDeleted(self, cursor):
+        return False
+
     def isqtloc(self, cursor):
         return cursor.location.file.name.startswith('/usr/include/qt')
     pass

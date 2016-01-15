@@ -43,6 +43,13 @@ class GenFilterInline(GenFilter):
 
         return False
 
+    def skipMethod(self, cursor):
+        if GenFilter.skipMethod(self, cursor): return True
+
+        if cursor.spelling.startswith('operator'): return True
+
+        return False
+
 
 class GenFilterGo(GenFilter):
     def __init__(self):

@@ -25,6 +25,7 @@ class GenerateForInlineCXX(GenerateBase):
         # code += "#include <QtCore>\n"
         # code += "#include <QtGui>\n"
         # code += "#include <QtWidgets>\n\n"
+        code += "#include <qatomic.h>\n"  # for fix qatomic_x86.cxx's compile
         code += "#include <%s.h>\n\n" % (code_file)
         code += "extern \"C\" {\n"
         return code
@@ -404,25 +405,6 @@ class GenerateForInlineCXX(GenerateBase):
         method_name = ctx.method_name
         mangled_name = ctx.mangled_name
 
-        if mangled_name in ['_ZN6QImageC1EPKhiiiNS_6FormatEPFvPvES3_',
-                            '_ZN6QImageC1EPKhiiNS_6FormatEPFvPvES3_',
-                            '_ZN6QImageC1EPhiiNS_6FormatEPFvPvES2_',
-                            '_ZN6QImageC1EPhiiiNS_6FormatEPFvPvES2_',
-                            '_ZN6QImageC1EPhiiNS_6FormatEPFvPvES2_',
-                            '_ZN6QImageC1EPKhiiNS_6FormatEPFvPvES3_',
-                            '_ZN6QImageC1EPKhiiiNS_6FormatEPFvPvES3_',
-                            '_ZN6QImageC1EPKPKc',
-                            '_ZN6QImageC1EPhiiiNS_6FormatEPFvPvES2_',
-                            '_ZN7QPixmapC1EPKPKc',
-                            '_ZN24QOpenGLFramebufferObjectC1Eiij',
-                            '_ZN24QOpenGLFramebufferObjectC1ERK5QSizej',
-                            '_ZN22QTextStreamManipulatorC1EM11QTextStreamFviEi',
-                            '_ZN22QTextStreamManipulatorC1EM11QTextStreamFv5QCharES1_']:
-            return
-
-        if method_name in ['QGraphicsObject']: return
-        if method_name.startswith('QOpenGLFunctions'): return
-
         # 不能实例化
         # TODO 使用ispure做准确判断
         # 移动到上面
@@ -448,6 +430,7 @@ class GenerateForInlineCXX(GenerateBase):
         # 类内类处理
         full_class_name = ctx.full_class_name
 
+        ctx.CP.AP('main', '// %s' % (str(ctx.cursor.location)))
         ctx.CP.AP('main', '// %s' % (ctx.fn_proto_cpp))
         ctx.CP.AP('main', 'if (false) {')
         idx = 0
@@ -510,8 +493,6 @@ class GenerateForInlineCXX(GenerateBase):
             pass
         else:
             return_type_name = self.resolve_swig_type_name(class_name, return_type)
-            # return_type_name2 = self.hotfix_typename_ifenum_asint(class_name, method_cursor, return_type)
-            # return_type_name = return_type_name2 if return_type_name2 is not None else return_type_name
             inner_return = 'return' if return_type_name != 'void' else inner_return
 
         params = self.generateParams(class_name, method_name, method_cursor)
@@ -588,47 +569,6 @@ class GenerateForInlineCXX(GenerateBase):
 
         return
 
-    def generateParamDeclExpr(self, ctx, arg, idx):
-        aty = arg.type
-        tyname = aty.spelling
-        xdef = aty.get_declaration()
-
-        def removeQuality(tyname):
-            lst = tyname.replace('*', ' * ').split()
-            nlst = []
-            for e in lst:
-                if e not in ['const', '*', '&']:
-                    nlst.append(e)
-            return ' '.join(nlst)
-
-        if xdef is not None:
-            pdef = xdef.semantic_parent
-            if pdef is not None and pdef.kind == clidx.CursorKind.CLASS_DECL:
-                if '::' not in tyname and tyname[0] != 'Q':
-                    ctyname = removeQuality(tyname)
-                    ntyname = tyname.replace(ctyname, '%s::%s' % (pdef.spelling, ctyname))
-                    print(666, tyname, '=>', ntyname)
-                    tyname = ntyname
-
-        if aty.kind == clidx.TypeKind.LVALUEREFERENCE:
-            ctx.CP.AP('main', '  %s arg%s = *((%s*)0); // 1' % (tyname, idx, aty.get_pointee().spelling))
-        elif aty.kind == clidx.TypeKind.RVALUEREFERENCE:
-            # 引用折叠
-            ctx.CP.AP('main', '  %s arg%s = *((%s*)0); // 2' %
-                      (aty.spelling.replace('&&', '&'), idx, aty.get_pointee().spelling))
-        elif aty.kind == clidx.TypeKind.FUNCTIONNOPROTO:
-            ctx.CP.AP('main', '  %s = nullptr; // 3' %
-                      (aty.spelling.replace('(*)', '(*arg%s)' % (idx))))
-        elif aty.kind == clidx.TypeKind.POINTER and '(*)' in aty.spelling:
-            ctx.CP.AP('main', '  %s = nullptr; // 4' %
-                      (aty.spelling.replace('(*)', '(*arg%s)' % (idx))))
-        else:
-            ctx.CP.AP('main', '  %s arg%s; // 5' % (tyname, idx))
-
-        # 尝试添加正确的#include
-
-        return
-
     # @return []
     def generateParamsRaw(self, class_name, method_name, method_cursor):
         argv = []
@@ -650,8 +590,6 @@ class GenerateForInlineCXX(GenerateBase):
             # print(param_line2)
 
             type_name = self.resolve_swig_type_name(class_name, arg.type)
-            # type_name2 = self.hotfix_typename_ifenum_asint(class_name, arg, arg.type)
-            # type_name = type_name2 if type_name2 is not None else type_name
 
             arg_name = 'arg%s' % idx if arg.displayname == '' else arg.displayname
             # try fix void (*)(void *) 函数指针
@@ -677,8 +615,6 @@ class GenerateForInlineCXX(GenerateBase):
             # print(param_line2)
 
             type_name = self.resolve_swig_type_name(class_name, arg.type)
-            # type_name2 = self.hotfix_typename_ifenum_asint(class_name, arg, arg.type)
-            # type_name = type_name2 if type_name2 is not None else type_name
 
             arg_name = 'arg%s' % idx if arg.displayname == '' else arg.displayname
             argelem = "%s" % (arg_name)
@@ -696,8 +632,6 @@ class GenerateForInlineCXX(GenerateBase):
         if ctx.ctor or ctx.dtor: pass
         else:
             return_type_name = self.resolve_swig_type_name(class_name, return_type)
-            # return_type_name2 = self.hotfix_typename_ifenum_asint(class_name, method_cursor, return_type)
-            # return_type_name = return_type_name2 if return_type_name2 is not None else return_type_name
 
         has_return = True
         if return_type_name == 'void': has_return = False
@@ -755,13 +689,14 @@ class GenerateForInlineCXX(GenerateBase):
                 chname = cloc.name.split('/')[-1]
                 xhname = xloc.name.split('/')[-1]
                 thname = cty.spelling.split('<')[0].lower() + '.h'
-                if chname != thname:
+                if chname != thname and thname[0] == 'q':
                     ctx.CP.PPU('header', '#include <%s>' % (thname))
 
             if xloc is not None and xloc.name != cloc.name:
                 chname = cloc.name.split('/')[-1]
                 xhname = xloc.name.split('/')[-1]
-                ctx.CP.PPU('header', '#include <%s>' % (xhname))
+                if xhname[0] == 'q':
+                    ctx.CP.PPU('header', '#include <%s>' % (xhname))
         return
 
     def is_conflict_method_name(self, method_name):
@@ -774,78 +709,10 @@ class GenerateForInlineCXX(GenerateBase):
     def check_skip_method(self, cursor):
         if True: return self.gfilter.skipMethod(cursor)
 
-        method_name = cursor.spelling
-        mangled_name = cursor.mangled_name
-
-        if method_name.startswith('operator'):
-            # print("Omited operator method: " + mth)
-            return True
-
-        if not self.method_is_inline(cursor): return True
-
-        # print('pub:' + str(cursor.access_specifier))
-        if cursor.access_specifier == clidx.AccessSpecifier.PUBLIC:
-            pass
-        if cursor.access_specifier == clidx.AccessSpecifier.PROTECTED:
-            return True
-        if cursor.access_specifier == clidx.AccessSpecifier.PRIVATE:
-            return True
-
-        istatic = cursor.is_static_method()
-        # if istatic is True: return True
-
-        # fix method
-        fixmths = ['tr', 'trUtf8', 'qt_metacall', 'qt_metacast', 'data_ptr',
-                   'sprintf', 'vsprintf', 'vasprintf', 'asprintf',
-                   'entryInfoListcc',]
-        if method_name in fixmths: return True
-        fixmths_prefix = ['qt_check_for_']
-        for p in fixmths_prefix:
-            if method_name.startswith(p): return True
-
-        if method_name in ['QSignalBlocker']: return True
-        if method_name in ['QLayoutItem']: return True
-        if method_name in ['QGraphicsObject']: return True
-
-        if 'iterator' in cursor.result_type.spelling: return True
-
-        # 实现不知道怎么fix了，已经fix，原来是给clidx.parse中的-I不全，导致找不到类型。
-        # fixmths3 = ['setQueryItems']
-        # if method_name in fixmths3: return True
-
         return False
 
     def check_skip_class(self, class_cursor):
         if True: return self.gfilter.skipClass(class_cursor)
-
-        cursor = class_cursor
-        name = cursor.spelling
-        dname = cursor.displayname
-
-        if name in ['QTypeInfo']: return True
-
-        # for template
-        if self.gctx.is_template(cursor): return True
-
-        def has_template_brother(cursor):
-            for key in self.gctx.classes:
-                tc = self.gctx.classes[key]
-                if tc != cursor and tc.spelling == cursor.spelling and tc.kind == clidx.CursorKind.CLASS_TEMPLATE:
-                    return True
-            return False
-
-        hastb = has_template_brother(cursor)
-        if hastb: return True
-
-        # like QIntegerForSize<1/2/3>
-        if '<' in dname: return True
-
-        # if 'QFuture<' in dname:
-        #     for it in cursor.walk_preorder():
-        #         print(it.kind, it.displayname, it.location)
-        #     print(cursor.get_num_template_arguments())
-        #     exit(0)
-
         return False
 
     # 类似，QSurfaceFormat::FormatOptions
@@ -870,54 +737,6 @@ class GenerateForInlineCXX(GenerateBase):
                     print(666, tyname, '=>', ntyname)
                     tyname = ntyname
         return tyname
-
-    def hotfix_typename_ifenum_asint(self, class_name, token_cursor, atype):
-        type_name = self.resolve_swig_type_name(class_name, atype)
-        # if type_name not in ('int', 'int *', 'const int &'): return None
-        type_name_segs = type_name.split(' ') 
-        if 'int' not in type_name_segs: return None
-
-        tokens = []
-        for token in token_cursor.get_tokens():
-            tokens.append(token.spelling)
-            tkcursor = token.cursor
-
-        # 为什么tokens是空呢，是不能识别的？
-        if len(tokens) == 0: return None
-        # TODO 全部使用replace方式，而不是这种每个符号的处理
-        while tokens[0] in ['const', 'inline']:
-            tokens = tokens[1:]
-
-        tydecl = atype.get_declaration()
-        tyloc = atype.get_declaration().location
-
-        firstch = tokens[0][0:1]
-        if firstch.upper() == firstch and firstch != 'Q':
-            if tydecl is not None and tydecl.semantic_parent is not None \
-               and self.gutil.isqtloc(tydecl.semantic_parent):
-                print('Warning fix enum-as-int:', type_name, '=> %s::' % class_name, tokens[0])
-                return '%s::%s' % (class_name, tokens[0])
-
-        if len(tokens) < 3: return None
-        if firstch.upper() == firstch and firstch == 'Q' and tokens[1] == '::':
-            print('Warning fix enum-as-int2:', type_name, '=> %s::' % class_name, tokens[2])
-            return '%s::%s' % (tokens[0], tokens[2])
-
-        # like QtMsgType
-        if firstch.upper() == firstch and firstch == 'Q' and tokens[0][0:2] == 'Qt':
-            print('Warning fix enum-as-int3:', type_name, '=> ', tokens[0])
-            return '%s' % (tokens[0])
-
-        if firstch.upper() == firstch and firstch == 'Q' and tokens[0][1:2].lower() == tokens[0][1:2]:
-            print('Warning fix enum-as-int4:', type_name, '=> ', type_name.replace('int', tokens[0]))
-            return '%s' % (type_name.replace('int', tokens[0]))
-
-        # like qint64...
-        if firstch.lower() == firstch and tokens[0][0:1] == 'q' and '*' in type_name:
-            print('Warning fix qint*-as-int5:', type_name, '=> ', tokens[0])
-            return '%s %s' % (tokens[0], tokens[1])
-
-        return None
 
     def real_type_name(self, atype):
         type_name = atype.spelling
