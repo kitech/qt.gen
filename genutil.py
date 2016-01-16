@@ -228,12 +228,17 @@ class GenUtil(object):
 
         return False
 
+    # 是这Qt特有的吗？
     # how
     def isDisableCopy(self, cursor):
         return False
 
+    # deleted是针对C++的构造函数
     # how
     def isDeleted(self, cursor):
+        return False
+
+    def isCopyCtor(self, cursor):
         return False
 
     def isqtloc(self, cursor):

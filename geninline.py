@@ -168,24 +168,6 @@ class GenerateForInlineCXX(GenerateBase):
         self.generateClassSize(mctx)
         self.generateSlotProxy(mctx)
 
-        # isabstract = self.gutil.isAbstractClass(class_cursor)
-        # if not isabstract and class_name.startswith('QAbstract'):
-        #     isabstract = True
-        # if class_name in ['QAnimationGroup', 'QAccessibleObject', 'QLayoutItem']:
-        #     isabstract = True
-        # if class_name in ['QSignalBlocker']:
-        #     isabstract = True
-
-        # 生成所有的构造方法封装
-        # if not isabstract:
-        #     for mangled_name in methods:
-        #         cursor = methods[mangled_name]
-        #         method_name = cursor.spelling
-        #         if cursor.kind == clidx.CursorKind.CONSTRUCTOR \
-        #            or cursor.kind == clidx.CursorKind.DESTRUCTOR:
-        #             ctx = self.createGenMethodContext(cursor, class_cursor, base_class, unique_methods)
-        #             self.generateCtors(ctx)
-
         for mangled_name in methods:
             cursor = methods[mangled_name]
             if self.check_skip_method(cursor):
@@ -707,8 +689,10 @@ class GenerateForInlineCXX(GenerateBase):
 
     # @return True | False
     def check_skip_method(self, cursor):
-        if True: return self.gfilter.skipMethod(cursor)
+        # shitfix
+        if cursor.mangled_name == '_ZN14QSignalBlockerC1EOS_': return True
 
+        if True: return self.gfilter.skipMethod(cursor)
         return False
 
     def check_skip_class(self, class_cursor):
