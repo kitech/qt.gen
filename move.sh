@@ -25,7 +25,7 @@ function mvgosrc()
     cp -a src/widgets/*.go qt.go/src/qt5/
 }
 
-function mvqi()
+function mvqil()
 {
     cp -a src/core/*.{cxx,cmake} ~/oss/qt.inline/src/core/
     cp -a src/gui/*.{cxx,cmake} ~/oss/qt.inline/src/gui/
@@ -39,7 +39,7 @@ cmd=$1
 
 set -x
 case $cmd in
-    qi)
+    qil)
         mvqi;
         ;;
     gosrc)

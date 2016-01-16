@@ -228,6 +228,14 @@ class GenUtil(object):
 
         return False
 
+    def is_pure_virtual_method(self, method_cursor):
+        tokens = []
+        for token in method_cursor.get_tokens():
+            tokens.append(token.spelling)
+        if ''.join(tokens[-3:]) == '=0;':
+            return True
+        return False
+
     # 是这Qt特有的吗？
     # how
     def isDisableCopy(self, cursor):
@@ -239,6 +247,9 @@ class GenUtil(object):
         return False
 
     def isCopyCtor(self, cursor):
+        return False
+
+    def hasDefaultCtor(self, cursor):
         return False
 
     def isqtloc(self, cursor):

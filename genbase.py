@@ -60,12 +60,7 @@ class GenerateBase(object):
         return False
 
     def method_is_pure_virtual(self, method_cursor):
-        tokens = []
-        for token in method_cursor.get_tokens():
-            tokens.append(token.spelling)
-        if ''.join(tokens[-3:]) == '=0;':
-            return True
-        return False
+        return self.gutil.is_pure_virtual_method(method_cursor)
 
     def is_qt_class(self, type_name):
         # should be qt class name
@@ -93,7 +88,7 @@ class GenClassContext(object):
 
         self.ctysz = max(32, cursor.type.get_size())  # 可能这个get_size()的值不准确啊。
         self.class_cursor = cursor
-        self.class_name = cursor.spelling
+        self.class_name = cursor.type.spelling
         self.cursor = cursor
 
         self.full_class_name = cursor.type.spelling
@@ -125,20 +120,23 @@ class GenMethodContext(object):
 
         self.ctysz = max(32, class_cursor.type.get_size())  # 可能这个get_size()的值不准确啊。
         self.class_cursor = class_cursor
-        self.class_name = class_cursor.spelling
+        self.class_name = class_cursor.type.spelling
         self.cursor = cursor
+
+        self.ctor = cursor.kind == clidx.CursorKind.CONSTRUCTOR
+        self.dtor = cursor.kind == clidx.CursorKind.DESTRUCTOR
+
         self.method_name = cursor.spelling
         self.method_name_rewrite = self.method_name
         self.mangled_name = cursor.mangled_name
+        if self.ctor: self.mangled_name = self.mangled_name.replace('C1', 'C2')
+        if self.dtor: self.mangled_name = self.mangled_name.replace('D0Ev', 'D2Ev')
 
         self.full_class_name = self.class_cursor.type.spelling
         # 类内类处理
         if self.class_cursor.semantic_parent.kind == clidx.CursorKind.STRUCT_DECL or \
            self.class_cursor.semantic_parent.kind == clidx.CursorKind.CLASS_DECL:
             self.full_class_name = '%s::%s' % (self.class_cursor.semantic_parent.spelling, self.class_name)
-
-        self.ctor = cursor.kind == clidx.CursorKind.CONSTRUCTOR
-        self.dtor = cursor.kind == clidx.CursorKind.DESTRUCTOR
 
         self.static = cursor.is_static_method()
         self.has_return = True

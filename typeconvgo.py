@@ -82,13 +82,19 @@ class TypeConvForGo(TypeConv):
             if ctx.can_type.kind == clidx.TypeKind.CHAR_S \
                or ctx.can_type.kind == clidx.TypeKind.UCHAR:
                 return 'qtrt.ByteTy(true)'
+            if ctx.can_type.kind == clidx.TypeKind.CHAR32:
+                return 'qtrt.RuneTy(true)'
+            if ctx.can_type.kind == clidx.TypeKind.CHAR16:
+                return 'qtrt.RuneTy(true)'
             if ctx.can_type.kind == clidx.TypeKind.WCHAR:
-                return 'qtrt.RuneTy(false)'
+                return 'qtrt.RuneTy(true)'
             if ctx.can_type.kind == clidx.TypeKind.USHORT \
                or ctx.can_type.kind == clidx.TypeKind.SHORT:
                 return 'qtrt.Int16Ty(true)'
             if ctx.can_type.kind == clidx.TypeKind.UINT \
                or ctx.can_type.kind == clidx.TypeKind.INT:
+                return 'qtrt.Int32Ty(true)'
+            if ctx.can_type.kind == clidx.TypeKind.ENUM:
                 return 'qtrt.Int32Ty(true)'
             if ctx.can_type.kind == clidx.TypeKind.FLOAT:
                 return 'qtrt.FloatTy(true)'
@@ -102,6 +108,9 @@ class TypeConvForGo(TypeConv):
                 return 'qtrt.Int32Ty(true)'
             if ctx.can_type.kind == clidx.TypeKind.VOID:
                 return 'qtrt.VoidpTy()'
+            if ctx.can_type.kind == clidx.TypeKind.FUNCTIONPROTO:
+                return 'qtrt.VoidpTy()'
+            self.dumpContext(ctx)
 
         if ctx.convable_type.kind == clidx.TypeKind.FUNCTIONPROTO:
             return 'qtrt.VoidpTy()'
@@ -114,14 +123,20 @@ class TypeConvForGo(TypeConv):
             if ctx.can_type.kind == clidx.TypeKind.RECORD:
                 if ctx.can_type_name.startswith('QFlags<'):
                     return 'qtrt.Int64Ty(false)'
+                if 'Flags<' in ctx.can_type_name:
+                    return 'qtrt.Int64Ty(false)'
                 # TODO
                 if ctx.can_type_name.startswith('QList<'):
                     return 'qtrt.VoidpTy()'
+                if ctx.can_type_name.startswith('QVector<'):
+                    return 'qtrt.VoidpTy()'
                 if ctx.can_type_name.startswith('std::initializer_list<'):
                     return 'qtrt.VoidpTy()'
+                if '::' in ctx.can_type_name:
+                    return 'qtrt.Int32Ty(false)'
+                self.dumpContext(ctx)
             if ctx.convable_type_name.startswith('::quintptr'):  # should be WId
                 return 'qtrt.Int32Ty()'
-
             self.dumpContext(ctx)
 
         if ctx.convable_type.kind == clidx.TypeKind.CONSTANTARRAY:
@@ -274,6 +289,8 @@ class TypeConvForGo(TypeConv):
                 if '::' in ctx.can_type_name:
                     return 'void*'
                 if 'Matrix<' in ctx.can_type_name:
+                    return 'void*'
+                if '<' in ctx.can_type_name and '>' in ctx.can_type_name:
                     return 'void*'
                 self.dumpContext(ctx)
             if ctx.convable_type_name.startswith('QAccessible::Id'):

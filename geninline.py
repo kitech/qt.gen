@@ -26,6 +26,7 @@ class GenerateForInlineCXX(GenerateBase):
         # code += "#include <QtGui>\n"
         # code += "#include <QtWidgets>\n\n"
         code += "#include <qatomic.h>\n"  # for fix qatomic_x86.cxx's compile
+        code += "#include <qstring.h>\n"  # for fix qbytearray.cxx's compile
         code += "#include <%s.h>\n\n" % (code_file)
         code += "extern \"C\" {\n"
         return code
@@ -414,7 +415,7 @@ class GenerateForInlineCXX(GenerateBase):
 
         ctx.CP.AP('main', '// %s' % (str(ctx.cursor.location)))
         ctx.CP.AP('main', '// %s' % (ctx.fn_proto_cpp))
-        ctx.CP.AP('main', 'if (false) {')
+        ctx.CP.AP('main', 'if (true) {')
         idx = 0
         argv = []
         prmv = []
@@ -432,6 +433,7 @@ class GenerateForInlineCXX(GenerateBase):
         else:
             ctx.CP.AP('main', '    new %s(%s);' % (ctx.full_class_name, args))
         ctx.CP.AP('main', '  };')
+        ctx.CP.AP('main', '  if (f == nullptr){}')
         ctx.CP.AP('main', '}')
 
         return
@@ -452,7 +454,7 @@ class GenerateForInlineCXX(GenerateBase):
             # exit(0)
 
         ctx.CP.AP('main', '// %s' % (ctx.fn_proto_cpp))
-        ctx.CP.AP('main', 'if (false) {')
+        ctx.CP.AP('main', 'if (true) {')
         ctx.CP.AP('main', '  delete ((%s*)0);' % (ctx.full_class_name))
         ctx.CP.AP('main', '}')
 
@@ -489,11 +491,14 @@ class GenerateForInlineCXX(GenerateBase):
 
         ctx.CP.AP('main', '// %s' % (str(ctx.cursor.location)))
         ctx.CP.AP('main', '// %s' % (ctx.fn_proto_cpp))
-        ctx.CP.AP('main', 'if (false) {')
+        ctx.CP.AP('main', 'if (true) {')
 
         idx = 0
         argv = []
         prmv = []
+        if not self.gutil.isAbstractClass(ctx.class_cursor):
+            prmv.append("%s flythis" % (ctx.full_class_name))
+        # argv.append("ethis")
         for arg in ctx.cursor.get_arguments():
             idx += 1
             # self.generateParamDeclExpr(ctx, arg, idx)
@@ -504,7 +509,10 @@ class GenerateForInlineCXX(GenerateBase):
         prms = ', '.join(prmv)
         ctx.CP.AP('main', '  auto f = [](%s) {' % (prms))
         ctx.CP.AP('main', '    ((%s*)0)->%s(%s);' % (ctx.full_class_name, method_name, args))
+        if not self.gutil.isAbstractClass(ctx.class_cursor):
+            ctx.CP.AP('main', '    flythis.%s(%s);' % (method_name, args))
         ctx.CP.AP('main', '  };')
+        ctx.CP.AP('main', '  if (f == nullptr){}')
         ctx.CP.AP('main', '}')
         ctx.CP.AP('main', '// %s %s' % (ctx.mangled_name, ctx.cursor.displayname))
 

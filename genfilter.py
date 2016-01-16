@@ -22,6 +22,13 @@ class GenFilter(object):
     def skipMethod(self, cursor):
         if cursor.access_specifier != clidx.AccessSpecifier.PUBLIC:
             return True
+
+        metamths = ['qt_metacall', 'qt_metacast', 'qt_check_for_']
+        for mm in metamths:
+            if cursor.spelling.startswith(mm): return True
+
+        if cursor.spelling in ['tr', 'trUtf8']: return True
+
         return False
 
     def skipArg(self, cursor):
@@ -55,6 +62,23 @@ class GenFilterGo(GenFilter):
     def __init__(self):
         super(GenFilterGo, self).__init__()
         return
+
+    def skipClass(self, cursor):
+        if GenFilter.skipClass(self, cursor): return True
+
+        cname = cursor.spelling
+        if cursor.kind == clidx.CursorKind.CLASS_TEMPLATE: return True
+
+        # 对于抽象类，还是要处理的
+
+        return False
+
+    def skipMethod(self, cursor):
+        if GenFilter.skipMethod(self, cursor): return True
+        if self.gutil.is_pure_virtual_method(cursor): return True
+        if cursor.spelling.startswith('operator'): return True
+
+        return False
 
 
 class GenFilterRust(GenFilter):

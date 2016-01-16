@@ -12,12 +12,14 @@ from genutil import *
 from typeconv import TypeConv, TypeConvForRust
 from typeconvgo import TypeConvForGo
 from genbase import GenerateBase, GenClassContext, GenMethodContext
+from genfilter import GenFilterGo
 
 
 class GenerateForGo(GenerateBase):
     def __init__(self):
         super(GenerateForGo, self).__init__()
 
+        self.gfilter = GenFilterGo()
         self.modrss = {}  # mod => CodePaper
         #self.cp_modrs = CodePaper()  # 可能的name: main
         #self.cp_modrs.addPoint('main')
@@ -162,8 +164,15 @@ class GenerateForGo(GenerateBase):
             self.genpass_class_type_impl(cursor)
         return
 
+    def flat_template_name(self, name):
+        flat_class_name = name.replace('<', '_').replace('>', '_') \
+                          .replace(':', '_').replace('*', '_') \
+                          .replace(',', '_').replace(' ', '')
+        return flat_class_name
+
     def genpass_class_type_impl(self, cursor):
-        class_name = cursor.displayname
+        class_name = cursor.type.spelling
+        flat_class_name = self.flat_template_name(class_name)
         decl_file = self.gctx.get_decl_file(cursor)
         CP = self.gctx.codes[decl_file]
         ctysz = cursor.type.get_size()
@@ -177,7 +186,7 @@ class GenerateForGo(GenerateBase):
         # generate struct of class
         # CP.AP('body', '#[derive(Sized)]')
         # CP.AP('body', '#[derive(Default)]')
-        CP.AP('body', "type %s struct {" % (class_name))
+        CP.AP('body', "type %s struct {" % (flat_class_name))
         if base_class is None:
             CP.AP('body', "  // qbase: %s;" % (base_class))
         else:
@@ -186,7 +195,7 @@ class GenerateForGo(GenerateBase):
         CP.AP('body', "  qclsinst unsafe.Pointer /* *C.void */;")
         for key in usignals:
             sigmth = usignals[key]
-            CP.AP('body', '//  _%s %s_%s_signal;' % (sigmth.spelling, class_name, sigmth.spelling))
+            CP.AP('body', '//  _%s %s_%s_signal;' % (sigmth.spelling, flat_class_name, sigmth.spelling))
         CP.AP('body', "}\n")
 
         return
@@ -393,25 +402,38 @@ class GenerateForGo(GenerateBase):
             unique_methods[umethod_name] = True
 
         signals = self.gutil.get_signals(class_cursor)
-        dupremove = self.dedup_return_const_diff_method(methods)
-        # print(444, 'dupremove len:', len(dupremove), dupremove)
-        for mangled_name in methods:
-            cursor = methods[mangled_name]
-            method_name = cursor.spelling
+        class_overload_methods = self.overload_method_groupby(methods)
+        for method_name in class_overload_methods:
+            mangled_names = self.overload_method_select(class_overload_methods[method_name])
+            method_overload_methods = {}  # mangled_name => cursor
+            for mangled_name in mangled_names:
+                cursor = methods[mangled_name]
+                if self.check_skip_method(cursor): continue
+                if mangled_name in signals: continue
+                method_overload_methods[mangled_name] = cursor
 
-            if self.check_skip_method(cursor):
-                # if method_name == 'QAction':
-                    #print(433, 'whyyyyyyyyyyyyyy') # no
-                    # exit(0)
-                continue
-            if mangled_name in dupremove:
-                # print(333, 'skip method:', mangled_name)
-                continue
-            if mangled_name in signals:
-                continue
+            if len(method_overload_methods) == 0: continue
+            self.generateMethod(method_name, method_overload_methods, class_cursor, base_class, unique_methods)
 
-            ctx = self.createGenMethodContext(cursor, class_cursor, base_class, unique_methods)
-            self.generateMethod(ctx)
+        # dupremove = self.dedup_return_const_diff_method(methods)
+        # # print(444, 'dupremove len:', len(dupremove), dupremove)
+        # for mangled_name in methods:
+        #     cursor = methods[mangled_name]
+        #     method_name = cursor.spelling
+
+        #     if self.check_skip_method(cursor):
+        #         # if method_name == 'QAction':
+        #             #print(433, 'whyyyyyyyyyyyyyy') # no
+        #             # exit(0)
+        #         continue
+        #     if mangled_name in dupremove:
+        #         # print(333, 'skip method:', mangled_name)
+        #         continue
+        #     if mangled_name in signals:
+        #         continue
+
+        #     ctx = self.createGenMethodContext(cursor, class_cursor, base_class, unique_methods)
+        #     self.generateMethod(ctx)
 
         return
 
@@ -535,21 +557,65 @@ class GenerateForGo(GenerateBase):
         ctx.CP.AP('ext', '  fn %s_Class_Size() -> c_int;' % (ctx.class_name))
         return
 
-    def generateMethod(self, ctx):
-        cursor = ctx.cursor
+    def generateMethod(self, method_name, overload_methods, class_cursor, base_classes, unique_methods):
+        first_method_cursor = overload_methods.values()[0]
+        ctx = self.createGenMethodContext(first_method_cursor, class_cursor, base_classes, unique_methods)
+        flat_class_name = self.flat_template_name(class_cursor.type.spelling)
+        flat_method_name = self.flat_template_name(ctx.method_name_rewrite)
 
-        return_type = cursor.result_type
-        return_real_type = self.real_type_name(return_type)
-        if '::' in return_real_type: return
+        ctx.CP.AP('body', '// %s' % (first_method_cursor.displayname))
+        if ctx.ctor:
+            ctx.CP.AP('body', 'func %s(args ...interface{}) %s {'
+                      % (flat_method_name, flat_class_name))
+        else:
+            ctx.CP.AP('body', 'func (this *%s) %s(args ...interface{}) () {'
+                      % (flat_class_name, flat_method_name))
 
-        static_suffix = ctx.static_suffix
+        for mangled_name in overload_methods:
+            cursor = overload_methods[mangled_name]
+            ctx.CP.AP('body', "  // %s" % (cursor.displayname))
+
+        ctx.CP.AP('body', '  var vtys = make(map[int32]map[int32]reflect.Type)')
+        ctx.CP.AP('body', "  if false {fmt.Println(vtys)}")
+
+        midx = 0
+        for mangled_name in overload_methods:
+            cursor = overload_methods[mangled_name]
+            ctx.CP.AP('body', '  vtys[%s] = make(map[int32]reflect.Type)' % (midx))
+            self.generateParamsTypeForResolve(ctx, cursor, midx)
+            midx += 1
+
+        ctx.CP.AP('body', '')
+        ctx.CP.AP('body', "  var matched_index = qtrt.SymbolResolve(args, vtys)")
+        ctx.CP.AP('body', "  if false {fmt.Println(matched_index)}")
+
+        self.generateVTableInvoke(ctx, overload_methods)
+
+        if ctx.ctor:
+            ctx.CP.AP('body', '  return %s{}' % (flat_class_name))
+        ctx.CP.AP('body', "}\n")
+
+        # extern
+        for mangled_name in overload_methods:
+            cursor = overload_methods[mangled_name]
+            ctx = self.createGenMethodContext(cursor, class_cursor, base_classes, unique_methods)
+            ctx.CP.AP('ext', ctx.fn_proto_cpp)
+            self.generateDeclForFFIExt(ctx)
+
+        # cursor = ctx.cursor
+
+        # return_type = cursor.result_type
+        # return_real_type = self.real_type_name(return_type)
+        # if '::' in return_real_type: return
+
+        # static_suffix = ctx.static_suffix
 
         # method impl
-        impl_method_proto = ctx.struct_proto
-        if impl_method_proto not in self.implmthods:
-            self.implmthods[impl_method_proto] = True
-            if ctx.ctor is True: self.generateImplStructCtor(ctx)
-            else: self.generateImplStructMethod(ctx)
+        # impl_method_proto = ctx.struct_proto
+        # if impl_method_proto not in self.implmthods:
+        #     self.implmthods[impl_method_proto] = True
+        #     if ctx.ctor is True: self.generateImplStructCtor(ctx)
+        #     else: self.generateImplStructMethod(ctx)
 
         # uniq_method_name = cursor.spelling + static_suffix
         # if ctx.unique_methods[uniq_method_name] is True:
@@ -562,18 +628,16 @@ class GenerateForGo(GenerateBase):
         #     if ctx.ctor is True: self.generateImplTraitCtor(ctx)
         #     else: self.generateImplTraitMethod(ctx)
 
-        # extern
-        ctx.CP.AP('ext', ctx.fn_proto_cpp)
-        self.generateDeclForFFIExt(ctx)
-
         return
 
     def generateImplStructCtor(self, ctx):
         class_name = ctx.class_name
+        flat_class_name = self.flat_template_name(ctx.class_name)
         method_name = ctx.method_name_rewrite
+        flat_method_name = self.flat_template_name(method_name)
 
         ctx.CP.AP('body', ctx.fn_proto_cpp)
-        ctx.CP.AP('body', 'func %s(args ...interface{}) %s {' % (method_name, class_name))
+        ctx.CP.AP('body', 'func %s(args ...interface{}) %s {' % (flat_method_name, flat_class_name))
 
         class_methods = self.gutil.get_methods(ctx.class_cursor)
         overload_methods = []
@@ -601,7 +665,7 @@ class GenerateForGo(GenerateBase):
 
         self.generateVTableInvoke(ctx, overload_methods)
 
-        ctx.CP.AP('body', '  return %s{}' % (class_name))
+        ctx.CP.AP('body', '  return %s{}' % (flat_class_name))
         ctx.CP.AP('body', "}\n")
 
         # ctx.CP.AP('body', "impl /*struct*/ %s {" % (class_name))
@@ -616,14 +680,16 @@ class GenerateForGo(GenerateBase):
 
     def generateImplStructMethod(self, ctx):
         class_name = ctx.class_name
+        flat_class_name = self.flat_template_name(ctx.class_name)
         method_name = ctx.method_name_rewrite
+        flat_method_name = self.flat_template_name(method_name)
         self_code_proto = ctx.static_self_struct
         self_code_call = ctx.static_self_call
 
         class_methods = self.gutil.get_methods(ctx.class_cursor)
 
         ctx.CP.AP('body', ctx.fn_proto_cpp)
-        ctx.CP.AP('body', 'func (this *%s) %s(args ...interface{}) () {' % (class_name, method_name))
+        ctx.CP.AP('body', 'func (this *%s) %s(args ...interface{}) () {' % (flat_class_name, flat_method_name))
 
         overload_methods = []
         for key in class_methods:
@@ -779,17 +845,16 @@ class GenerateForGo(GenerateBase):
 
     def generateVTableInvoke(self, ctx, overload_methods):
         movs = {}
-        for mth in overload_methods:
-            movs[mth.mangled_name] = mth
-        dedup_methods = self.dedup_return_const_diff_method(movs)
+        for mangled_name in overload_methods:
+            movs[mangled_name] = overload_methods[mangled_name]
+        # dedup_methods = self.dedup_return_const_diff_method(movs)
         midx = -1
         ctx.CP.AP('body', '  switch matched_index {')
-        for mth in overload_methods:
-            if mth.mangled_name in dedup_methods: continue
-            if self.check_skip_method(mth): continue
-            if self.check_skip_params(mth): continue
+        for mangled_name in overload_methods:
             midx += 1
-            deprefix = 'dector' if ctx.ctor else 'demth'
+            cursor = mth = overload_methods[mangled_name]
+            # deprefix = 'dector' if ctx.ctor else 'demth'
+            deprefix = ''
             ctx.CP.AP('body', '  case %s:' % (midx))
             ctx.CP.AP('body', '    // invoke: %s' % (mth.mangled_name))
             ctx.CP.AP('body', '    // invoke: %s %s' % (mth.result_type.spelling, mth.displayname))
@@ -799,9 +864,9 @@ class GenerateForGo(GenerateBase):
                 ctx.CP.AP('body', '    var qthis = unsafe.Pointer(C.malloc(5))')
                 ctx.CP.AP('body', '    if false {reflect.TypeOf(qthis)}')
             if nctx.isinline:
-                ctx.CP.AP('body', '    C.%s%s(%s)' % (deprefix, mth.mangled_name, nctx.params_call))
+                ctx.CP.AP('body', '    C.%s%s(%s)' % (deprefix, nctx.mangled_name, nctx.params_call))
             else:
-                ctx.CP.AP('body', '    C.%s(%s)' % (mth.mangled_name, nctx.params_call))
+                ctx.CP.AP('body', '    C.%s(%s)' % (nctx.mangled_name, nctx.params_call))
 
         ctx.CP.AP('body', '  default:')
         ctx.CP.AP('body', '    qtrt.ErrorResolve("%s", "%s", args)' % (ctx.class_name, ctx.method_name))
@@ -1002,15 +1067,16 @@ class GenerateForGo(GenerateBase):
             return_piece_proto = '%s' % (return_type_name)
         extargs = ctx.params_ext
 
-        deprefix = 'dector' if ctx.ctor else 'demth'
+        # deprefix = 'dector' if ctx.ctor else 'demth'
+        deprefix = ''
         if ctx.isinline:
             if ctx.ctor:
                 tpargs = ', '.join(ctx.params_ext_arr)
-                ctx.CP.AP('ext', "extern void* %s%s(%s);" % (deprefix, mangled_name, tpargs))
+                ctx.CP.AP('ext', "extern void* %s%s(%s); // 1" % (deprefix, mangled_name, tpargs))
             else:
-                ctx.CP.AP('ext', "extern %s %s%s(%s);" % (return_piece_proto, deprefix, mangled_name, extargs))
+                ctx.CP.AP('ext', "extern %s %s%s(%s); // 2" % (return_piece_proto, deprefix, mangled_name, extargs))
         else:
-            ctx.CP.AP('ext', "extern %s %s(%s);" % (return_piece_proto, mangled_name, extargs))
+            ctx.CP.AP('ext', "extern %s %s(%s); // 3" % (return_piece_proto, mangled_name, extargs))
 
         return has_return, return_type_name
 
@@ -1109,6 +1175,34 @@ class GenerateForGo(GenerateBase):
                 else: dupremove.append(msub)
         return dupremove
 
+    def overload_method_groupby(self, methods):
+        overloads = {}
+        for mn in methods:
+            name = methods[mn].spelling
+            if name not in overloads:
+                overloads[name] = []
+            overloads[name].append(mn)
+        return overloads
+
+    # @param []
+    def overload_method_select(self, overload_methods):
+        if len(overload_methods) == 1: return overload_methods
+
+        duprem = []
+        # && (), () const, ()
+        for mn in overload_methods:
+            if mn.startswith('_ZNO'):
+                if mn.replace('_ZNO', '_ZNKR') in overload_methods:
+                    duprem.append(mn)
+                    continue
+        save = []
+        for mn in overload_methods:
+            if mn not in duprem:
+                save.append(mn)
+
+        # print(overload_methods, '=>', save)
+        return save
+
     def reform_return_type_name(self, retname):
         lst = retname.split(' ')
         for elem in lst:
@@ -1188,8 +1282,9 @@ class GenerateForGo(GenerateBase):
             if method_name == 'QCoreApplication':pass
             else:
                 if arg.displayname == '' and type_name == 'int':
-                    print(555, 'whyyyyyyyyyyyyyy', method_name, arg.type.spelling)
+                    # print(555, 'whyyyyyyyyyyyyyy', method_name, arg.type.spelling)
                     # return True  # 过滤的不对，前边的已经过滤掉。
+                    pass
 
             #### more
             can_type = self.tyconv.TypeToCanonical(arg.type)
@@ -1210,6 +1305,8 @@ class GenerateForGo(GenerateBase):
 
     # @return True | False
     def check_skip_method(self, cursor):
+        if True: return self.gfilter.skipMethod(cursor)
+
         method_name = cursor.spelling
         if method_name.startswith('operator'):
             # print("Omited operator method: " + mth)
@@ -1306,6 +1403,8 @@ class GenerateForGo(GenerateBase):
         return False
 
     def check_skip_class(self, class_cursor):
+        if True: return self.gfilter.skipClass(class_cursor)
+
         cursor = class_cursor
         name = cursor.spelling
         dname = cursor.displayname
