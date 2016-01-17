@@ -19,6 +19,8 @@ function help()
 function mvgosrc()
 {
     mkdir -p qt.go/src/{qt5,core,gui,widgets}
+    rm -f qt.go/src/{qt5,core,gui,widgets}/q*.go
+
     # cp -a src/qtrt/*.go qt.go/src/qtrt/
     cp -a src/core/*.go qt.go/src/qt5/
     cp -a src/gui/*.go qt.go/src/qt5/
@@ -27,6 +29,8 @@ function mvgosrc()
 
 function mvqil()
 {
+    rm -f ~/oss/qt.inline/src/{qt5,core,gui,widgets}/q*.cxx
+
     cp -a src/core/*.{cxx,cmake} ~/oss/qt.inline/src/core/
     cp -a src/gui/*.{cxx,cmake} ~/oss/qt.inline/src/gui/
     cp -a src/widgets/*.{cxx,cmake} ~/oss/qt.inline/src/widgets/
