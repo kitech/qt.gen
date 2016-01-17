@@ -97,7 +97,8 @@ class GenerateForRust(GenerateBase):
             cursor = self.gctx.classes[key]
             if self.check_skip_class(cursor): continue
 
-            class_name = cursor.spelling
+            ctx = GenClassContext(cursor)
+            class_name = ctx.flat_class_name
             decl_file = self.gctx.get_decl_file(cursor)
             decl_mod = self.gctx.get_decl_mod(cursor)
             code_file = self.gctx.get_code_file(cursor)
@@ -142,7 +143,8 @@ class GenerateForRust(GenerateBase):
         return
 
     def genpass_class_type_impl(self, cursor):
-        class_name = cursor.displayname
+        ctx = GenClassContext(cursor)
+        class_name = ctx.flat_class_name
         decl_file = self.gctx.get_decl_file(cursor)
         CP = self.gctx.codes[decl_file]
         ctysz = cursor.type.get_size()
@@ -175,11 +177,11 @@ class GenerateForRust(GenerateBase):
             cursor = self.gctx.classes[key]
             if self.check_skip_class(cursor): continue
 
-            class_name = cursor.displayname
             methods = self.gutil.get_methods(cursor)
             bases = self.gutil.get_base_class(cursor)
             base_class = bases[0] if len(bases) > 0 else None
             ctx = mctx = self.createMiniContext(cursor, base_class)
+            class_name = ctx.flat_class_name
             usignals = self.gutil.get_unique_signals(cursor)
             for key in usignals:
                 sigmth = usignals[key]
@@ -301,10 +303,6 @@ class GenerateForRust(GenerateBase):
                           % (class_name, sigmth.mangled_name))
                 idx += 1
 
-            # self.generateClassSizeExt(cursor, base_class)
-            # self.generateInheritEmulate(cursor, base_class)
-            # self.generateClass(class_name, cursor, methods, base_class)
-            # break
         return
 
     def genpass_classes(self):
@@ -322,45 +320,7 @@ class GenerateForRust(GenerateBase):
             # break
         return
 
-    # def generateClasses(self, module, class_decls):
-    #     for elems in class_decls:
-    #         class_name, cs, methods, base_class = elems
-    #         self.qclses[class_name] = True
-
-    #     for elems in class_decls:
-    #         class_name, cs, methods, base_class = elems
-    #         self.CP = self.initCodePaperForClass()
-    #         self.CP.AP('header', self.generateHeader(module))
-    #         self.CP.AP('ext', "#[link(name = \"Qt5Core\")]\n")
-    #         self.CP.AP('ext', "#[link(name = \"Qt5Gui\")]\n")
-    #         self.CP.AP('ext', "#[link(name = \"Qt5Widgets\")]\n")
-    #         self.CP.AP('ext', "extern {\n")
-
-    #         self.generateClass(class_name, cs, methods, base_class)
-    #         # tcode = tcode + self.generateFooter(module)
-    #         # self.write_code(module, class_name.lower(), tcode)
-    #         self.CP.AP('ext', "}\n\n")
-    #         self.CP.AP('use', "\n")
-
-    #         self.write_code(module, class_name.lower(), self.CP.exportCode(self.class_blocks))
-
-    #         self.MP.AP('main', "mod %s;\n" % (class_name.lower()))
-    #         self.MP.AP('main', "pub use self::%s::%s;\n\n" % (class_name.lower(), class_name))
-
-    #     self.write_modrs(module, self.MP.exportCode(['main']))
-    #     return
-
     def generateClass(self, class_name, class_cursor, methods, base_class):
-
-        # CP = self.gctx.getCodePager(class_cursor)
-
-        # ctysz = class_cursor.type.get_size()
-        # CP.AP('body', "// class sizeof(%s)=%s\n" % (class_name, ctysz))
-
-        # generate struct of class
-        # CP.AP('body', "pub struct %s {\n" % (class_name))
-        # CP.AP('body', "  pub qclsinst: *mut c_void,\n")
-        # CP.AP('body', "}\n\n")
 
         # 重载的方法，只生成一次trait
         unique_methods = {}
@@ -469,13 +429,13 @@ class GenerateForRust(GenerateBase):
         ctx = self.createMiniContext(cursor, base_class)
 
         # ctx.CP.AP('body', '/*')
-        ctx.CP.AP('body', 'impl /*struct*/ %s {' % (ctx.class_name))
-        ctx.CP.AP('body', '  pub fn inheritFrom(qthis: u64 /* *mut c_void*/) -> %s {' % (ctx.class_name))
+        ctx.CP.AP('body', 'impl /*struct*/ %s {' % (ctx.flat_class_name))
+        ctx.CP.AP('body', '  pub fn inheritFrom(qthis: u64 /* *mut c_void*/) -> %s {' % (ctx.flat_class_name))
         if ctx.has_base:
             ctx.CP.AP('body', '    return %s{qbase: %s::inheritFrom(qthis), qclsinst: qthis, ..Default::default()};' %
-                  (ctx.class_name, ctx.base_class_name))
+                  (ctx.flat_class_name, ctx.base_class_name))
         else:
-            ctx.CP.AP('body', '    return %s{qclsinst: qthis, ..Default::default()};' % (ctx.class_name))
+            ctx.CP.AP('body', '    return %s{qclsinst: qthis, ..Default::default()};' % (ctx.flat_class_name))
         ctx.CP.AP('body', '  }')
         ctx.CP.AP('body', '}')
         # ctx.CP.AP('body', '*/\n')
@@ -510,8 +470,7 @@ class GenerateForRust(GenerateBase):
     def generateClassSizeExt(self, cursor, base_class):
         # minictx
         ctx = self.createMiniContext(cursor, base_class)
-
-        ctx.CP.AP('ext', '  fn %s_Class_Size() -> c_int;' % (ctx.class_name))
+        ctx.CP.AP('ext', '  fn %s_Class_Size() -> c_int;' % (ctx.flat_class_name))
         return
 
     def generateMethod(self, ctx):
@@ -549,7 +508,7 @@ class GenerateForRust(GenerateBase):
         return
 
     def generateImplStructCtor(self, ctx):
-        class_name = ctx.class_name
+        class_name = ctx.flat_class_name
         method_name = ctx.method_name_rewrite
 
         ctx.CP.AP('body', ctx.fn_proto_cpp)
@@ -564,7 +523,7 @@ class GenerateForRust(GenerateBase):
         return
 
     def generateImplStructMethod(self, ctx):
-        class_name = ctx.class_name
+        class_name = ctx.flat_class_name
         method_name = ctx.method_name_rewrite
         self_code_proto = ctx.static_self_struct
         self_code_call = ctx.static_self_call
@@ -582,7 +541,7 @@ class GenerateForRust(GenerateBase):
     def generateImplTraitCtor(self, ctx):
         method_cursor = ctx.cursor
         mangled_name = ctx.mangled_name
-        class_name = ctx.class_name
+        class_name = ctx.flat_class_name
         method_name = ctx.method_name_rewrite
         trait_params = ctx.params_rs
         call_params = ctx.params_call
@@ -592,16 +551,14 @@ class GenerateForRust(GenerateBase):
         ctx.CP.AP('body', "  fn %s(self) -> %s {" % (method_name, class_name))
         ctx.CP.AP('body', "    // let qthis: *mut c_void = unsafe{calloc(1, %s)};" % (ctx.ctysz))
         ctx.CP.AP('body', "    // unsafe{%s()};" % (mangled_name))
-        ctx.CP.AP('body', "    let ctysz: c_int = unsafe{%s_Class_Size()};" % (ctx.class_name))
-        # ctx.CP.AP('body', "    let qthis_ph: *mut c_void = unsafe{calloc(1, ctysz as usize)};")
+        ctx.CP.AP('body', "    let ctysz: c_int = unsafe{%s_Class_Size()};" % (ctx.flat_class_name))
         ctx.CP.AP('body', "    let qthis_ph: u64 = unsafe{calloc(1, ctysz as usize)} as u64;")
         self.generateArgConvExprs(class_name, method_name, method_cursor, ctx)
         if len(call_params) == 0:
-            ctx.CP.AP('body', "    // unsafe {%s(qthis%s)};" % (mangled_name, call_params))
+            ctx.CP.AP('body', "    unsafe {%s(qthis_ph%s)};" % (mangled_name, call_params))
         else:
-            ctx.CP.AP('body', "    // unsafe {%s(qthis, %s)};" % (mangled_name, call_params))
-        # ctx.CP.AP('body', "    let qthis: *mut c_void = unsafe {dector%s(%s)};" % (mangled_name, call_params))
-        ctx.CP.AP('body', "    let qthis: u64 = unsafe {dector%s(%s)} as u64;" % (mangled_name, call_params))
+            ctx.CP.AP('body', "    unsafe {%s(qthis_ph, %s)};" % (mangled_name, call_params))
+        ctx.CP.AP('body', "    let qthis: u64 = qthis_ph;")
         if ctx.has_base:
             # TODO 如果父类再有父类呢，这个初始化不对，需要更强的生成函数
             ctx.CP.AP('body', "    let rsthis = %s{qbase: %s::inheritFrom(qthis), qclsinst: qthis, ..Default::default()};" %
@@ -616,7 +573,7 @@ class GenerateForRust(GenerateBase):
         return
 
     def generateImplTraitMethod(self, ctx):
-        class_name = ctx.class_name
+        class_name = ctx.flat_class_name
         method_cursor = cursor = ctx.cursor
         method_name = ctx.method_name_rewrite
 
@@ -642,7 +599,7 @@ class GenerateForRust(GenerateBase):
         ctx.CP.AP('body', "    // unsafe{%s()};" % (mangled_name))
         self.generateArgConvExprs(class_name, method_name, method_cursor, ctx)
         if ctx.isinline:
-            ctx.CP.AP('body', "    %s unsafe {demth%s(%s)};" % (return_piece_code_return, mangled_name, call_params))
+            ctx.CP.AP('body', "    %s unsafe {%s(%s)};" % (return_piece_code_return, mangled_name, call_params))
         else:
             ctx.CP.AP('body', "    %s unsafe {%s(%s)};" % (return_piece_code_return, mangled_name, call_params))
 
@@ -671,16 +628,11 @@ class GenerateForRust(GenerateBase):
         # case for return qt object
         if has_return:
             self.generateUseForRust(ctx, ctx.ret_type, ctx.cursor)
-            # return_type_name = ctx.ret_type_name_rs
-            # if self.is_qt_class(return_type_name):
-            #     seg = self.get_qt_class(return_type_name)
-            #     if seg != class_name and class_name:
-            #         ctx.CP.APU('use', "use super::%s::%s;\n" % (seg.lower(), seg))
 
         return
 
     def generateMethodDeclTrait(self, ctx):
-        class_name = ctx.class_name
+        class_name = ctx.flat_class_name
         method_name = ctx.method_name_rewrite
 
         self_code_proto = ctx.static_self_trait
@@ -874,12 +826,12 @@ class GenerateForRust(GenerateBase):
         if cursor.result_type.kind != clang.cindex.TypeKind.VOID and has_return:
             return_piece_proto = ' -> %s' % (return_type_name)
         extargs = ctx.params_ext
-        if cursor.kind == clidx.CursorKind.CONSTRUCTOR:
-            tpargs = ', '.join(ctx.params_ext_arr)
-            ctx.CP.AP('ext', "  fn dector%s(%s) -> *mut c_void;" % (mangled_name, tpargs))
+        # if cursor.kind == clidx.CursorKind.CONSTRUCTOR:
+        #     tpargs = ', '.join(ctx.params_ext_arr)
+        #     ctx.CP.AP('ext', "  fn %s(%s) -> *mut c_void;" % (mangled_name, tpargs))
 
         if ctx.isinline:
-            ctx.CP.AP('ext', "  fn demth%s(%s)%s;" % (mangled_name, extargs, return_piece_proto))
+            ctx.CP.AP('ext', "  fn %s(%s)%s;" % (mangled_name, extargs, return_piece_proto))
         else:
             ctx.CP.AP('ext', "  fn %s(%s)%s;" % (mangled_name, extargs, return_piece_proto))
 
@@ -887,7 +839,7 @@ class GenerateForRust(GenerateBase):
 
     def methodHasReturn(self, ctx):
         method_cursor = cursor = ctx.cursor
-        class_name = ctx.class_name
+        class_name = ctx.flat_class_name
 
         return_type = cursor.result_type
 
@@ -938,7 +890,7 @@ class GenerateForRust(GenerateBase):
         return has_return
 
     def generateUseForRust(self, ctx, aty, cursor):
-        class_name = ctx.class_name
+        class_name = ctx.flat_class_name
         # type_name = self.resolve_swig_type_name(class_name, arg.type)
         # type_name2 = self.hotfix_typename_ifenum_asint(class_name, arg, arg.type)
         # type_name = type_name2 if type_name2 is not None else type_name
@@ -1044,8 +996,9 @@ class GenerateForRust(GenerateBase):
             if method_name == 'QCoreApplication':pass
             else:
                 if arg.displayname == '' and type_name == 'int':
-                    print(555, 'whyyyyyyyyyyyyyy', method_name, arg.type.spelling)
+                    # print(555, 'whyyyyyyyyyyyyyy', method_name, arg.type.spelling)
                     # return True  # 过滤的不对，前边的已经过滤掉。
+                    pass
 
             #### more
             can_type = self.tyconv.TypeToCanonical(arg.type)
@@ -1210,26 +1163,6 @@ class GenerateForRust(GenerateBase):
                and self.gutil.isqtloc(tydecl.semantic_parent):
                 print('Warning fix enum-as-int:', type_name, '=> %s::' % class_name, tokens[0])
                 return '%s::%s' % (class_name, tokens[0])
-
-        if len(tokens) < 3: return None
-        if firstch.upper() == firstch and firstch == 'Q' and tokens[1] == '::':
-            print('Warning fix enum-as-int2:', type_name, '=> %s::' % class_name, tokens[2])
-            return '%s::%s' % (tokens[0], tokens[2])
-
-        # like QtMsgType
-        if firstch.upper() == firstch and firstch == 'Q' and tokens[0][0:2] == 'Qt':
-            print('Warning fix enum-as-int3:', type_name, '=> ', tokens[0])
-            return '%s' % (tokens[0])
-
-        # like 可能是Qt类内enum
-        if firstch.upper() == firstch and firstch == 'Q' and tokens[0][1:2].lower() == tokens[0][1:2]:
-            print('Warning fix enum-as-int4:', type_name, '=> ', type_name.replace('int', tokens[0]))
-            return '%s' % (type_name.replace('int', tokens[0]))
-
-        # like qint64...
-        if firstch.lower() == firstch and tokens[0][0:1] == 'q' and '*' in type_name:
-            print('Warning fix qint*-as-int5:', type_name, '=> ', tokens[0])
-            return '%s %s' % (tokens[0], tokens[1])
 
         return None
 

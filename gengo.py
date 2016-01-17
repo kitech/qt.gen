@@ -155,10 +155,7 @@ class GenerateForGo(GenerateBase):
         return
 
     def flat_template_name(self, name):
-        flat_class_name = name.replace('<', '_').replace('>', '_') \
-                          .replace(':', '_').replace('*', '_') \
-                          .replace(',', '_').replace(' ', '')
-        return flat_class_name
+        return self.gutil.flat_template_name(name)
 
     def genpass_class_type_impl(self, cursor):
         class_name = cursor.type.spelling

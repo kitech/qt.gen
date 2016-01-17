@@ -258,6 +258,13 @@ class GenUtil(object):
 
     def isqtloc(self, cursor):
         return cursor.location.file.name.startswith('/usr/include/qt')
+
+    def flat_template_name(self, name):
+        flat_class_name = name.replace('<', '_').replace('>', '_') \
+                          .replace(':', '_').replace('*', '_') \
+                          .replace(',', '_').replace(' ', '')
+        return flat_class_name
+
     pass
 
 

@@ -95,7 +95,9 @@ class GenClassContext(object):
         # 类内类处理
         if self.cursor.semantic_parent.kind == clidx.CursorKind.STRUCT_DECL or \
            self.cursor.semantic_parent.kind == clidx.CursorKind.CLASS_DECL:
-            self.full_class_name = '%s::%s' % (self.cursor.semantic_parent.spelling, self.class_name)
+            if '::' not in self.full_class_name:
+                self.full_class_name = '%s::%s' % (self.cursor.semantic_parent.spelling, self.class_name)
+        self.flat_class_name = self.gutil.flat_template_name(self.full_class_name)
 
         # inherit
         self.base_class = None
@@ -116,9 +118,7 @@ class GenClassContext(object):
 class GenMethodContext(object):
     # 符号替换，clang-py不知道为什么生成了错误的mangled_name
     def shitfix_error_mangled_name(self):
-        tab = {'_ZN7QWidget4findEi': '_ZN7QWidget4findEi',
-               '_ZN7QWindow9fromWinIdEi': '_ZN7QWindow9fromWinIdEy',
-        }
+        tab = {}
         return
 
     def __init__(self, cursor, class_cursor):
@@ -147,7 +147,9 @@ class GenMethodContext(object):
         # 类内类处理
         if self.class_cursor.semantic_parent.kind == clidx.CursorKind.STRUCT_DECL or \
            self.class_cursor.semantic_parent.kind == clidx.CursorKind.CLASS_DECL:
-            self.full_class_name = '%s::%s' % (self.class_cursor.semantic_parent.spelling, self.class_name)
+            if '::' not in self.full_class_name:
+                self.full_class_name = '%s::%s' % (self.class_cursor.semantic_parent.spelling, self.class_name)
+        self.flat_class_name = self.gutil.flat_template_name(self.full_class_name)
 
         self.static = cursor.is_static_method()
         self.has_return = True
@@ -160,7 +162,7 @@ class GenMethodContext(object):
         self.static_str = 'static' if self.static else ''
         self.static_suffix = '_s' if self.static else ''
         self.static_self_struct = '' if self.static else '& self, '
-        self.static_self_trait = '' if self.static else ', rsthis: & %s' % (self.class_name)
+        self.static_self_trait = '' if self.static else ', rsthis: & %s' % (self.flat_class_name)
         self.static_self_call = '' if self.static else 'self'
 
         self.isinline = False
