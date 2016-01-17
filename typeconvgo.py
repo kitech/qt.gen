@@ -136,7 +136,7 @@ class TypeConvForGo(TypeConv):
                     return 'qtrt.Int32Ty(false)'
                 self.dumpContext(ctx)
             if ctx.convable_type_name.startswith('::quintptr'):  # should be WId
-                return 'qtrt.Int32Ty()'
+                return 'qtrt.Int32Ty(true)'
             self.dumpContext(ctx)
 
         if ctx.convable_type.kind == clidx.TypeKind.CONSTANTARRAY:

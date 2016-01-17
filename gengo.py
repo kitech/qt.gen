@@ -409,6 +409,8 @@ class GenerateForGo(GenerateBase):
             for mangled_name in mangled_names:
                 cursor = methods[mangled_name]
                 if self.check_skip_method(cursor): continue
+                if self.check_skip_params(cursor): continue
+
                 if mangled_name in signals: continue
                 method_overload_methods[mangled_name] = cursor
 
@@ -464,6 +466,7 @@ class GenerateForGo(GenerateBase):
         # trait_params = ', '.join(trait_params_array)
 
         call_params_array = self.generateParamsForCall(class_name, method_name, method_cursor)
+        if ctx.ctor: call_params_array.insert(0, 'qthis')
         call_params = ', '.join(call_params_array)
         if not ctx.static and not ctx.ctor: call_params = ('this.qclsinst, ' + call_params).strip(' ,')
 
@@ -900,6 +903,8 @@ class GenerateForGo(GenerateBase):
             atc = atc % ('args[%s]' % (idx))
             if '<' in atc or '::' in atc:
                 ctx.CP.AP('body', "    // var arg%s = %s" % (idx, atc))
+                ctx.CP.AP('body', "    var arg%s unsafe.Pointer" % (idx))
+                ctx.CP.AP('body', '    if false {fmt.Println(arg%s)}' % (idx))
             else:
                 ctx.CP.AP('body', "    var arg%s = %s" % (idx, atc))
                 ctx.CP.AP('body', '    if false {fmt.Println(arg%s)}' % (idx))
@@ -1067,16 +1072,16 @@ class GenerateForGo(GenerateBase):
             return_piece_proto = '%s' % (return_type_name)
         extargs = ctx.params_ext
 
-        # deprefix = 'dector' if ctx.ctor else 'demth'
-        deprefix = ''
         if ctx.isinline:
             if ctx.ctor:
-                tpargs = ', '.join(ctx.params_ext_arr)
-                ctx.CP.AP('ext', "extern void* %s%s(%s); // 1" % (deprefix, mangled_name, tpargs))
+                ctx.CP.AP('ext', "extern %s %s(%s); // 1" % (return_piece_proto, mangled_name, extargs))
             else:
-                ctx.CP.AP('ext', "extern %s %s%s(%s); // 2" % (return_piece_proto, deprefix, mangled_name, extargs))
+                ctx.CP.AP('ext', "extern %s %s(%s); // 2" % (return_piece_proto, mangled_name, extargs))
         else:
-            ctx.CP.AP('ext', "extern %s %s(%s); // 3" % (return_piece_proto, mangled_name, extargs))
+            if ctx.ctor:
+                ctx.CP.AP('ext', "extern %s %s(%s); // 3" % (return_piece_proto, mangled_name, extargs))
+            else:
+                ctx.CP.AP('ext', "extern %s %s(%s); // 4" % (return_piece_proto, mangled_name, extargs))
 
         return has_return, return_type_name
 
@@ -1191,10 +1196,17 @@ class GenerateForGo(GenerateBase):
         duprem = []
         # && (), () const, ()
         for mn in overload_methods:
+            # drop && return if has dup
             if mn.startswith('_ZNO'):
                 if mn.replace('_ZNO', '_ZNKR') in overload_methods:
                     duprem.append(mn)
                     continue
+            # drop const return if has dup
+            if mn.startswith('_ZNK'):
+                if mn.replace('_ZNK', '_ZN') in overload_methods:
+                    duprem.append(mn)
+                    continue
+
         save = []
         for mn in overload_methods:
             if mn not in duprem:
@@ -1275,8 +1287,10 @@ class GenerateForGo(GenerateBase):
             if 'QPlatformMenu' in type_name: return True
             if 'QFileDialogArgs' in type_name: return True
             if 'FILE' in type_name: return True
-            if type_name[0:1] == 'Q' and '::' in type_name: return True  # 有可能是类内类，像QMetaObject::Connection
+            if type_name[0] == 'Q' and '::' in type_name: return True  # 有可能是类内类，像QMetaObject::Connection
             if '<' in type_name: return True  # 模板类参数
+            if type_name[0] == 'Q' and type_name.endswith('Private'): return True
+
             # void directoryChanged(const QString & path, QFileSystemWatcher::QPrivateSignal arg0);
             # 这个不准确，会把QCoreApplication(int &, char**, int)也过滤掉了
             if method_name == 'QCoreApplication':pass
@@ -1305,6 +1319,53 @@ class GenerateForGo(GenerateBase):
 
     # @return True | False
     def check_skip_method(self, cursor):
+        # shitfix begin
+        method_name = cursor.spelling
+        mangled_name = cursor.mangled_name
+
+        if 'QOpenGLFunctions_' in method_name: return True
+        if 'QOpenGLFunctionsPrivate' == method_name: return True
+        if 'QAbstractOpenGLFunctionsPrivate' == method_name: return True
+        # if 'QTextStreamManipulator' == method_name: return True
+        if 'QRunnable' == method_name: return True
+
+        fixmths = ['data_ptr',
+                   'sprintf', 'vsprintf', 'vasprintf', 'asprintf',
+                   ]
+        if method_name in fixmths: return True
+
+        if method_name[0] == '~' and method_name.endswith('Interface'): return True
+        if method_name[0] == 'Q' and method_name.endswith('Private'): return True
+
+        howfixs = ['_ZN7QWindow9fromWinIdEi', '_ZN7QWidget4findEi',
+                   '_ZN8QVariantC1EOS_', '_ZN4QUrlC1EOS_',
+                   '_ZN14QTextTableCellD0Ev', '_ZN11QStringListC1EO5QListI7QStringE',
+                   '_ZN7QString16fromStdU32StringERKi',
+                   '_ZN7QString16fromStdU16StringERKi',
+                   '_ZN7QString14fromStdWStringERKi', '_ZN7QString13fromStdStringERKi',
+                   '_ZN15QSocketNotifierC1EiNS_4TypeEP7QObject', '_ZN9QRunnableD0Ev',
+                   '_ZN7QPixmap9fromImageEO6QImage6QFlagsIN2Qt19ImageConversionFlagEE',
+                   '_ZN7QPixmap10grabWindowEiiiii', '_ZN4QPenC1EOS_', '_ZN8QPaletteC1EOS_',
+                   '_ZN11QMetaObject10ConnectionC1EOS0_', '_ZN14QSignalBlockerC1EOS_',
+                   '_ZN6QImageC1EOS_', '_ZN12QEasingCurveC1EOS_', '_ZN7QCursorC1EOS_',
+                   '_ZN9QCollatorC1EOS_', '_ZN10QByteArray13fromStdStringERKi',
+                   '_ZN10QByteArrayC1EOS_', '_ZN9QBitArrayC1EOS_',
+                   '_ZNK10QArrayData14detachCapacityEi',
+                   '_ZN10QArrayData8allocateEiii6QFlagsINS_16AllocationOptionEE',
+                   '_ZN10QArrayData10deallocateEPS_ii', '_ZN17QAccessibleBridgeD0Ev',
+                   '_ZN20QAccessibleInterface14interface_castEN11QAccessible13InterfaceTypeE',
+                   '_ZN21QPersistentModelIndexC1EOS_',
+                   # link errors
+                   '_ZN5QFile4openEP8_IO_FILE6QFlagsIN9QIODevice12OpenModeFlagEES2_IN11QFileDevice14FileHandleFlagEE',
+                   '_ZN6QImageC1EPKPKc', '_ZN7QPixmapC1EPKPKc',
+                   '_ZN5QMenu15setPlatformMenuEP13QPlatformMenu',
+                   '_ZN7QPixmapC1EP15QPlatformPixmap',
+                   '_ZN7QString9fromUtf16EPKDsi', '_ZN7QString8fromUcs4EPKDii',
+                   ]
+        if mangled_name in howfixs: return True
+
+        # shitfix end
+
         if True: return self.gfilter.skipMethod(cursor)
 
         method_name = cursor.spelling
@@ -1403,6 +1464,16 @@ class GenerateForGo(GenerateBase):
         return False
 
     def check_skip_class(self, class_cursor):
+        # shitfix begin
+
+        cursor = class_cursor
+        name = cursor.spelling
+        dname = cursor.displayname
+
+        if name.startswith('QOpenGLFunctions'): return True
+        if name == 'QAbstractOpenGLFunctionsPrivate': return True
+        # shitfix end
+
         if True: return self.gfilter.skipClass(class_cursor)
 
         cursor = class_cursor

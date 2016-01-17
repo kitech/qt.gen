@@ -114,6 +114,13 @@ class GenClassContext(object):
 
 
 class GenMethodContext(object):
+    # 符号替换，clang-py不知道为什么生成了错误的mangled_name
+    def shitfix_error_mangled_name(self):
+        tab = {'_ZN7QWidget4findEi': '_ZN7QWidget4findEi',
+               '_ZN7QWindow9fromWinIdEi': '_ZN7QWindow9fromWinIdEy',
+        }
+        return
+
     def __init__(self, cursor, class_cursor):
         self.gutil = GenUtil()
         self.tyconv = TypeConvForRust()
@@ -131,6 +138,10 @@ class GenMethodContext(object):
         self.mangled_name = cursor.mangled_name
         if self.ctor: self.mangled_name = self.mangled_name.replace('C1', 'C2')
         if self.dtor: self.mangled_name = self.mangled_name.replace('D0Ev', 'D2Ev')
+
+        # shitfix begin
+        self.shitfix_error_mangled_name()
+        # shitfix end
 
         self.full_class_name = self.class_cursor.type.spelling
         # 类内类处理

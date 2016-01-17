@@ -249,6 +249,10 @@ class GenUtil(object):
     def isCopyCtor(self, cursor):
         return False
 
+    def isMoveCtor(self, cursor):
+
+        return False
+
     def hasDefaultCtor(self, cursor):
         return False
 
