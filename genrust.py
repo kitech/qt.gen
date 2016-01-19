@@ -989,6 +989,8 @@ class GenerateForRust(GenerateBase):
             if 'QPlatformMenu' in type_name: return True
             if 'QFileDialogArgs' in type_name: return True
             if 'FILE' in type_name: return True
+            if 'sockaddr' in type_name: return True
+
             if type_name[0:1] == 'Q' and '::' in type_name: return True  # 有可能是类内类，像QMetaObject::Connection
             if '<' in type_name: return True  # 模板类参数
             # void directoryChanged(const QString & path, QFileSystemWatcher::QPrivateSignal arg0);

@@ -4,5 +4,6 @@
 #include <QtCore>
 #include <QtGui>
 #include <QtWidgets>
+#include <QtNetwork>
 
 #endif

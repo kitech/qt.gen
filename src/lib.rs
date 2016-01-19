@@ -18,6 +18,7 @@
 #[link(name = "Qt5Core")]
 #[link(name = "Qt5Gui")]
 #[link(name = "Qt5Widgets")]
+#[link(name = "Qt5Network")]
 #[link(name = "QtInline")]
 extern {}  // 这行还是需要的
 
@@ -32,7 +33,7 @@ mod qtaux;
 pub mod core;
 pub mod gui;
 pub mod widgets;
-
+pub mod network;
 
 // #[test]
 // fn it_works() {

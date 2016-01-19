@@ -39,7 +39,7 @@ class GenUtil(object):
         decl_module = loc.file.name.split('/')[-2][2:].lower()
 
         # 自测
-        if decl_module not in ['core', 'gui', 'widgets']:
+        if decl_module not in ['core', 'gui', 'widgets', 'network']:
             raise 'unknown module: %s, %s' % (decl_module, cursor.spelling)
 
         return decl_module

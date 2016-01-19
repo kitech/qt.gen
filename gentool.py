@@ -17,7 +17,7 @@ from genutil import *
 clang.cindex.Config.set_library_file('/usr/lib/libclang.so')
 
 qtmodules = ['QtCore', 'QtGui', 'QtWidgets']
-# qtmodules.append('QtNetwork')
+qtmodules.append('QtNetwork')
 # qtmodules.append('QtDBus')
 
 compile_args = ['-x', 'c++', '-std=c++11', '-D__CODE_GENERATOR__', '-D_GLIBCXX_USE_C++11ABI=0']
@@ -29,7 +29,7 @@ class GenTool:
     def __init__(self):
         self.cursors = {}  # module => clang.cindex.Cursor
         self.generator = GenerateForGo()
-        # self.generator = GenerateForInlineCXX()
+        self.generator = GenerateForInlineCXX()
         self.generator = GenerateForRust()
         # self.builder = TestBuilderForGo()
         self.genres = {}  # key => True | False

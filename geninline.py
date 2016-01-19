@@ -287,11 +287,11 @@ class GenerateForInlineCXX(GenerateBase):
             return ', ' .join(argv)
 
         ctx.CP.AP('body', '// %s_SlotProxy here' % (ctx.class_name))
-        ctx.CP.AP('body', 'class %s_SlotProxy : public QObject' % (ctx.class_name))
+        ctx.CP.AP('body', 'class %s_SlotProxy : public QObject' % (ctx.flat_class_name))
         ctx.CP.AP('body', '{')
         ctx.CP.AP('body', '  Q_OBJECT;')
         ctx.CP.AP('body', 'public:')
-        ctx.CP.AP('body', '   %s_SlotProxy():QObject(){}' % (ctx.class_name))
+        ctx.CP.AP('body', '   %s_SlotProxy():QObject(){}' % (ctx.flat_class_name))
         ctx.CP.AP('body', '')
 
         ### signals
@@ -317,9 +317,9 @@ class GenerateForInlineCXX(GenerateBase):
         ctx.CP.AP('body', '')
 
         ctx.CP.AP('body', 'extern \"C\" {')
-        ctx.CP.AP('body', '  %s_SlotProxy* %s_SlotProxy_new()' % (ctx.class_name, ctx.class_name))
+        ctx.CP.AP('body', '  %s_SlotProxy* %s_SlotProxy_new()' % (ctx.flat_class_name, ctx.flat_class_name))
         ctx.CP.AP('body', '  {')
-        ctx.CP.AP('body', '    return new %s_SlotProxy();' % (ctx.class_name))
+        ctx.CP.AP('body', '    return new %s_SlotProxy();' % (ctx.flat_class_name))
         ctx.CP.AP('body', '  }')
         ctx.CP.AP('body', '};')
         ctx.CP.AP('body', '')
@@ -340,8 +340,8 @@ class GenerateForInlineCXX(GenerateBase):
 
             ctx.CP.AP('body', 'extern \"C\"')
             ctx.CP.AP('body', 'void* %s_SlotProxy_connect_%s(QObject* sender, void* ffifptr, void* rsfptr){'
-                      % (ctx.class_name, sigmth.mangled_name))
-            ctx.CP.AP('body', '  auto that = new %s_SlotProxy();' % (ctx.class_name))
+                      % (ctx.flat_class_name, sigmth.mangled_name))
+            ctx.CP.AP('body', '  auto that = new %s_SlotProxy();' % (ctx.flat_class_name))
             ctx.CP.AP('body', '  that->rsfptr = rsfptr;')
             ctx.CP.AP('body', '  that->slot_func_%s = (decltype(that->slot_func_%s))ffifptr;'
                       % (sigmth.mangled_name, sigmth.mangled_name))
@@ -353,7 +353,7 @@ class GenerateForInlineCXX(GenerateBase):
 
             ctx.CP.AP('body', 'extern \"C\"')
             ctx.CP.AP('body', 'void %s_SlotProxy_disconnect_%s(%s_SlotProxy* that) {'
-                      % (ctx.class_name, sigmth.mangled_name, ctx.class_name))
+                      % (ctx.flat_class_name, sigmth.mangled_name, ctx.flat_class_name))
             ctx.CP.AP('body', '  that->disconnect();')
             ctx.CP.AP('body', '  delete that;')
             ctx.CP.AP('body', '}')

@@ -3,7 +3,7 @@
 function help()
 {
     echo "Usage:"
-    echo "    move.sh <qi|gosrc>"
+    echo "    move.sh <qil|gosrc|rssrc>"
 }
 
 # clslst=$(cat src/core/widgets.rs |grep "mod q"|awk '{print $2}'|awk -F\; '{print $1}')
@@ -18,25 +18,39 @@ function help()
 
 function mvgosrc()
 {
-    mkdir -p qt.go/src/{qt5,core,gui,widgets}
-    rm -f qt.go/src/{qt5,core,gui,widgets}/q*.go
+    mkdir -p qt.go/src/{qt5,core,gui,widgets,network}
+    rm -f qt.go/src/{qt5,core,gui,widgets,network}/q*.go
 
     # cp -a src/qtrt/*.go qt.go/src/qtrt/
     cp -a src/core/*.go qt.go/src/qt5/
     cp -a src/gui/*.go qt.go/src/qt5/
     cp -a src/widgets/*.go qt.go/src/qt5/
+    cp -a src/network/*.go qt.go/src/qt5/
 }
 
 function mvqil()
 {
-    rm -f ~/oss/qt.inline/src/{qt5,core,gui,widgets}/q*.cxx
+    mkdir -p ~/oss/qt.inline/src/{qt5,core,gui,widgets,network}
+    rm -f ~/oss/qt.inline/src/{qt5,core,gui,widgets,network}/q*.cxx
 
     cp -a src/core/*.{cxx,cmake} ~/oss/qt.inline/src/core/
     cp -a src/gui/*.{cxx,cmake} ~/oss/qt.inline/src/gui/
     cp -a src/widgets/*.{cxx,cmake} ~/oss/qt.inline/src/widgets/
+    cp -a src/network/*.{cxx,cmake} ~/oss/qt.inline/src/network/
 
     # cp -a CMakeLists.txt ~/oss/qt.inline/
     cp -a src/qihotfix.cpp ~/oss/qt.inline/src/
+}
+
+function mvrssrc()
+{
+    mkdir -p ~/oss/qt.rs/src/{core,gui,widgets,network}
+    rm -f ~/oss/qt.rs/src/{core,gui,widgets,network}/q*.rs
+
+    cp -a src/core/*.rs ~/oss/qt.rs/src/core/
+    cp -a src/gui/*.rs ~/oss/qt.rs/src/gui/
+    cp -a src/widgets/*.rs ~/oss/qt.rs/src/widgets/
+    cp -a src/network/*.rs ~/oss/qt.rs/src/network/
 }
 
 cmd=$1
@@ -44,10 +58,13 @@ cmd=$1
 set -x
 case $cmd in
     qil)
-        mvqi;
+        mvqil;
         ;;
     gosrc)
         mvgosrc;
+        ;;
+    rssrc)
+        mvrssrc;
         ;;
     *)
         set +x
