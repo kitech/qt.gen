@@ -210,6 +210,7 @@ class GenerateForRust(GenerateBase):
             for key in ctx.signals:
                 sigmth = ctx.signals[key]
                 if '<' in sigmth.displayname: continue
+                if self.check_skip_params(sigmth): continue
                 ctx = self.createGenMethodContext(sigmth, cursor, base_class, [])
 
                 trait_params_array = self.generateParamsForTrait(class_name, sigmth.spelling, sigmth, ctx)
@@ -869,6 +870,8 @@ class GenerateForRust(GenerateBase):
         if 'QTextDocumentPrivate' in return_type_name: has_return = False
         if 'QJson' in return_type_name: has_return = False
         if 'QStringRef' in return_type_name: has_return = False
+        if 'QQmlComponentAttached' in return_type_name: has_return = False
+        if 'QV8Engine' in return_type_name: has_return = False
 
         if 'internalPointer' in method_cursor.spelling: has_return = False
         if 'rwidth' in method_cursor.spelling: has_return = False
@@ -990,12 +993,16 @@ class GenerateForRust(GenerateBase):
             if 'QFileDialogArgs' in type_name: return True
             if 'FILE' in type_name: return True
             if 'sockaddr' in type_name: return True
+            if 'QQmlCompiledData' in type_name: return True
+            if 'QQmlContextData' in type_name: return True
+            if 'QQuickCloseEvent' in type_name: return True
+            if 'QQmlV4Function' in type_name: return True
 
             if type_name[0:1] == 'Q' and '::' in type_name: return True  # 有可能是类内类，像QMetaObject::Connection
             if '<' in type_name: return True  # 模板类参数
             # void directoryChanged(const QString & path, QFileSystemWatcher::QPrivateSignal arg0);
             # 这个不准确，会把QCoreApplication(int &, char**, int)也过滤掉了
-            if method_name == 'QCoreApplication':pass
+            if method_name == 'QCoreApplication': pass
             else:
                 if arg.displayname == '' and type_name == 'int':
                     # print(555, 'whyyyyyyyyyyyyyy', method_name, arg.type.spelling)
@@ -1214,7 +1221,7 @@ class GenerateForRust(GenerateBase):
 
             mod = self.gctx.get_decl_mod_by_path(key)
             fname = self.gctx.get_code_file_by_path(key)
-            if mod not in ['core', 'gui', 'widgets', 'network', 'dbus']:
+            if mod not in ['core', 'gui', 'widgets', 'network', 'dbus', 'qml', 'quick']:
                 print('Omit unknown mod code...:', mod, fname, key)
                 continue
 

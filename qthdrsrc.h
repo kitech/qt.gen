@@ -5,5 +5,7 @@
 #include <QtGui>
 #include <QtWidgets>
 #include <QtNetwork>
+#include <QtQml>
+#include <QtQuick>
 
 #endif

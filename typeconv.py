@@ -73,20 +73,26 @@ class TypeConv(object):
             pass
         canname = canty.spelling
         if self.TypeIsConst(canty): canname = self.TypeTrimConst(canty)
+        if self.TypeIsVolatile(canty): canname = self.TypeTrimConst(canty)
         canname = canname.replace('unsigned ', 'u')
         return canname
 
     def TypeIsConst(self, cxxtype):
         return cxxtype.spelling.startswith('const ')
 
+    def TypeIsVolatile(self, cxxtype):
+        return cxxtype.spelling.startswith('volatile ')
+
     def TypeTrimConst(self, cxxtype):
         tysegs = cxxtype.spelling.split(' ')
         if 'const' in tysegs: tysegs.remove('const')
+        if 'volatile' in tysegs: tysegs.remove('volatile')
         return ' '.join(tysegs)
 
     def TypeNameTrimConst(self, tyname):
         tysegs = tyname.split(' ')
         if 'const' in tysegs: tysegs.remove('const')
+        if 'volatile' in tysegs: tysegs.remove('volatile')
         return ' '.join(tysegs)
 
     def IsCharType(self, tyname):
@@ -117,6 +123,8 @@ class TypeConv(object):
         ctx.convable_type_name = ctx.convable_type.spelling
 
         if ctx.const: ctx.can_type_name = self.TypeNameTrimConst(ctx.can_type_name)
+        if self.TypeIsVolatile(ctx.can_type):
+            ctx.can_type_name = self.TypeNameTrimConst(ctx.can_type_name)
 
         ctx.cursor = cursor
         return ctx
@@ -334,7 +342,6 @@ class TypeConvForRust(TypeConv):
                 return ctx.cursor.spelling
             if ctx.can_type.kind == clidx.TypeKind.VOID:
                 return '*mut c_void'
-
             #if ctx.can_type.kind == clidx.TypeKind.UCHAR:
             #    return '& String'
             #if ctx.can_type.kind == clidx.TypeKind.CHAR:

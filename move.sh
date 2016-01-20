@@ -18,25 +18,29 @@ function help()
 
 function mvgosrc()
 {
-    mkdir -p qt.go/src/{qt5,core,gui,widgets,network}
-    rm -f qt.go/src/{qt5,core,gui,widgets,network}/q*.go
+    mkdir -p qt.go/src/{qt5,core,gui,widgets,network,qml,quick}
+    rm -f qt.go/src/{qt5,core,gui,widgets,network,qml,quick}/q*.go
 
     # cp -a src/qtrt/*.go qt.go/src/qtrt/
     cp -a src/core/*.go qt.go/src/qt5/
     cp -a src/gui/*.go qt.go/src/qt5/
     cp -a src/widgets/*.go qt.go/src/qt5/
     cp -a src/network/*.go qt.go/src/qt5/
+    cp -a src/qml/*.go qt.go/src/qt5/
+    cp -a src/quick/*.go qt.go/src/qt5/
 }
 
 function mvqil()
 {
-    mkdir -p ~/oss/qt.inline/src/{qt5,core,gui,widgets,network}
-    rm -f ~/oss/qt.inline/src/{qt5,core,gui,widgets,network}/q*.cxx
+    mkdir -p ~/oss/qt.inline/src/{qt5,core,gui,widgets,network,qml,quick}
+    rm -f ~/oss/qt.inline/src/{qt5,core,gui,widgets,network,qml,quick}/q*.cxx
 
     cp -a src/core/*.{cxx,cmake} ~/oss/qt.inline/src/core/
     cp -a src/gui/*.{cxx,cmake} ~/oss/qt.inline/src/gui/
     cp -a src/widgets/*.{cxx,cmake} ~/oss/qt.inline/src/widgets/
     cp -a src/network/*.{cxx,cmake} ~/oss/qt.inline/src/network/
+    cp -a src/qml/*.{cxx,cmake} ~/oss/qt.inline/src/qml/
+    cp -a src/quick/*.{cxx,cmake} ~/oss/qt.inline/src/quick/
 
     # cp -a CMakeLists.txt ~/oss/qt.inline/
     cp -a src/qihotfix.cpp ~/oss/qt.inline/src/
@@ -44,13 +48,15 @@ function mvqil()
 
 function mvrssrc()
 {
-    mkdir -p ~/oss/qt.rs/src/{core,gui,widgets,network}
-    rm -f ~/oss/qt.rs/src/{core,gui,widgets,network}/q*.rs
+    mkdir -p ~/oss/qt.rs/src/{core,gui,widgets,network,qml,quick}
+    rm -f ~/oss/qt.rs/src/{core,gui,widgets,network,qml,quick}/q*.rs
 
     cp -a src/core/*.rs ~/oss/qt.rs/src/core/
     cp -a src/gui/*.rs ~/oss/qt.rs/src/gui/
     cp -a src/widgets/*.rs ~/oss/qt.rs/src/widgets/
     cp -a src/network/*.rs ~/oss/qt.rs/src/network/
+    cp -a src/qml/*.rs ~/oss/qt.rs/src/qml/
+    cp -a src/quick/*.rs ~/oss/qt.rs/src/quick/
 }
 
 cmd=$1

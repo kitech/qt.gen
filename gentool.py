@@ -18,6 +18,8 @@ clang.cindex.Config.set_library_file('/usr/lib/libclang.so')
 
 qtmodules = ['QtCore', 'QtGui', 'QtWidgets']
 qtmodules.append('QtNetwork')
+qtmodules.append('QtQml')
+qtmodules.append('QtQuick')
 # qtmodules.append('QtDBus')
 
 compile_args = ['-x', 'c++', '-std=c++11', '-D__CODE_GENERATOR__', '-D_GLIBCXX_USE_C++11ABI=0']

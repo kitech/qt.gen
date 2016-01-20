@@ -924,7 +924,7 @@ class GenerateForGo(GenerateBase):
 
             mod = self.gctx.get_decl_mod_by_path(key)
             fname = self.gctx.get_code_file_by_path(key)
-            if mod not in ['core', 'gui', 'widgets', 'network', 'dbus']:
+            if mod not in ['core', 'gui', 'widgets', 'network', 'dbus', 'qml', 'quick']:
                 print('Omit unknown mod code...:', mod, fname, key)
                 continue
 
