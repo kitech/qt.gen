@@ -112,6 +112,8 @@ class GenerateForInlineCXX(GenerateBase):
         print('gen classes...')
         self.genpass_classes()
 
+        print('gen instantiate classes...' + str(len(self.gutil.ticlasses)))
+
         print('gen code endian...')
         self.genpass_code_endian()
 
@@ -135,18 +137,6 @@ class GenerateForInlineCXX(GenerateBase):
             # break
 
         return
-
-    # def generateClasses(self, module, class_decls):
-    #     code = ''
-
-    #     for elems in class_decls:
-    #         class_name, cs, methods = elems
-    #         tcode = self.generateClass(class_name, cs, methods)
-    #         tcode = self.generateHeader(module) + tcode + self.generateFooter(module)
-    #         self.write_code(module, class_name.lower(), tcode)
-    #         code += tcode
-
-    #     return code
 
     def generateClass(self, class_name, class_cursor, methods, base_class):
 
@@ -381,10 +371,6 @@ class GenerateForInlineCXX(GenerateBase):
     # 生成所有的构造方法
     def generateCtors(self, ctx):
         method_cursor = ctx.cursor
-        # 已经使用filter统一判断了
-        # if method_cursor.access_specifier != clidx.AccessSpecifier.PUBLIC:
-        #    return
-
         method_name = ctx.method_name
         mangled_name = ctx.mangled_name
 
@@ -565,6 +551,12 @@ class GenerateForInlineCXX(GenerateBase):
         for arg in method_cursor.get_arguments():
             argelem = "%s %s" % (arg.type.spelling, arg.displayname)
             argv.append(argelem)
+            if '<' in arg.type.spelling:
+                xdef = arg.type.get_declaration()
+                tic = self.gutil.isTempInstClass(xdef)
+                if tic is not None:
+                    class_cursor = self.get_instantiated_class(xdef)
+                    mths = self.gutil.get_inst_methods(class_cursor, xdef)
         return argv
 
     # @return []
@@ -576,9 +568,6 @@ class GenerateForInlineCXX(GenerateBase):
             idx += 1
             # print('%s, %s, ty:%s, kindty:%s' % (method_name, arg.displayname, arg.type.spelling, arg.kind))
             # print('arg type kind: %s, %s' % (arg.type.kind, arg.type.get_declaration()))
-            # param_line2 = self.restore_param_by_token(arg)
-            # print(param_line2)
-
             type_name = self.resolve_swig_type_name(class_name, arg.type)
 
             arg_name = 'arg%s' % idx if arg.displayname == '' else arg.displayname
@@ -601,9 +590,6 @@ class GenerateForInlineCXX(GenerateBase):
             idx += 1
             # print('%s, %s, ty:%s, kindty:%s' % (method_name, arg.displayname, arg.type.spelling, arg.kind))
             # print('arg type kind: %s, %s' % (arg.type.kind, arg.type.get_declaration()))
-            # param_line2 = self.restore_param_by_token(arg)
-            # print(param_line2)
-
             type_name = self.resolve_swig_type_name(class_name, arg.type)
 
             arg_name = 'arg%s' % idx if arg.displayname == '' else arg.displayname
@@ -630,7 +616,13 @@ class GenerateForInlineCXX(GenerateBase):
         #     exit(0)
         if '<' in return_type_name:
             # print(556, return_type_name, ctx.fn_proto_cpp)
+            xdef = return_type.get_declaration()
+            tic = self.gutil.isTempInstClass(xdef)
+            if tic is not None:
+                class_cursor = self.get_instantiated_class(xdef)
+                mths = self.gutil.get_inst_methods(class_cursor, xdef)
             has_return = False
+
         if "QStringList" in return_type_name: has_return = False
         if "QObjectList" in return_type_name: has_return = False
         if '::' in return_type_name: has_return = False
@@ -674,6 +666,14 @@ class GenerateForInlineCXX(GenerateBase):
         if xdef is not None:
             cloc = ctx.cursor.location.file
             xloc = xdef.location.file
+
+            if '<' in cty.spelling and cty.spelling.startswith('Q'):
+                tic = self.gutil.isTempInstClass(xdef)
+                if tic is not None:
+                    self.gutil.ticlasses[cty.spelling] = xdef
+                    class_cursor = self.get_instantiated_class(xdef)
+                    mths = self.gutil.get_inst_methods(class_cursor, xdef)
+                # raise '123'
 
             if '<' in cty.spelling and cty.spelling.startswith('Q'):
                 chname = cloc.name.split('/')[-1]

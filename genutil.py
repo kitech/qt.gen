@@ -1,5 +1,6 @@
 # encoding: utf8
 
+import re
 import logging
 import clang
 import clang.cindex as clidx
@@ -17,6 +18,7 @@ class GenUtil(object):
     signals = {}
     clstokens = {}  # clsname => tokens[]
     inline_methods = {}  # clsname => mangled method name[]
+    ticlasses = {}  # template instantiate class
 
     def __init__(self):
         self.conflib = clang.cindex.conf.lib
@@ -104,6 +106,29 @@ class GenUtil(object):
 
         GenUtil.methods[class_cursor.displayname] = method_names
         return method_names
+
+    def get_inst_methods(self, class_cursor, inst_class_cursor):
+        tic = self.isTempInstClass(inst_class_cursor)
+        template_methods = self.get_methods(class_cursor)
+
+        tip = 'P' if '*' in tic[1] else ''
+        caname = tic[1].replace('*', '').strip()
+        tisym = 'I%s%d%s' % (tip, len(caname), caname)
+        if len(tic[2].strip()) > 0:
+            tip = 'P' if '*' in tic[2] else ''
+            caname = tic[2].replace('*', '').strip()
+            tisym += '%s%d%s' % (tip, len(caname), caname)
+
+        timethods = {}
+        for mangled_name in template_methods:
+            method_cursor = template_methods[mangled_name]
+            ipos = mangled_name.index(inst_class_cursor.spelling)
+            ipos = ipos + len(inst_class_cursor.spelling)
+            ti_mangled_name = mangled_name[0:ipos] + tisym + mangled_name[ipos:]
+            timethods[ti_mangled_name] = template_methods[mangled_name]
+            # print(ti_mangled_name, mangled_name, method_cursor.get_num_template_arguments())
+
+        return timethods
 
     def get_signals(self, cursor):
         if cursor.spelling in GenUtil.signals:
@@ -260,10 +285,19 @@ class GenUtil(object):
         return cursor.location.file.name.startswith('/usr/include/qt')
 
     def flat_template_name(self, name):
-        flat_class_name = name.replace('<', '_').replace('>', '_') \
-                          .replace(':', '_').replace('*', '_') \
-                          .replace(',', '_').replace(' ', '')
+        flat_class_name = name.replace('<', '_') \
+                              .replace('>', '_') \
+                              .replace(':', '_').replace('*', '_') \
+                              .replace(',', '_').replace(' ', '')
         return flat_class_name
+
+    def isTempInstClass(self, cursor):
+        exp = '^(Q[A-Z].+)\<([^,]*)[, ]*?([^,]+)?\>'
+        res = re.findall(exp, cursor.type.spelling)
+        # print(123456, res, cursor.type.spelling, cursor.spelling)
+        if len(res) > 0:
+            return res[0]
+        return None
 
     pass
 
