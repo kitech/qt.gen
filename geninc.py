@@ -424,11 +424,13 @@ class GenerateForInc(GenerateBase):
         for arg in ctx.cursor.get_arguments():
             idx += 1
             # self.generateParamDeclExpr(ctx, arg, idx)
-            argv.append('arg%s' % (idx))
+            # argv.append('arg%s' % (idx))
+            prmc = self.generateParamForCall(arg, idx)
+            argv.append(prmc)
             prme = self.generateParamForDecl(arg, idx)
             prmv.append('%s' % (prme))
-        args = ', '.join(argv)
-        prms = ', '.join(prmv)
+        args = ',\n'.join(argv)
+        prms = ',\n'.join(prmv)
 
         ctx.CP.AP('ext', '// %s' % (str(ctx.cursor.location)))
         ctx.CP.AP('ext', '// %s' % (ctx.fn_proto_cpp))
@@ -468,7 +470,7 @@ class GenerateForInc(GenerateBase):
             idx += 1
             # self.generateParamDeclExpr(ctx, arg, idx)
             argv.append('arg%s' % (idx))
-            prme = self.generateParamForDecl(arg, idx)
+            prme = self.generateParamForInline(arg, idx)
             prmv.append('%s' % (prme))
         args = ', '.join(argv)
         prms = ', '.join(prmv)
@@ -570,9 +572,11 @@ class GenerateForInc(GenerateBase):
             # self.generateParamDeclExpr(ctx, arg, idx)
             prme = self.generateParamForDecl(arg, idx)
             prmv.append('%s' % (prme))
-            argv.append('arg%s' % (idx))
-        args = ', '.join(argv)
-        prms = ', '.join(prmv)
+            prmc = self.generateParamForCall(arg, idx)
+            argv.append(prmc)
+            # argv.append('arg%s' % (idx))
+        args = ',\n'.join(argv)
+        prms = ',\n'.join(prmv)
 
         ctx.CP.AP('ext', '// %s' % (str(ctx.cursor.location)))
         ctx.CP.AP('ext', '// %s' % (ctx.fn_proto_cpp))
@@ -641,7 +645,7 @@ class GenerateForInc(GenerateBase):
         for arg in ctx.cursor.get_arguments():
             idx += 1
             # self.generateParamDeclExpr(ctx, arg, idx)
-            prme = self.generateParamForDecl(arg, idx)
+            prme = self.generateParamForInline(arg, idx)
             prmv.append('%s' % (prme))
             argv.append('arg%s' % (idx))
         args = ', '.join(argv)
@@ -745,36 +749,10 @@ class GenerateForInc(GenerateBase):
             ctx.CP.AP('ext', '%s' % (ret_type.spelling))
         return
 
-    def generateParamForDecl(self, arg, idx):
+    def generateParamForInline(self, arg, idx):
         aty = arg.type
         tyname = aty.spelling
-        xdef = aty.get_declaration()
-        # if aty.kind == clidx.TypeKind.TYPEDEF:
-        #     xdef = aty.get_declaration().underlying_typedef_type.get_declaration()
-        if aty.kind == clidx.TypeKind.LVALUEREFERENCE \
-           or aty.kind == clidx.TypeKind.POINTER:
-            xdef = aty.get_pointee().get_declaration()
-
-        def removeQuality(tyname):
-            lst = tyname.replace('*', ' * ').split()
-            nlst = []
-            for e in lst:
-                if e not in ['const', '*', '&']:
-                    nlst.append(e)
-            return ' '.join(nlst)
-
-        if xdef is not None:
-            pdef = xdef.semantic_parent
-            if pdef is not None and pdef.kind == clidx.CursorKind.CLASS_DECL:
-                if '::' not in tyname and tyname[0] != 'Q':
-                    ctyname = removeQuality(tyname)
-                    ntyname = tyname.replace(ctyname, '%s::%s' % (pdef.spelling, ctyname))
-                    print(666891, tyname, '=>', ntyname)
-                    tyname = ntyname
-            if 'AllocationOptions' in tyname:
-                ntyname = 'QArrayData::AllocationOptions'
-                print(666892, tyname, '=>', ntyname)
-                tyname = ntyname
+        tyname = self.hotfix_class_inner_type(aty)
 
         if aty.kind == clidx.TypeKind.LVALUEREFERENCE:
             return '%s arg%s' % (tyname, idx)
@@ -789,8 +767,107 @@ class GenerateForInc(GenerateBase):
             return '%s' % (aty.spelling.replace(' [', ' arg%s[' % (idx)))
         elif aty.kind == clidx.TypeKind.CONSTANTARRAY:
             return '%s' % (aty.spelling.replace(' [', ' arg%s[' % (idx)))
+        elif aty.kind == clidx.TypeKind.RECORD:
+            return '%s arg%s' % (tyname, idx)
+        elif aty.kind == clidx.TypeKind.UNEXPOSED:
+            return '%s arg%s' % (tyname, idx)
+        elif aty.kind == clidx.TypeKind.TYPEDEF:
+            under_type = aty.get_declaration().underlying_typedef_type
+            if under_type.kind == clidx.TypeKind.RECORD:
+                return '%s arg%s' % (tyname, idx)
+            else:
+                return '%s arg%s' % (tyname, idx)
         else:
             return '%s arg%s' % (tyname, idx)
+
+        # 尝试添加正确的#include
+
+        return
+
+    def generateParamForDecl(self, arg, idx):
+        aty = arg.type
+        tyname = aty.spelling
+        tyname = self.hotfix_class_inner_type(aty)
+
+        if aty.kind == clidx.TypeKind.LVALUEREFERENCE:
+            can_type = aty.get_pointee()
+            can_tyname = self.hotfix_class_inner_type(can_type)
+            return '%s* arg%s' % (can_tyname, idx)
+            # return '%s arg%s' % (tyname, idx)
+        elif aty.kind == clidx.TypeKind.RVALUEREFERENCE:
+            can_type = aty.get_pointee()
+            can_tyname = self.hotfix_class_inner_type(can_type)
+            return '%s* arg%s' % (can_tyname, idx)
+            # 引用折叠
+            # return '%s arg%s' % (aty.spelling.replace('&&', '&&'), idx)
+        elif aty.kind == clidx.TypeKind.FUNCTIONNOPROTO:
+            return '%s' % (aty.spelling.replace('(*)', '(*arg%s)' % (idx)))
+        elif aty.kind == clidx.TypeKind.POINTER and '(*)' in aty.spelling:
+            return '%s' % (aty.spelling.replace('(*)', '(*arg%s)' % (idx)))
+        elif aty.kind == clidx.TypeKind.INCOMPLETEARRAY:
+            return '%s' % (aty.spelling.replace(' [', ' arg%s[' % (idx)))
+        elif aty.kind == clidx.TypeKind.CONSTANTARRAY:
+            return '%s' % (aty.spelling.replace(' [', ' arg%s[' % (idx)))
+        elif aty.kind == clidx.TypeKind.RECORD:
+            return '%s* arg%s' % (tyname, idx)
+        elif aty.kind == clidx.TypeKind.UNEXPOSED:
+            return '%s* arg%s' % (tyname, idx)
+        elif aty.kind == clidx.TypeKind.TYPEDEF:
+            under_type = aty.get_declaration().underlying_typedef_type
+            if under_type.kind == clidx.TypeKind.RECORD:
+                return '%s* arg%s' % (tyname, idx)
+            else:
+                return '%s arg%s' % (tyname, idx)
+        else:
+            return '%s arg%s' % (tyname, idx)
+
+        # 尝试添加正确的#include
+
+        return
+
+    def generateParamForCall(self, arg, idx):
+        aty = arg.type
+        tyname = aty.spelling
+        tyname = self.hotfix_class_inner_type(aty)
+
+        if aty.kind == clidx.TypeKind.LVALUEREFERENCE:
+            can_type = aty.get_pointee()
+            can_tyname = self.hotfix_class_inner_type(can_type)
+            return '*((%s*)arg%s)' % (can_tyname, idx)
+            # return '%s arg%s' % (tyname, idx)
+        elif aty.kind == clidx.TypeKind.RVALUEREFERENCE:
+            can_type = aty.get_pointee()
+            can_tyname = self.hotfix_class_inner_type(can_type)
+            return '*((%s*)arg%s)' % (can_tyname, idx)
+            # 引用折叠
+            # return '%s arg%s' % (aty.spelling.replace('&&', '&&'), idx)
+        elif aty.kind == clidx.TypeKind.FUNCTIONNOPROTO:
+            return 'arg%s' % (idx)
+            # return '%s' % (aty.spelling.replace('(*)', '(*arg%s)' % (idx)))
+        elif aty.kind == clidx.TypeKind.POINTER and '(*)' in aty.spelling:
+            return 'arg%s' % (idx)
+            # return '%s' % (aty.spelling.replace('(*)', '(*arg%s)' % (idx)))
+        elif aty.kind == clidx.TypeKind.INCOMPLETEARRAY:
+            return 'arg%s' % (idx)
+            # return '%s' % (aty.spelling.replace(' [', ' arg%s[' % (idx)))
+        elif aty.kind == clidx.TypeKind.CONSTANTARRAY:
+            return 'arg%s' % (idx)
+            # return '%s' % (aty.spelling.replace(' [', ' arg%s[' % (idx)))
+        elif aty.kind == clidx.TypeKind.RECORD:
+            return '*((%s*)arg%s)' % (tyname, idx)
+            # return '%s* arg%s' % (tyname, idx)
+        elif aty.kind == clidx.TypeKind.UNEXPOSED:
+            return '*((%s*)arg%s)' % (tyname, idx)
+            # return '%s* arg%s' % (tyname, idx)
+        elif aty.kind == clidx.TypeKind.TYPEDEF:
+            under_type = aty.get_declaration().underlying_typedef_type
+            if under_type.kind == clidx.TypeKind.RECORD:
+                return '*((%s*)arg%s)' % (tyname, idx)
+                # return '%s* arg%s' % (tyname, idx)
+            else:
+                return 'arg%s' % (idx)
+        else:
+            return 'arg%s' % (idx)
 
         # 尝试添加正确的#include
 
@@ -1008,6 +1085,8 @@ class GenerateForInc(GenerateBase):
         if cty.kind == clidx.TypeKind.LVALUEREFERENCE \
            or cty.kind == clidx.TypeKind.POINTER:
             xdef = cty.get_pointee().get_declaration()
+        if xdef is not None and xdef.kind == clidx.TypeKind.TYPEDEF:
+            xdef = xdef.type.get_declaration()
 
         def removeQuality(tyname):
             lst = tyname.replace('*', ' * ').split()
@@ -1017,16 +1096,15 @@ class GenerateForInc(GenerateBase):
                     nlst.append(e)
             return ' '.join(nlst)
 
-        if xdef is not None:
+        if xdef is not None and xdef.semantic_parent is not None:
             pdef = xdef.semantic_parent
-            if pdef is not None and pdef.kind == clidx.CursorKind.CLASS_DECL:
+            if pdef.kind == clidx.CursorKind.CLASS_DECL \
+               or pdef.kind == clidx.CursorKind.STRUCT_DECL:
                 if '::' not in tyname and tyname[0] != 'Q':
                     ctyname = removeQuality(tyname)
                     ntyname = tyname.replace(ctyname, '%s::%s' % (pdef.spelling, ctyname))
                     print(666890, tyname, '=>', ntyname)
                     tyname = ntyname
-            if 'KeyValues' in tyname:
-                print(666890, tyname, xdef.kind, xdef.spelling, pdef)
         return tyname
 
     def real_type_name(self, atype):
