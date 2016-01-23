@@ -264,6 +264,7 @@ class GenUtil(object):
     # 是这Qt特有的吗？
     # how
     def isDisableCopy(self, cursor):
+        if cursor.spelling == 'QDataStream': return True
         return False
 
     # deleted是针对C++的构造函数

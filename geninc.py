@@ -230,6 +230,7 @@ class GenerateForInc(GenerateBase):
         ctx.fn_proto_cpp = "  // proto: %s %s %s::%s(%s);" % \
                            (ctx.static_str, ctx.ret_type_name_cpp, ctx.full_class_name, ctx.method_name, ctx.params_cpp)
         ctx.has_return = self.methodHasReturn(ctx)
+        ctx.need_return = self.methodNeedReturn(ctx)
 
         # base class
         ctx.base_class = base_class
@@ -417,10 +418,6 @@ class GenerateForInc(GenerateBase):
         # 类内类处理
         full_class_name = ctx.full_class_name
 
-        ctx.CP.AP('ext', '// %s' % (str(ctx.cursor.location)))
-        ctx.CP.AP('ext', '// %s' % (ctx.fn_proto_cpp))
-        ctx.CP.AP('ext', 'extern "C"')
-
         idx = 0
         argv = []
         prmv = []
@@ -433,11 +430,16 @@ class GenerateForInc(GenerateBase):
         args = ', '.join(argv)
         prms = ', '.join(prmv)
 
-        ctx.CP.AP('ext', 'void C%s(%s) {' % (ctx.mangled_name, prms))
+        ctx.CP.AP('ext', '// %s' % (str(ctx.cursor.location)))
+        ctx.CP.AP('ext', '// %s' % (ctx.fn_proto_cpp))
+        ctx.CP.AP('ext', 'extern "C"')
+        self.generateReturnDecl(ctx)
+        ctx.CP.AP('ext', 'C%s(%s) {' % (ctx.mangled_name, prms))
         if ctx.isabstract:
-            ctx.CP.AP('ext', '  // new %s(%s);' % (ctx.full_class_name, args))
+            ctx.CP.AP('ext', '  // auto ret = new %s(%s);' % (ctx.full_class_name, args))
         else:
-            ctx.CP.AP('ext', '  new %s(%s);' % (ctx.full_class_name, args))
+            ctx.CP.AP('ext', '  auto ret = new %s(%s);' % (ctx.full_class_name, args))
+            self.generateReturnImpl(ctx)
         ctx.CP.AP('ext', '}')
 
         return
@@ -556,9 +558,6 @@ class GenerateForInc(GenerateBase):
         if ctx.ret_type_ref and not rvref: ret_type_name = ctx.ret_type_name_cpp.replace('&', '*')
         mangled_name = method_cursor.mangled_name
 
-        ctx.CP.AP('ext', '// %s' % (str(ctx.cursor.location)))
-        ctx.CP.AP('ext', '// %s' % (ctx.fn_proto_cpp))
-
         idx = 0
         argv = []
         prmv = []
@@ -575,14 +574,23 @@ class GenerateForInc(GenerateBase):
         args = ', '.join(argv)
         prms = ', '.join(prmv)
 
+        ctx.CP.AP('ext', '// %s' % (str(ctx.cursor.location)))
+        ctx.CP.AP('ext', '// %s' % (ctx.fn_proto_cpp))
+        ctx.CP.AP('ext', '// %s %s' % (ctx.mangled_name, ctx.cursor.displayname))
         ctx.CP.AP('ext', 'extern "C"')
-        ctx.CP.AP('ext', 'void C%s(%s) {' % (ctx.mangled_name, prms))
+        self.generateReturnDecl(ctx)
+        ctx.CP.AP('ext', 'C%s(%s) {' % (ctx.mangled_name, prms))
+        if ctx.need_return:
+            if ctx.ret_type.kind == clidx.TypeKind.LVALUEREFERENCE:
+                ctx.CP.AP('ext', '  auto& ret =')
+            else:
+                ctx.CP.AP('ext', '  auto ret =')
         if ctx.static:
             ctx.CP.AP('ext', '  %s::%s(%s);' % (ctx.full_class_name, method_name, args))
         else:
             ctx.CP.AP('ext', '  ((%s*)qthis)->%s(%s);' % (ctx.full_class_name, method_name, args))
+        self.generateReturnImpl(ctx)
         ctx.CP.AP('ext', '}')
-        ctx.CP.AP('ext', '// %s %s' % (ctx.mangled_name, ctx.cursor.displayname))
 
         # 尝试添加正确的#include
         self.generateUseForType(ctx, ctx.ret_type)
@@ -650,6 +658,91 @@ class GenerateForInc(GenerateBase):
         # 尝试添加正确的#include
         # self.generateUseForType(ctx, ctx.ret_type)
 
+        return
+
+    def generateReturnImpl(self, ctx):
+        if not ctx.need_return: return
+
+        ret_type = ctx.cursor.result_type
+
+        if ret_type.kind == clidx.TypeKind.VOID:
+            if ctx.ctor:
+                ctx.CP.AP('ext', '  return ret;')
+            else:
+                ctx.CP.AP('ext', '  // return void;')
+        elif ret_type.kind == clidx.TypeKind.POINTER:
+            ctx.CP.AP('ext', '  return (void*)ret;')
+        elif ret_type.kind == clidx.TypeKind.RECORD:
+            if self.gutil.isDisableCopy(ret_type.get_declaration()):
+                ctx.CP.AP('ext', '  return &ret; // return new %s(ret);' % (ret_type.spelling))
+            else:
+                ctx.CP.AP('ext', '  return new %s(ret); // 5' % (ret_type.spelling))
+        elif ret_type.kind == clidx.TypeKind.LVALUEREFERENCE:
+            under_type = ret_type.get_pointee()
+            if under_type.kind == clidx.TypeKind.RECORD:
+                if self.gutil.isDisableCopy(under_type.get_declaration()):
+                    ctx.CP.AP('ext', '  return &ret; // return new %s(ret);' % (under_type.spelling))
+                else:
+                    ctx.CP.AP('ext', '  return new %s(ret); // 4' % (under_type.spelling))
+            else:
+                ctx.CP.AP('ext', '  return ret; // 2 %s' % (under_type.kind))
+        elif ret_type.kind == clidx.TypeKind.TYPEDEF:
+            under_type = ret_type.get_declaration().underlying_typedef_type
+            if under_type.kind == clidx.TypeKind.UNEXPOSED:
+                ctx.CP.AP('ext', '  return (void*)(new (decltype(ret))(ret)); // %s' % (ret_type.spelling))
+            elif under_type.kind == clidx.TypeKind.RECORD:
+                ctx.CP.AP('ext', '  return new %s(ret); // 6' % (ret_type.spelling))
+            elif under_type.kind == clidx.TypeKind.FUNCTIONPROTO:
+                ctx.CP.AP('ext', '  return (void*)ret;')
+            elif under_type.kind == clidx.TypeKind.POINTER:
+                ctx.CP.AP('ext', '  return (void*)ret;')
+            else:
+                ctx.CP.AP('ext', '  return ret; // 1 %s' % (under_type.kind))
+        elif ret_type.kind == clidx.TypeKind.UNEXPOSED:
+            ctx.CP.AP('ext', '  return (void*)(new (decltype(ret))(ret)); // %s' % (ret_type.spelling))
+        else:
+            ctx.CP.AP('ext', '  return ret; // 0 %s' % (ret_type.kind))
+        return
+
+    def generateReturnDecl(self, ctx):
+        if not ctx.need_return:
+            ctx.CP.AP('ext', 'void')
+            return
+
+        ret_type = ctx.cursor.result_type
+        tyname = self.hotfix_class_inner_type(ret_type)
+
+        if ret_type.kind == clidx.TypeKind.VOID:
+            if ctx.ctor:
+                ctx.CP.AP('ext', '%s*' % (ctx.full_class_name))
+            else:
+                ctx.CP.AP('ext', 'void')
+        elif ret_type.kind == clidx.TypeKind.POINTER:
+            ctx.CP.AP('ext', 'void*')
+        elif ret_type.kind == clidx.TypeKind.RECORD:
+            ctx.CP.AP('ext', '%s*' % (ret_type.spelling))
+        elif ret_type.kind == clidx.TypeKind.LVALUEREFERENCE:
+            under_type = ret_type.get_pointee()
+            if under_type.kind == clidx.TypeKind.RECORD:
+                ctx.CP.AP('ext', '%s*' % (under_type.spelling))
+            else:
+                ctx.CP.AP('ext', '%s' % (under_type.spelling))
+        elif ret_type.kind == clidx.TypeKind.TYPEDEF:
+            under_type = ret_type.get_declaration().underlying_typedef_type
+            if under_type.kind == clidx.TypeKind.UNEXPOSED:
+                ctx.CP.AP('ext', 'void*  // unexposed2 %s' % (ret_type.spelling))
+            elif under_type.kind == clidx.TypeKind.RECORD:
+                ctx.CP.AP('ext', '%s*' % (ret_type.spelling))
+            elif under_type.kind == clidx.TypeKind.FUNCTIONPROTO:
+                ctx.CP.AP('ext', 'void*  // %s' % (ret_type.spelling))
+            elif under_type.kind == clidx.TypeKind.POINTER:
+                ctx.CP.AP('ext', 'void*')
+            else:
+                ctx.CP.AP('ext', '%s' % (tyname))
+        elif ret_type.kind == clidx.TypeKind.UNEXPOSED:
+            ctx.CP.AP('ext', 'void*  // unexposed %s' % (ret_type.spelling))
+        else:
+            ctx.CP.AP('ext', '%s' % (ret_type.spelling))
         return
 
     def generateParamForDecl(self, arg, idx):
@@ -756,6 +849,17 @@ class GenerateForInc(GenerateBase):
 
         return argv
 
+    # 对于C封装来说的
+    def methodNeedReturn(self, ctx):
+        ret_type = ctx.cursor.result_type
+
+        if ret_type.kind == clidx.TypeKind.VOID:
+            if ctx.ctor: return True
+            else: return False
+        else:
+            return True
+        return False
+
     def methodHasReturn(self, ctx):
         method_cursor = cursor = ctx.cursor
         class_name = ctx.class_name
@@ -768,22 +872,24 @@ class GenerateForInc(GenerateBase):
             return_type_name = self.resolve_swig_type_name(class_name, return_type)
 
         has_return = True
-        if return_type_name == 'void': has_return = False
+        if return_type.kind == clidx.TypeKind.VOID:
+            has_return = False
+        # if return_type_name == 'void': has_return = False
         # if cursor.spelling == 'buttons':
         #     print(666, has_return, return_type_name, cursor.spelling, return_type.kind, cursor.semantic_parent.spelling)
         #     exit(0)
-        if return_type_name.count('<') >= 2:
-            has_return = False
-        elif return_type_name.count('<') == 1:
-            # print(556, return_type_name, ctx.fn_proto_cpp)
-            xdef = return_type.get_declaration()
-            tic = self.gutil.isTempInstClass(xdef)
-            if tic is not None:
-                class_cursor = self.get_instantiated_class(xdef)
-                mths = self.gutil.get_inst_methods(class_cursor, xdef)
-            has_return = False
+        # if return_type_name.count('<') >= 2:
+        #     has_return = False
+        # elif return_type_name.count('<') == 1:
+        #     # print(556, return_type_name, ctx.fn_proto_cpp)
+        #     xdef = return_type.get_declaration()
+        #     tic = self.gutil.isTempInstClass(xdef)
+        #     if tic is not None:
+        #         class_cursor = self.get_instantiated_class(xdef)
+        #         mths = self.gutil.get_inst_methods(class_cursor, xdef)
+        #     has_return = False
 
-        if '::' in return_type_name: has_return = False
+        # if '::' in return_type_name: has_return = False
         # if "QStringList" in return_type_name: has_return = False
         # if "QObjectList" in return_type_name: has_return = False
         # if 'QAbstract' in return_type_name: has_return = False
@@ -797,21 +903,21 @@ class GenerateForInc(GenerateBase):
         # if 'QJson' in return_type_name: has_return = False
         # if 'QStringRef' in return_type_name: has_return = False
 
-        if 'internalPointer' in method_cursor.spelling: has_return = False
-        if 'rwidth' in method_cursor.spelling: has_return = False
-        if 'rheight' in method_cursor.spelling: has_return = False
-        if 'utf16' == method_cursor.spelling: has_return = False
-        if 'x' == method_cursor.spelling: has_return = False
-        if 'rx' == method_cursor.spelling: has_return = False
-        if 'y' == method_cursor.spelling: has_return = False
-        if 'ry' == method_cursor.spelling: has_return = False
-        if class_name == 'QGenericArgument' and method_cursor.spelling == 'data': has_return = False
-        if class_name == 'QSharedMemory' and method_cursor.spelling == 'constData': has_return = False
-        if class_name == 'QSharedMemory' and method_cursor.spelling == 'data': has_return = False
+        # if 'internalPointer' in method_cursor.spelling: has_return = False
+        # if 'rwidth' in method_cursor.spelling: has_return = False
+        # if 'rheight' in method_cursor.spelling: has_return = False
+        # if 'utf16' == method_cursor.spelling: has_return = False
+        # if 'x' == method_cursor.spelling: has_return = False
+        # if 'rx' == method_cursor.spelling: has_return = False
+        # if 'y' == method_cursor.spelling: has_return = False
+        # if 'ry' == method_cursor.spelling: has_return = False
+        # if class_name == 'QGenericArgument' and method_cursor.spelling == 'data': has_return = False
+        # if class_name == 'QSharedMemory' and method_cursor.spelling == 'constData': has_return = False
+        # if class_name == 'QSharedMemory' and method_cursor.spelling == 'data': has_return = False
         # if class_name == 'QVariant' and method_cursor.spelling == 'constData': has_return = False
         # if class_name == 'QVariant' and method_cursor.spelling == 'data': has_return = False
-        if class_name == 'QThreadStorageData' and method_cursor.spelling == 'set': has_return = False
-        if class_name == 'QThreadStorageData' and method_cursor.spelling == 'get': has_return = False
+        # if class_name == 'QThreadStorageData' and method_cursor.spelling == 'set': has_return = False
+        # if class_name == 'QThreadStorageData' and method_cursor.spelling == 'get': has_return = False
         # if class_name == 'QChar' and method_cursor.spelling == 'unicode': has_return = False
 
         return has_return
@@ -899,9 +1005,9 @@ class GenerateForInc(GenerateBase):
     def hotfix_class_inner_type(self, cty):
         tyname = cty.spelling
         xdef = cty.get_declaration()
-        if aty.kind == clidx.TypeKind.LVALUEREFERENCE \
-           or aty.kind == clidx.TypeKind.POINTER:
-            xdef = aty.get_pointee().get_declaration()
+        if cty.kind == clidx.TypeKind.LVALUEREFERENCE \
+           or cty.kind == clidx.TypeKind.POINTER:
+            xdef = cty.get_pointee().get_declaration()
 
         def removeQuality(tyname):
             lst = tyname.replace('*', ' * ').split()
