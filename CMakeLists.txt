@@ -10,7 +10,7 @@ set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang++)
 
 # max effort for keep inline functions/methods.
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0 -fno-inline")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=1 -fno-inline")
 
 set(CMAKE_AUTOMOC on)
 find_package(Qt5Core)
@@ -19,6 +19,7 @@ find_package(Qt5Widgets)
 find_package(Qt5Network)
 find_package(Qt5Qml)
 find_package(Qt5Quick)
+find_package(Qt5OpenGL)
 
 # set(qt5_inline_core_srcs "src/core/qobject.cxx")
 # set(qt5_inline_gui_srcs "src/gui/qevent.cxx")
@@ -44,12 +45,12 @@ set(all_qt5_inline_srcs
   ${qt5_inline_extra_srcs}
   ${qt5_inline_core_srcs}
   ${qt5_inline_gui_srcs}
-  ${qt5_inline_network_srcs}
-  ${qt5_inline_widgets_srcs}
-  ${qt5_inline_qml_srcs}
-  ${qt5_inline_quick_srcs}
+  # ${qt5_inline_network_srcs}
+  # ${qt5_inline_widgets_srcs}
+  # ${qt5_inline_qml_srcs}
+  # ${qt5_inline_quick_srcs}
   )
 
 add_library(QtInline SHARED ${all_qt5_inline_srcs})
-qt5_use_modules(QtInline Core Gui Widgets Network Qml Quick)
+qt5_use_modules(QtInline Core Gui Widgets Network Qml Quick OpenGL)
 

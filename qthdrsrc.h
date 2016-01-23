@@ -4,8 +4,8 @@
 #include <QtCore>
 #include <QtGui>
 #include <QtWidgets>
-#include <QtNetwork>
-#include <QtQml>
-#include <QtQuick>
+// #include <QtNetwork>
+// #include <QtQml>
+// #include <QtQuick>
 
 #endif

@@ -81,7 +81,7 @@ class GenerateBase(object):
     def get_instantiated_class(self, inst_class_cursor):
         tic = self.gutil.isTempInstClass(inst_class_cursor)
         for it in self.gctx.classes:
-            if it.startswith(tic[0] + '<T'):
+            if it.startswith(tic[0] + '<'):
                 return self.gctx.classes[it]
         return None
 

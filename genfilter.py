@@ -17,6 +17,11 @@ class GenFilter(object):
         cname = cursor.spelling
         if cname.startswith('QMetaTypeId'): return True
         if cname.startswith('QTypeInfo'): return True
+        # 这个也许是因为qt有bug，也许是因为arch上的qt包有问题。QT_OPENGL_ES_2相关。
+        if cname.startswith('QOpenGLFunctions_') and 'CoreBackend' in cname: return True
+        if cname.startswith('QOpenGLFunctions_') and 'DeprecatedBackend' in cname: return True
+        if cname == 'QAbstractOpenGLFunctionsPrivate': return True
+        if cname == 'QOpenGLFunctionsPrivate': return True
         return False
 
     def skipMethod(self, cursor):
@@ -38,6 +43,29 @@ class GenFilter(object):
 class GenFilterInline(GenFilter):
     def __init__(self):
         super(GenFilterInline, self).__init__()
+        return
+
+    def skipClass(self, cursor):
+        if GenFilter.skipClass(self, cursor): return True
+
+        cname = cursor.spelling
+        if cursor.kind == clidx.CursorKind.CLASS_TEMPLATE: return True
+
+        # 对于抽象类，还是要处理的
+
+        return False
+
+    def skipMethod(self, cursor):
+        if GenFilter.skipMethod(self, cursor): return True
+
+        if cursor.spelling.startswith('operator'): return True
+
+        return False
+
+
+class GenFilterInc(GenFilter):
+    def __init__(self):
+        super(GenFilterInc, self).__init__()
         return
 
     def skipClass(self, cursor):
