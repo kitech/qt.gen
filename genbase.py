@@ -143,8 +143,10 @@ class GenMethodContext(object):
         self.method_name = cursor.spelling
         self.method_name_rewrite = self.method_name
         self.mangled_name = cursor.mangled_name
+        # TODO 新的完整C封装实现后，不再需要做替换了。
         if self.ctor: self.mangled_name = self.mangled_name.replace('C1', 'C2')
         if self.dtor: self.mangled_name = self.mangled_name.replace('D0Ev', 'D2Ev')
+        self.cmangled_name = 'C' + self.mangled_name
 
         # shitfix begin
         self.shitfix_error_mangled_name()

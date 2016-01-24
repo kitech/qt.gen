@@ -383,11 +383,13 @@ class GenerateForRust(GenerateBase):
 
         call_params_array = self.generateParamsForCall(class_name, method_name, method_cursor)
         call_params = ', '.join(call_params_array)
-        if not ctx.static and not ctx.ctor: call_params = ('rsthis.qclsinst, ' + call_params).strip(' ,')
+        if not ctx.static and not ctx.ctor:
+            call_params = ('rsthis.qclsinst, ' + call_params).strip(' ,')
 
         extargs_array = self.generateParamsForExtern(class_name, method_name, method_cursor, ctx)
         extargs = ', '.join(extargs_array)
-        if not ctx.static: extargs = ('qthis: u64 /* *mut c_void*/, ' + extargs).strip(' ,')
+        if not ctx.static and not ctx.ctor:
+            extargs = ('qthis: u64 /* *mut c_void*/, ' + extargs).strip(' ,')
 
         ctx.params_cpp = raw_params
         ctx.params_rs = trait_params
@@ -555,11 +557,12 @@ class GenerateForRust(GenerateBase):
         ctx.CP.AP('body', "    let ctysz: c_int = unsafe{%s_Class_Size()};" % (ctx.flat_class_name))
         ctx.CP.AP('body', "    let qthis_ph: u64 = unsafe{calloc(1, ctysz as usize)} as u64;")
         self.generateArgConvExprs(class_name, method_name, method_cursor, ctx)
-        if len(call_params) == 0:
-            ctx.CP.AP('body', "    unsafe {%s(qthis_ph%s)};" % (mangled_name, call_params))
-        else:
-            ctx.CP.AP('body', "    unsafe {%s(qthis_ph, %s)};" % (mangled_name, call_params))
-        ctx.CP.AP('body', "    let qthis: u64 = qthis_ph;")
+        # if len(call_params) == 0:
+        #    ctx.CP.AP('body', "    unsafe {C%s(qthis_ph%s)};" % (mangled_name, call_params))
+        # else:
+        #    ctx.CP.AP('body', "    unsafe {C%s(qthis_ph, %s)};" % (mangled_name, call_params))
+        ctx.CP.AP('body', "    let qthis: u64 = unsafe {C%s(%s)};" % (mangled_name, call_params))
+        # ctx.CP.AP('body', "    let qthis: u64 = qthis_ph;")
         if ctx.has_base:
             # TODO 如果父类再有父类呢，这个初始化不对，需要更强的生成函数
             ctx.CP.AP('body', "    let rsthis = %s{qbase: %s::inheritFrom(qthis), qclsinst: qthis, ..Default::default()};" %
@@ -600,9 +603,9 @@ class GenerateForRust(GenerateBase):
         ctx.CP.AP('body', "    // unsafe{%s()};" % (mangled_name))
         self.generateArgConvExprs(class_name, method_name, method_cursor, ctx)
         if ctx.isinline:
-            ctx.CP.AP('body', "    %s unsafe {%s(%s)};" % (return_piece_code_return, mangled_name, call_params))
+            ctx.CP.AP('body', "    %s unsafe {C%s(%s)};" % (return_piece_code_return, mangled_name, call_params))
         else:
-            ctx.CP.AP('body', "    %s unsafe {%s(%s)};" % (return_piece_code_return, mangled_name, call_params))
+            ctx.CP.AP('body', "    %s unsafe {C%s(%s)};" % (return_piece_code_return, mangled_name, call_params))
 
         def iscvoidstar(tyname): return ' c_void' in tyname and '*' in tyname
         def isrstar(tyname): return '*' in tyname
@@ -827,14 +830,12 @@ class GenerateForRust(GenerateBase):
         if cursor.result_type.kind != clang.cindex.TypeKind.VOID and has_return:
             return_piece_proto = ' -> %s' % (return_type_name)
         extargs = ctx.params_ext
-        # if cursor.kind == clidx.CursorKind.CONSTRUCTOR:
-        #     tpargs = ', '.join(ctx.params_ext_arr)
-        #     ctx.CP.AP('ext', "  fn %s(%s) -> *mut c_void;" % (mangled_name, tpargs))
+        if ctx.ctor: return_piece_proto = ' -> %s' % ('u64')
 
         if ctx.isinline:
-            ctx.CP.AP('ext', "  fn %s(%s)%s;" % (mangled_name, extargs, return_piece_proto))
+            ctx.CP.AP('ext', "  fn C%s(%s)%s;" % (mangled_name, extargs, return_piece_proto))
         else:
-            ctx.CP.AP('ext', "  fn %s(%s)%s;" % (mangled_name, extargs, return_piece_proto))
+            ctx.CP.AP('ext', "  fn C%s(%s)%s;" % (mangled_name, extargs, return_piece_proto))
 
         return has_return, return_type_name
 

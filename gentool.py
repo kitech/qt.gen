@@ -34,7 +34,7 @@ class GenTool:
         self.generator = GenerateForGo()
         self.generator = GenerateForInlineCXX()
         self.generator = GenerateForInc()
-        # self.generator = GenerateForRust()
+        self.generator = GenerateForRust()
         # self.builder = TestBuilderForGo()
         self.genres = {}  # key => True | False
         self.conflib = clang.cindex.conf.lib
@@ -82,6 +82,7 @@ class GenTool:
                 pass
 
         self.gctx.dumpContext()
+        print('Running...', self.generator.__class__.__name__)
         self.generator.setGenContext(self.gctx)
         self.generator.genpass()
         self.gctx.dumpContext()
