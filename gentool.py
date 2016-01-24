@@ -25,6 +25,7 @@ qtmodules = ['QtCore', 'QtGui', 'QtWidgets']
 
 compile_args = ['-x', 'c++', '-std=c++11', '-D__CODE_GENERATOR__', '-D_GLIBCXX_USE_C++11ABI=1']
 compile_args += "-I/usr/include/qt -std=c++11 -DQT_CORE_LIB -DQT_NO_DEBUG -D_GNU_SOURCE -pipe -fno-exceptions -O2 -march=x86-64 -mtune=generic -O2 -pipe -fstack-protector-strong -std=c++0x -Wall -W -D_REENTRANT -fPIC".split(' ')
+for module in qtmodules: compile_args += ['-DQT_%s_LIB' % (module[2:].lower())]
 for module in qtmodules: compile_args += ['-I/usr/include/qt/%s' % (module)]
 
 
@@ -32,7 +33,7 @@ class GenTool:
     def __init__(self):
         self.cursors = {}  # module => clang.cindex.Cursor
         self.generator = GenerateForGo()
-        self.generator = GenerateForInlineCXX()
+        # self.generator = GenerateForInlineCXX()
         self.generator = GenerateForInc()
         self.generator = GenerateForRust()
         # self.builder = TestBuilderForGo()

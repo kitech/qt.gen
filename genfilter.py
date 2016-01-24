@@ -22,6 +22,9 @@ class GenFilter(object):
         if cname.startswith('QOpenGLFunctions_') and 'DeprecatedBackend' in cname: return True
         if cname == 'QAbstractOpenGLFunctionsPrivate': return True
         if cname == 'QOpenGLFunctionsPrivate': return True
+
+        if cursor.kind == clidx.CursorKind.CLASS_TEMPLATE: return True
+
         return False
 
     def skipMethod(self, cursor):
@@ -32,7 +35,16 @@ class GenFilter(object):
         for mm in metamths:
             if cursor.spelling.startswith(mm): return True
 
-        if cursor.spelling in ['tr', 'trUtf8']: return True
+        if cursor.spelling in ['tr', 'trUtf8', 'data_ptr']: return True
+
+        if cursor.spelling.startswith('operator'): return True
+
+        # retype = cursor.result_type
+        # if retype.get_declaration() is not None:
+        #     tdef = retype.get_declaration()
+        #     if tdef.access_specifier in [clidx.AccessSpecifier.PRIVATE,
+        #                                  clidx.AccessSpecifier.PROTECTED]:
+        #         return True
 
         return False
 
@@ -58,8 +70,6 @@ class GenFilterInline(GenFilter):
     def skipMethod(self, cursor):
         if GenFilter.skipMethod(self, cursor): return True
 
-        if cursor.spelling.startswith('operator'): return True
-
         return False
 
 
@@ -80,8 +90,6 @@ class GenFilterInc(GenFilter):
 
     def skipMethod(self, cursor):
         if GenFilter.skipMethod(self, cursor): return True
-
-        if cursor.spelling.startswith('operator'): return True
 
         return False
 
@@ -104,7 +112,6 @@ class GenFilterGo(GenFilter):
     def skipMethod(self, cursor):
         if GenFilter.skipMethod(self, cursor): return True
         if self.gutil.is_pure_virtual_method(cursor): return True
-        if cursor.spelling.startswith('operator'): return True
 
         return False
 
@@ -113,3 +120,13 @@ class GenFilterRust(GenFilter):
     def __init__(self):
         super(GenFilterRust, self).__init__()
         return
+
+    def skipClass(self, cursor):
+        if GenFilter.skipClass(self, cursor): return True
+
+        return False
+
+    def skipMethod(self, cursor):
+        if GenFilter.skipMethod(self, cursor): return True
+
+        return False

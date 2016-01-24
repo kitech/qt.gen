@@ -144,12 +144,6 @@ class GenerateForInc(GenerateBase):
         return
 
     def generateClass(self, class_name, class_cursor, methods, base_class):
-
-        # CP = self.gctx.getCodePager(class_cursor)
-
-        # ctysz = class_cursor.type.get_size()
-        # CP.AP('body', "// class sizeof(%s)=%s\n" % (class_name, ctysz))
-
         # 重载的方法，只生成一次trait
         unique_methods = {}
         for mangled_name in methods:
@@ -178,11 +172,10 @@ class GenerateForInc(GenerateBase):
                or cursor.kind == clidx.CursorKind.DESTRUCTOR:
                 self.generateCtors(ctx)
             else:
+                self.generateMethod(ctx)
                 if ctx.isinline:
                     # 生成inline部分symbole
                     self.generateMethodInline(ctx)
-                else:
-                    self.generateMethod(ctx)
 
         return
 
@@ -668,6 +661,7 @@ class GenerateForInc(GenerateBase):
         if not ctx.need_return: return
 
         ret_type = ctx.cursor.result_type
+        ret_type = self.tyconv.TypeToActual(ret_type)
 
         if ret_type.kind == clidx.TypeKind.VOID:
             if ctx.ctor:
@@ -682,7 +676,12 @@ class GenerateForInc(GenerateBase):
             else:
                 ctx.CP.AP('ext', '  return new %s(ret); // 5' % (ret_type.spelling))
         elif ret_type.kind == clidx.TypeKind.LVALUEREFERENCE:
+            raise '123'
             under_type = ret_type.get_pointee()
+            if under_type.kind == clidx.TypeKind.TYPEDEF:
+                under_type = under_type.get_declaration().underlying_typedef_type
+            if under_type.kind == clidx.TypeKind.UNEXPOSED:
+                under_type = under_type.get_declaration().type
             if under_type.kind == clidx.TypeKind.RECORD:
                 if self.gutil.isDisableCopy(under_type.get_declaration()):
                     ctx.CP.AP('ext', '  return &ret; // return new %s(ret);' % (under_type.spelling))
@@ -691,6 +690,7 @@ class GenerateForInc(GenerateBase):
             else:
                 ctx.CP.AP('ext', '  return ret; // 2 %s' % (under_type.kind))
         elif ret_type.kind == clidx.TypeKind.TYPEDEF:
+            raise '123'
             under_type = ret_type.get_declaration().underlying_typedef_type
             if under_type.kind == clidx.TypeKind.UNEXPOSED:
                 ctx.CP.AP('ext', '  return (void*)(new (decltype(ret))(ret)); // %s' % (ret_type.spelling))
@@ -703,6 +703,7 @@ class GenerateForInc(GenerateBase):
             else:
                 ctx.CP.AP('ext', '  return ret; // 1 %s' % (under_type.kind))
         elif ret_type.kind == clidx.TypeKind.UNEXPOSED:
+            raise '123'
             ctx.CP.AP('ext', '  return (void*)(new (decltype(ret))(ret)); // %s' % (ret_type.spelling))
         else:
             ctx.CP.AP('ext', '  return ret; // 0 %s' % (ret_type.kind))
@@ -714,6 +715,7 @@ class GenerateForInc(GenerateBase):
             return
 
         ret_type = ctx.cursor.result_type
+        ret_type = self.tyconv.TypeToActual(ret_type)
         tyname = self.hotfix_class_inner_type(ret_type)
 
         if ret_type.kind == clidx.TypeKind.VOID:
@@ -726,12 +728,16 @@ class GenerateForInc(GenerateBase):
         elif ret_type.kind == clidx.TypeKind.RECORD:
             ctx.CP.AP('ext', '%s*' % (ret_type.spelling))
         elif ret_type.kind == clidx.TypeKind.LVALUEREFERENCE:
-            under_type = ret_type.get_pointee()
+            raise '123'
+            under_type = self.tyconv.TypeToActual(ret_type)
             if under_type.kind == clidx.TypeKind.RECORD:
-                ctx.CP.AP('ext', '%s*' % (under_type.spelling))
+                ctx.CP.AP('ext', '%s* /* 1 */' % (under_type.spelling))
+            elif under_type.kind == clidx.TypeKind.POINTER:
+                ctx.CP.AP('ext', 'void* /* 2 */')
             else:
-                ctx.CP.AP('ext', '%s' % (under_type.spelling))
+                ctx.CP.AP('ext', '%s /* 3 */' % (under_type.spelling))
         elif ret_type.kind == clidx.TypeKind.TYPEDEF:
+            raise '123'
             under_type = ret_type.get_declaration().underlying_typedef_type
             if under_type.kind == clidx.TypeKind.UNEXPOSED:
                 ctx.CP.AP('ext', 'void*  // unexposed2 %s' % (ret_type.spelling))
@@ -744,6 +750,7 @@ class GenerateForInc(GenerateBase):
             else:
                 ctx.CP.AP('ext', '%s' % (tyname))
         elif ret_type.kind == clidx.TypeKind.UNEXPOSED:
+            raise '123'
             ctx.CP.AP('ext', 'void*  // unexposed %s' % (ret_type.spelling))
         else:
             ctx.CP.AP('ext', '%s' % (ret_type.spelling))

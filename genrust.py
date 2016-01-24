@@ -11,12 +11,14 @@ import clang.cindex as clidx
 from genutil import *
 from typeconv import TypeConv, TypeConvForRust
 from genbase import GenerateBase, GenClassContext, GenMethodContext
+from genfilter import GenFilterRust
 
 
 class GenerateForRust(GenerateBase):
     def __init__(self):
         super(GenerateForRust, self).__init__()
 
+        self.gfilter = GenFilterRust()
         self.modrss = {}  # mod => CodePaper
         #self.cp_modrs = CodePaper()  # 可能的name: main
         #self.cp_modrs.addPoint('main')
@@ -185,24 +187,28 @@ class GenerateForRust(GenerateBase):
             usignals = self.gutil.get_unique_signals(cursor)
             for key in usignals:
                 sigmth = usignals[key]
-                ctx.CP.AP('body', '#[derive(Default)] // for %s_%s' % (class_name, sigmth.spelling))
-                ctx.CP.AP('body', 'pub struct %s_%s_signal{poi:u64}' % (class_name, sigmth.spelling))
+                signame = sigmth.spelling
+                if self.is_conflict_method_name(signame):
+                    signame = self.fix_conflict_method_name(signame)
+
+                ctx.CP.AP('body', '#[derive(Default)] // for %s_%s' % (class_name, signame))
+                ctx.CP.AP('body', 'pub struct %s_%s_signal{poi:u64}' % (class_name, signame))
 
                 ctx.CP.AP('body', 'impl /* struct */ %s {' % (class_name))
                 ctx.CP.AP('body', '  pub fn %s(&self) -> %s_%s_signal {'
-                          % (sigmth.spelling, class_name, sigmth.spelling))
-                ctx.CP.AP('body', '     return %s_%s_signal{poi:self.qclsinst};' % (class_name, sigmth.spelling))
+                          % (sigmth.spelling, class_name, signame))
+                ctx.CP.AP('body', '     return %s_%s_signal{poi:self.qclsinst};' % (class_name, signame ))
                 ctx.CP.AP('body', '  }')
                 ctx.CP.AP('body', '}')
 
-                ctx.CP.AP('body', 'impl /* struct */ %s_%s_signal {' % (class_name, sigmth.spelling))
+                ctx.CP.AP('body', 'impl /* struct */ %s_%s_signal {' % (class_name, signame))
                 ctx.CP.AP('body', '  pub fn connect<T: %s_%s_signal_connect>(self, overload_args: T) {'
-                          % (class_name, sigmth.spelling))
+                          % (class_name, signame))
                 ctx.CP.AP('body', '    overload_args.connect(self);')
                 ctx.CP.AP('body', '  }')
                 ctx.CP.AP('body', '}')
-                ctx.CP.AP('body', 'pub trait %s_%s_signal_connect {' % (class_name, sigmth.spelling))
-                ctx.CP.AP('body', '  fn connect(self, sigthis: %s_%s_signal);' % (class_name, sigmth.spelling))
+                ctx.CP.AP('body', 'pub trait %s_%s_signal_connect {' % (class_name, signame))
+                ctx.CP.AP('body', '  fn connect(self, sigthis: %s_%s_signal);' % (class_name, signame))
                 ctx.CP.AP('body', '}')
                 ctx.CP.AP('body', '')
 
@@ -212,6 +218,10 @@ class GenerateForRust(GenerateBase):
                 if '<' in sigmth.displayname: continue
                 if self.check_skip_params(sigmth): continue
                 ctx = self.createGenMethodContext(sigmth, cursor, base_class, [])
+
+                signame = sigmth.spelling
+                if self.is_conflict_method_name(signame):
+                    signame = self.fix_conflict_method_name(signame)
 
                 trait_params_array = self.generateParamsForTrait(class_name, sigmth.spelling, sigmth, ctx)
                 trait_params = ', '.join(trait_params_array)
@@ -229,7 +239,7 @@ class GenerateForRust(GenerateBase):
 
                 ctx.CP.AP('body', '// %s' % (sigmth.displayname))
                 ctx.CP.AP('body', 'extern fn %s_%s_signal_connect_cb_%s(rsfptr:fn(%s), %s) {'
-                          % (class_name, sigmth.spelling, idx, trait_params, params_ext))
+                          % (class_name, signame, idx, trait_params, params_ext))
                 ctx.CP.AP('body', '  println!("{}:{}", file!(), line!());')
                 rsargs = []
                 for arg in sigmth.get_arguments():
@@ -247,7 +257,7 @@ class GenerateForRust(GenerateBase):
                 ctx.CP.AP('body', '  rsfptr(%s);' % (','.join(rsargs)))
                 ctx.CP.AP('body', '}')
                 ctx.CP.AP('body', 'extern fn %s_%s_signal_connect_cb_box_%s(rsfptr_raw:*mut Box<Fn(%s)>, %s) {'
-                          % (class_name, sigmth.spelling, idx, trait_params, params_ext))
+                          % (class_name, signame, idx, trait_params, params_ext))
                 ctx.CP.AP('body', '  println!("{}:{}", file!(), line!());')
                 ctx.CP.AP('body', '  let rsfptr = unsafe{Box::from_raw(rsfptr_raw)};')
 
@@ -269,15 +279,15 @@ class GenerateForRust(GenerateBase):
                 ctx.CP.AP('body', '}')
                 # impl xxx for fn(%s)
                 ctx.CP.AP('body', 'impl /* trait */ %s_%s_signal_connect for fn(%s) {'
-                          % (class_name, sigmth.spelling, trait_params))
-                ctx.CP.AP('body', '  fn connect(self, sigthis: %s_%s_signal) {' % (class_name, sigmth.spelling))
+                          % (class_name, signame, trait_params))
+                ctx.CP.AP('body', '  fn connect(self, sigthis: %s_%s_signal) {' % (class_name, signame))
                 ctx.CP.AP('body', '    // do smth...')
                 ctx.CP.AP('body', '    // self as u64; // error for Fn, Ok for fn')
                 ctx.CP.AP('body', '    self as *mut c_void as u64;')
                 ctx.CP.AP('body', '    self as *mut c_void;')
                 ctx.CP.AP('body', '    let arg0 = sigthis.poi as *mut c_void;')
                 ctx.CP.AP('body', '    let arg1 = %s_%s_signal_connect_cb_%s as *mut c_void;'
-                          % (class_name, sigmth.spelling, idx))
+                          % (class_name, signame, idx))
                 ctx.CP.AP('body', '    let arg2 = self as *mut c_void;')
                 # ctx.CP.AP('body', '    // %s_%s_signal_connect_cb_%s' % (class_name, sigmth.spelling, idx))
                 ctx.CP.AP('body', '    unsafe {%s_SlotProxy_connect_%s(arg0, arg1, arg2)};'
@@ -286,14 +296,14 @@ class GenerateForRust(GenerateBase):
                 ctx.CP.AP('body', '}')
                 # impl xx for Box<fn(%s)>
                 ctx.CP.AP('body', 'impl /* trait */ %s_%s_signal_connect for Box<Fn(%s)> {'
-                          % (class_name, sigmth.spelling, trait_params))
-                ctx.CP.AP('body', '  fn connect(self, sigthis: %s_%s_signal) {' % (class_name, sigmth.spelling))
+                          % (class_name, signame, trait_params))
+                ctx.CP.AP('body', '  fn connect(self, sigthis: %s_%s_signal) {' % (class_name, signame))
                 ctx.CP.AP('body', '    // do smth...')
                 ctx.CP.AP('body', '    // Box::into_raw(self) as u64;')
                 ctx.CP.AP('body', '    // Box::into_raw(self) as *mut c_void;')
                 ctx.CP.AP('body', '    let arg0 = sigthis.poi as *mut c_void;')
                 ctx.CP.AP('body', '    let arg1 = %s_%s_signal_connect_cb_box_%s as *mut c_void;'
-                          % (class_name, sigmth.spelling, idx))
+                          % (class_name, signame, idx))
                 ctx.CP.AP('body', '    let arg2 = Box::into_raw(Box::new(self)) as *mut c_void;')
                 # ctx.CP.AP('body', '    // %s_%s_signal_connect_cb_%s' % (class_name, sigmth.spelling, idx))
                 ctx.CP.AP('body', '    unsafe {%s_SlotProxy_connect_%s(arg0, arg1, arg2)};'
@@ -450,7 +460,7 @@ class GenerateForRust(GenerateBase):
 
         if ctx.has_base:
             # ctx.CP.AP('body', '/*')
-            ctx.CP.AP('body', 'impl Deref for %s {' % (ctx.class_name))
+            ctx.CP.AP('body', 'impl Deref for %s {' % (ctx.flat_class_name))
             ctx.CP.AP('body', '  type Target = %s;' % (ctx.base_class_name))
             ctx.CP.AP('body', '')
             ctx.CP.AP('body', '  fn deref(&self) -> &%s {' % (ctx.base_class_name))
@@ -461,7 +471,7 @@ class GenerateForRust(GenerateBase):
 
         if ctx.has_base:
             # ctx.CP.AP('body', '/*')
-            ctx.CP.AP('body', 'impl AsRef<%s> for %s {' % (ctx.base_class_name, ctx.class_name))
+            ctx.CP.AP('body', 'impl AsRef<%s> for %s {' % (ctx.base_class_name, ctx.flat_class_name))
             ctx.CP.AP('body', '  fn as_ref(& self) -> & %s {' % (ctx.base_class_name))
             ctx.CP.AP('body', '    return & self.qbase;')
             ctx.CP.AP('body', '  }')
@@ -857,20 +867,21 @@ class GenerateForRust(GenerateBase):
         # if cursor.spelling == 'buttons':
         #     print(666, has_return, return_type_name, cursor.spelling, return_type.kind, cursor.semantic_parent.spelling)
         #     exit(0)
+        if '::' in return_type_name: has_return = False
         if '<' in return_type_name: has_return = False
         if "QStringList" in return_type_name: has_return = False
         if "QObjectList" in return_type_name: has_return = False
-        if '::' in return_type_name: has_return = False
-        if 'QAbstract' in return_type_name: has_return = False
-        if 'QMetaObject' in return_type_name: has_return = False
-        if 'QOpenGL' in return_type_name: has_return = False
+        # if 'QAbstract' in return_type_name: has_return = False
+        # if 'QMetaObject' in return_type_name: has_return = False
+        # if 'QOpenGL' in return_type_name: has_return = False
+        if 'QAbstractOpenGLFunctionsPrivate' in return_type_name: has_return = False
         if 'QGraphics' in return_type_name: has_return = False
         if 'QPlatform' in return_type_name: has_return = False
         if 'QFunctionPointer' in return_type_name: has_return = False
         if 'QTextEngine' in return_type_name: has_return = False
         if 'QTextDocumentPrivate' in return_type_name: has_return = False
-        if 'QJson' in return_type_name: has_return = False
-        if 'QStringRef' in return_type_name: has_return = False
+        # if 'QJson' in return_type_name: has_return = False
+        # if 'QStringRef' in return_type_name: has_return = False
         if 'QQmlComponentAttached' in return_type_name: has_return = False
         if 'QV8Engine' in return_type_name: has_return = False
 
@@ -1029,6 +1040,8 @@ class GenerateForRust(GenerateBase):
 
     # @return True | False
     def check_skip_method(self, cursor):
+        if True: return self.gfilter.skipMethod(cursor)
+
         method_name = cursor.spelling
         if method_name.startswith('operator'):
             # print("Omited operator method: " + mth)
@@ -1068,54 +1081,12 @@ class GenerateForRust(GenerateBase):
         # _ZN7QString4dataEv, _ZNK7QString4dataEv
         # TODO 这种情况还挺多的。函数名相同，返回值不回的重载方法 。需要想办法处理。
         # 这是支持方式，http://stackoverflow.com/questions/24594374/overload-operators-with-different-rhs-type
-        # widgets
-        # if mangled_name == '_ZN8QMenuBar7addMenuEP5QMenu': return True
-        # if mangled_name == '_ZN5QMenu7addMenuEPS_': return True
-        # if mangled_name == '_ZN11QMainWindow10addToolBarEP8QToolBar': return True
-        # if mangled_name == '_ZNK15QCalendarWidget14dateTextFormatEv': return True
-        # if mangled_name == '_ZN9QScroller8scrollerEPK7QObject': return True
-        # if mangled_name == '_ZN12QApplication8setStyleERK7QString': return True
-        # if method_name == 'mapToScene': return True  # 重载的方法太多
-        # if method_name == 'mapFromScene': return True  # 重载的方法太多
-        # if method_name == 'mapToItem': return True
-        # if method_name == 'mapToParent': return True
-        # if method_name == 'mapFromItem': return True
-        # if method_name == 'mapFromParent': return True
-        # if method_name == 'resolve': return True  # QFont::resolve
-        # if method_name == 'map': return True  # QTransform::map
-        # if method_name == 'mapRect': return True  # QTransform::mapRect
-        # if method_name == 'point': return True  # QPolygon::point
-        # if method_name == 'boundingRect': return True  # QPainter::boundingRect
-        # if method_name == 'borderColor': return True  # QOpenGLTexture::borderColor
-        # if method_name == 'trueMatrix': return True  # QPixmap::trueMatrix
-        # if method_name == 'insertRow': return True  # QStandardItemModel::insertRow
-        # gui
-        class_name = cursor.semantic_parent.spelling
-        # if method_name == 'read' and class_name == 'QImageReader': return True
-        # if method_name == 'find' and class_name == 'QPixmapCache': return True
-        # core
-        # if class_name == 'QChar' and method_name == 'toUpper': return True
-        # if class_name == 'QChar' and method_name == 'toLower': return True
-        # if class_name == 'QChar' and method_name == 'mirroredChar': return True
-        # if class_name == 'QChar' and method_name == 'toTitleCase': return True
-        # if class_name == 'QChar' and method_name == 'toCaseFolded': return True
-        # if class_name == 'QByteArray' and method_name == 'fill': return True
-        # if class_name == 'QBitArray' and method_name == 'fill': return True
-        # if class_name == 'QIODevice' and method_name == 'read': return True
-        # if class_name == 'QIODevice' and method_name == 'peek': return True
-        # if class_name == 'QIODevice' and method_name == 'readLine': return True
-        # if class_name == 'QFileSelector' and method_name == 'select': return True
-        # if class_name == 'QTextDecoder' and method_name == 'toUnicode': return True
-        # if class_name == 'QCryptographicHash' and method_name == 'addData': return True
-        # if class_name == 'QMessageAuthenticationCode' and method_name == 'addData': return True
-
-        # 实现不知道怎么fix了，已经fix，原来是给clang.cindex.parse中的-I不全，导致找不到类型。
-        # fixmths3 = ['setQueryItems']
-        # if method_name in fixmths3: return True
 
         return False
 
     def check_skip_class(self, class_cursor):
+        if True: return self.gfilter.skipClass(class_cursor)
+
         cursor = class_cursor
         name = cursor.spelling
         dname = cursor.displayname

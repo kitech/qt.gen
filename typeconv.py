@@ -54,7 +54,7 @@ class TypeConv(object):
             return self.TypeToCanonical(non_pointer_type)
 
         if cxxtype.kind == clidx.TypeKind.TYPEDEF:
-            under_type = cxxtype.get_declaration().under_type()
+            under_type = cxxtype.get_declaration().underlying_typedef_type
             return self.TypeToCanonical(under_type)
 
         return cxxtype
@@ -63,6 +63,36 @@ class TypeConv(object):
         if cxxtype.kind == clidx.TypeKind.TYPEDEF:
             under_type = cxxtype.get_declaration().underlying_typedef_type
             return self.TypeToConvertable(under_type)
+        return cxxtype
+
+    # 与TypeToCanonical不同，不解析指针
+    # 不能失真的转换
+    def TypeToActual(self, cxxtype):
+        # cxxtype = cxxtype.get_canonical()  # 这个一般不管用
+        cxxtype.is_const_qualified()  # 这个函数也不管用
+
+        if cxxtype.kind == clidx.TypeKind.LVALUEREFERENCE:
+            under_type = cxxtype.get_pointee()
+            nty = self.TypeToActual(under_type)
+            return nty
+
+        if cxxtype.kind == clidx.TypeKind.RVALUEREFERENCE:
+            under_type = cxxtype.get_pointee()
+            nty = self.TypeToActual(under_type)
+            return nty
+
+        if cxxtype.kind == clidx.TypeKind.TYPEDEF:
+            under_type = cxxtype.get_declaration().underlying_typedef_type
+            nty = self.TypeToActual(under_type)
+            return nty
+
+        # 原来UNEXPOSED 就是编译时常见的未定义的 类型
+        # TODO 查找一下哪些UNEXPOSED的
+        if cxxtype.kind == clidx.TypeKind.UNEXPOSED:
+            under_type = cxxtype.get_declaration().type
+            nty = self.TypeToActual(under_type)
+            return nty
+
         return cxxtype
 
     def TypeCanName(self, cxxtype):
@@ -135,11 +165,15 @@ class TypeConv(object):
         lno = tb[len(tb) - 2][1]
         fn = tb[len(tb) - 2 ][2]
         posig = '%s:%s' % (fn, lno)
+
         print(posig, ctx.orig_type.spelling, ctx.orig_type.kind, ctx.orig_type_name, "\n",
               ctx.convable_type.kind, ctx.convable_type_name, "cva<-\n->can",
               ctx.can_type.kind, ctx.can_type_name,
               'const:', ctx.const, ctx.pointer_level, ctx.cursor.spelling, ctx.cursor.location)
 
+        tdef = ctx.orig_type.get_declaration()
+        if tdef is not None:
+            print(tdef.kind, tdef.location, tdef.type.kind)
         if exit_: raise 'dumpctx traced.'
         return
 
@@ -180,6 +214,8 @@ class TypeConvForRust(TypeConv):
             return self.Type2RustRetPointer(ctx)
 
         if ctx.convable_type.kind == clidx.TypeKind.LVALUEREFERENCE:
+            return self.Type2RustRetLVRef(ctx)
+        if ctx.convable_type.kind == clidx.TypeKind.RVALUEREFERENCE:
             return self.Type2RustRetLVRef(ctx)
 
         if ctx.convable_type.kind == clidx.TypeKind.VOID:
@@ -391,22 +427,34 @@ class TypeConvForRust(TypeConv):
         # ### UNEXPOSED
         # maybe TODO，可能是python-clang绑定功能不全啊，模板解析不出来
         if cxxtype.kind == clidx.TypeKind.UNEXPOSED:
+            if ctx.can_type.kind == clidx.TypeKind.ENUM:
+                return 'i32'
+            if cxxtype.get_declaration() is not None:
+                tdef = cxxtype.get_declaration()
+                if tdef.kind == clidx.CursorKind.CLASS_DECL:
+                    return self.TypeCXX2Rust(tdef.type, tdef)
+                if tdef.kind == clidx.CursorKind.STRUCT_DECL:
+                    return self.TypeCXX2Rust(tdef.type, tdef)
+
             import re
-            template_exp = '([a-zA-Z]+)\<([ a-zA-Z]+)([\*])?\>'
+            template_exp = '([a-zA-Z]+)\<([ a-zA-Z:]+)([\*])?\>'
             template_res = re.findall(template_exp, ctx.can_type_name)
 
-            if cxxtype.spelling.startswith('Qt::') or \
-               (cxxtype.spelling.startswith('Q') and '::' in cxxtype.spelling):
+            if ctx.can_type_name.startswith('Qt::'):
                 return 'i32'
             if cxxtype.spelling == '::quintptr':
                 return '*mut i32'
-            if cxxtype.spelling.startswith('std::initializer_list'):
+            if ctx.can_type_name.startswith('std::initializer_list'):
                 return ctx.can_type_name.replace('std::initializer_list', 'QList')
 
             if ctx.can_type.kind == clidx.TypeKind.RECORD:
+                if ctx.can_type_name.startswith('QFlags<'):
+                    return 'i32'
                 # (QList, QAction, *)
                 # (QVector, unsigned int)
                 # print(template_res, template_res[0], len(template_res[0]))
+                if len(template_res) == 0:
+                    self.dumpContext(ctx)
                 if len(template_res[0]) == 2 or len(template_res[0]) == 3:
                     cls = template_res[0][0].strip()
                     inty = template_res[0][1].strip()
@@ -475,11 +523,11 @@ class TypeConvForRust(TypeConv):
             if ctx.can_type.kind == clidx.TypeKind.WCHAR:
                 return mut_or_const + 'wchar_t'
             if ctx.can_type.kind == clidx.TypeKind.ENUM:
-                return mut_or_const + 'c_i32'
+                return mut_or_const + 'c_int'
             self.dumpContext(ctx)
 
         if cxxtype.kind == clidx.TypeKind.RVALUEREFERENCE:
-            return '*mut %s' % (cxxtype.spelling.split(' ')[0])
+            return '*mut %s' % ('c_void')
 
         if cxxtype.kind == clidx.TypeKind.ENUM:
             return 'c_int'
@@ -512,12 +560,26 @@ class TypeConvForRust(TypeConv):
 
         # maybe TODO
         if cxxtype.kind == clidx.TypeKind.UNEXPOSED:
+            if ctx.can_type.kind == clidx.TypeKind.ENUM:
+                return 'c_int'
+            if ctx.can_type.kind == clidx.TypeKind.UINT:
+                return 'c_int'
+            if cxxtype.get_declaration() is not None:
+                tdef = cxxtype.get_declaration()
+                if tdef.kind == clidx.CursorKind.TYPEDEF_DECL:
+                    return self.TypeCXX2RustExtern(tdef.type, tdef)
+                if tdef.kind == clidx.CursorKind.CLASS_DECL:
+                    return self.TypeCXX2RustExtern(tdef.type, tdef)
+                if tdef.kind == clidx.CursorKind.STRUCT_DECL:
+                    return self.TypeCXX2RustExtern(tdef.type, tdef)
+
             import re
-            template_exp = '([a-zA-Z]+)\<([ a-zA-Z]+)([\*])?\>'
+            template_exp = '([a-zA-Z]+)\<([ a-zA-Z:]+)([\*])?\>'
             template_res = re.findall(template_exp, ctx.can_type_name)
 
-            if cxxtype.spelling.startswith('Qt::') or \
-               (cxxtype.spelling.startswith('Q') and '::' in cxxtype.spelling):
+            # like QAccessible::State
+            if ctx.can_type_name.startswith('Qt::') or (
+                    ctx.can_type_name[0] == 'Q' and '::' in ctx.can_type_name):
                 return 'c_int'
             if cxxtype.spelling == '::quintptr':
                 return '*mut c_uint'
@@ -539,10 +601,15 @@ class TypeConvForRust(TypeConv):
                     return ctx.can_type_name
                 if 'QGenericMatrix<' in ctx.can_type_name:
                     return ctx.can_type_name
+                if 'QFlags<' in ctx.can_type_name:
+                    return ctx.can_type_name
 
             if ctx.can_type.kind == clidx.TypeKind.RECORD:
                 # (QList, QAction, *)
                 # (QVector, unsigned int)
+                print(template_res, ctx.can_type_name)
+                if len(template_res) == 0:
+                    self.dumpContext(ctx)
                 # print(template_res, template_res[0], len(template_res[0]))
                 if len(template_res[0]) == 2 or len(template_res[0]) == 3:
                     cls = template_res[0][0].strip()
