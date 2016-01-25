@@ -9,4 +9,7 @@
 // #include <QtQml>
 // #include <QtQuick>
 
+// template class QFlags<int>;
+// #include <explicit_instantiate_templates.h>
+
 #endif

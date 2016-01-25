@@ -286,18 +286,37 @@ class GenUtil(object):
         return cursor.location.file.name.startswith('/usr/include/qt')
 
     def flat_template_name(self, name):
-        flat_class_name = name.replace('<', '_') \
-                              .replace('>', '_') \
-                              .replace(':', '_').replace('*', '_') \
-                              .replace(',', '_').replace(' ', '')
+        flat_class_name = name.replace('<', 'L') \
+                              .replace('>', 'G') \
+                              .replace(':', '_').replace('*', 'P') \
+                              .replace(',', '_').replace(' ', 'E')
         return flat_class_name
 
     def isTempInstClass(self, cursor):
-        exp = '^(Q[A-Z].+)\<([^,]*)[, ]*?([^,]+)?\>'
+        exp = '^(Q[A-Z].+)\<([^,]*)[, ]*?([^,]+)?[, ]*?([^,]+)?\>'
         res = re.findall(exp, cursor.type.spelling)
         # print(123456, res, cursor.type.spelling, cursor.spelling)
         if len(res) > 0:
             return res[0]
+        return None
+
+    def getTempInstClass(self, cursor):
+        c = self.conflib.clang_getSpecializedCursorTemplate(cursor)
+        return c
+
+    def getNumTempArgs(self, cursor):
+        num = 0
+        for c in cursor.get_children():
+            if c.kind == clidx.CursorKind.TEMPLATE_TYPE_PARAMETER:
+                num += 1
+        return num
+
+    def getTempArg(self, cursor, idx):
+        num = 0
+        for c in cursor.get_children():
+            if c.kind == clidx.CursorKind.TEMPLATE_TYPE_PARAMETER:
+                if num == idx: return c
+                num += 1
         return None
 
     pass

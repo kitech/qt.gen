@@ -57,7 +57,6 @@ class GenTool:
             idx += 1
             # nmodule = self.gutil.get_decl_module(c)
             # if nmodule != module: continue
-
             # if 'QMetaObject' in c.spelling: print(c.kind, c.spelling, c.displayname, c.is_definition(), c.location)
             if c.kind == clidx.CursorKind.CLASS_TEMPLATE and c.is_definition():
                 # print(c.kind, c.spelling, c.displayname, c.location)

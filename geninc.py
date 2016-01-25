@@ -114,6 +114,9 @@ class GenerateForInc(GenerateBase):
         self.genpass_init_code_paper()
         self.genpass_code_header()
 
+        print('gen ticlasses...')
+        # self.genpass_ticlasses()
+
         print('gen classes...')
         self.genpass_classes()
 
@@ -129,12 +132,95 @@ class GenerateForInc(GenerateBase):
         self.genpass_write_codes()
         return
 
+    def genpass_ticlasses(self):
+        self.genpass_ticlasses_travise_find()
+        return
+
+    def genpass_ticlasses_travise_find(self):
+        ticlasses = {}
+        for key in self.gctx.classes:
+            class_cursor = self.gctx.classes[key]
+            if self.check_skip_class(class_cursor): continue
+
+            class_name = class_cursor.type.spelling
+            methods = self.gutil.get_methods(class_cursor)
+
+            # self.gutil.ticlasses[cty.spelling] = xdef
+            # class_cursor = self.get_instantiated_class(xdef)
+            # mths = self.gutil.get_inst_methods(class_cursor, xdef)
+
+            if class_name.count('<') > 0 and class_name.startswith('Q'):
+                # print('maybe a instantiated class 1:', class_name, class_cursor.kind)
+                ticlasses[class_name] = class_cursor
+
+            for mangled_name in methods:
+                method_cursor = methods[mangled_name]
+                rety = method_cursor.result_type
+                arety = self.tyconv.TypeToActual(rety)
+                if arety.spelling.count('<') > 0 and arety.spelling.startswith('Q'):
+                    # print('maybe a instantiated class 2:', arety.spelling, arety.kind)
+                    ticlasses[arety.spelling] = arety.get_declaration()
+
+                for arg in method_cursor.get_arguments():
+                    pty = arg.type
+                    apty = self.tyconv.TypeToActual(pty)
+                    if apty.spelling.count('<') > 0 and apty.spelling.startswith('Q'):
+                        tdcl = apty.get_declaration()
+                        # print('maybe a instantiated class:', apty.spelling, apty.kind, tdcl.kind, tdcl.location)
+                        ticlasses[apty.spelling] = tdcl
+
+        print('ticlasses count:', len(ticlasses))
+        cnt = 0
+        for tic in ticlasses:
+            if not tic.startswith('QFlags<'): cnt += 1
+        print('ticlasses without QFlags:', cnt)
+
+        grouped = {}
+        for tic in ticlasses:
+            if tic.count('<') > 1: print('too hard:', tic)
+            tclstp = self.gutil.isTempInstClass(ticlasses[tic])
+            cname = tic.split('<')[0]
+            if cname not in grouped:
+                grouped[cname] = [ticlasses[tic]]
+            else:
+                grouped[cname].append(ticlasses[tic])
+
+        print('ticlasses grouped:', len(grouped), grouped.keys())
+        for cname in grouped:
+            if cname != 'QList': continue
+            iclses = grouped[cname]
+            # print(iclses)
+            tclstp = self.gutil.isTempInstClass(iclses[0])
+            # print(tclstp)
+            tcls = self.get_instantiated_class(iclses[0])
+            mths = self.gutil.get_methods(tcls)
+
+            # for c in tcls.get_children():
+            #    print(c.kind, c.displayname, tcls.displayname, c.mangled_name)
+            print('mth count:', len(mths), self.gutil.getNumTempArgs(tcls), tclstp)
+            for m in mths:
+                c = mths[m]
+                # if self.check_skip_method(c): continue
+                # if c.kind == clidx.CursorKind.CONSTRUCTOR: continue
+                # if c.kind == clidx.CursorKind.DESTRUCTOR: continue
+                # print(c.kind, cname, c.spelling, c.mangled_name)
+                for icls in iclses:
+                    # if icls.type.spelling == 'QFuture<void>':continue
+                    tpl_args = self.gutil.isTempInstClass(icls)
+                    imname = self.gutil.flat_template_name('%s<%s>' %
+                        (c.mangled_name, ','.join(tpl_args[1:]).strip()))
+                    print(c.kind, cname, c.spelling, c.mangled_name, imname, icls.type.spelling, c.displayname)
+                    pass
+
+        raise '123'
+        return
+
     def genpass_classes(self):
         for key in self.gctx.classes:
             cursor = self.gctx.classes[key]
             if self.check_skip_class(cursor): continue
 
-            class_name = cursor.displayname
+            class_name = cursor.type.spelling
             methods = self.gutil.get_methods(cursor)
             bases = self.gutil.get_base_class(cursor)
             base_class = bases[0] if len(bases) > 0 else None
@@ -677,34 +763,10 @@ class GenerateForInc(GenerateBase):
                 ctx.CP.AP('ext', '  return new %s(ret); // 5' % (ret_type.spelling))
         elif ret_type.kind == clidx.TypeKind.LVALUEREFERENCE:
             raise '123'
-            under_type = ret_type.get_pointee()
-            if under_type.kind == clidx.TypeKind.TYPEDEF:
-                under_type = under_type.get_declaration().underlying_typedef_type
-            if under_type.kind == clidx.TypeKind.UNEXPOSED:
-                under_type = under_type.get_declaration().type
-            if under_type.kind == clidx.TypeKind.RECORD:
-                if self.gutil.isDisableCopy(under_type.get_declaration()):
-                    ctx.CP.AP('ext', '  return &ret; // return new %s(ret);' % (under_type.spelling))
-                else:
-                    ctx.CP.AP('ext', '  return new %s(ret); // 4' % (under_type.spelling))
-            else:
-                ctx.CP.AP('ext', '  return ret; // 2 %s' % (under_type.kind))
         elif ret_type.kind == clidx.TypeKind.TYPEDEF:
             raise '123'
-            under_type = ret_type.get_declaration().underlying_typedef_type
-            if under_type.kind == clidx.TypeKind.UNEXPOSED:
-                ctx.CP.AP('ext', '  return (void*)(new (decltype(ret))(ret)); // %s' % (ret_type.spelling))
-            elif under_type.kind == clidx.TypeKind.RECORD:
-                ctx.CP.AP('ext', '  return new %s(ret); // 6' % (ret_type.spelling))
-            elif under_type.kind == clidx.TypeKind.FUNCTIONPROTO:
-                ctx.CP.AP('ext', '  return (void*)ret;')
-            elif under_type.kind == clidx.TypeKind.POINTER:
-                ctx.CP.AP('ext', '  return (void*)ret;')
-            else:
-                ctx.CP.AP('ext', '  return ret; // 1 %s' % (under_type.kind))
         elif ret_type.kind == clidx.TypeKind.UNEXPOSED:
             raise '123'
-            ctx.CP.AP('ext', '  return (void*)(new (decltype(ret))(ret)); // %s' % (ret_type.spelling))
         else:
             ctx.CP.AP('ext', '  return ret; // 0 %s' % (ret_type.kind))
         return
@@ -729,29 +791,10 @@ class GenerateForInc(GenerateBase):
             ctx.CP.AP('ext', '%s*' % (ret_type.spelling))
         elif ret_type.kind == clidx.TypeKind.LVALUEREFERENCE:
             raise '123'
-            under_type = self.tyconv.TypeToActual(ret_type)
-            if under_type.kind == clidx.TypeKind.RECORD:
-                ctx.CP.AP('ext', '%s* /* 1 */' % (under_type.spelling))
-            elif under_type.kind == clidx.TypeKind.POINTER:
-                ctx.CP.AP('ext', 'void* /* 2 */')
-            else:
-                ctx.CP.AP('ext', '%s /* 3 */' % (under_type.spelling))
         elif ret_type.kind == clidx.TypeKind.TYPEDEF:
             raise '123'
-            under_type = ret_type.get_declaration().underlying_typedef_type
-            if under_type.kind == clidx.TypeKind.UNEXPOSED:
-                ctx.CP.AP('ext', 'void*  // unexposed2 %s' % (ret_type.spelling))
-            elif under_type.kind == clidx.TypeKind.RECORD:
-                ctx.CP.AP('ext', '%s*' % (ret_type.spelling))
-            elif under_type.kind == clidx.TypeKind.FUNCTIONPROTO:
-                ctx.CP.AP('ext', 'void*  // %s' % (ret_type.spelling))
-            elif under_type.kind == clidx.TypeKind.POINTER:
-                ctx.CP.AP('ext', 'void*')
-            else:
-                ctx.CP.AP('ext', '%s' % (tyname))
         elif ret_type.kind == clidx.TypeKind.UNEXPOSED:
             raise '123'
-            ctx.CP.AP('ext', 'void*  // unexposed %s' % (ret_type.spelling))
         else:
             ctx.CP.AP('ext', '%s' % (ret_type.spelling))
         return
