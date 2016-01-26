@@ -383,7 +383,9 @@ class GenerateForRust(GenerateBase):
         method_name = ctx.method_name
 
         ctx.ret_type_name_rs = self.tyconv.Type2RustRet(ctx.ret_type, method_cursor)
-        ctx.ret_type_name_ext = self.tyconv.TypeCXX2RustExtern(ctx.ret_type, method_cursor)
+        if ctx.ret_type_name_rs.count('<') > 0:
+            ctx.ret_type_name_rs = self.gutil.flat_template_name(ctx.ret_type_name_rs)
+        ctx.ret_type_name_ext = self.tyconv.TypeCXX2RustExtern(ctx.ret_type, method_cursor, True)
 
         raw_params_array = self.generateParamsRaw(class_name, method_name, method_cursor)
         raw_params = ', '.join(raw_params_array)
@@ -595,8 +597,30 @@ class GenerateForRust(GenerateBase):
         return_piece_code_return = ''
         return_type_name_rs = '()'
         if has_return:
-            return_type_name_rs = ctx.ret_type_name_rs
+            # return_type_name_rs = ctx.ret_type_name_rs
+            # # fix template, just return u64
+            # # if return_type_name_rs.count('<') > 0: return_type_name_rs = 'u64'
+            # acty = self.tyconv.TypeToActual(ctx.ret_type)
+            # acty = self.tyconv.TypeToCanonical(acty)
+            # acty = self.tyconv.TypeToActual(ctx.ret_type)  # drop const
+            # acty = self.tyconv.TypeToCanonical(acty)
+            # if acty.kind == clidx.TypeKind.RECORD and acty.spelling not in self.gctx.classes:
+            #     return_type_name_rs = 'u64'
+            #     print(890, ctx.ret_type_name_rs, '=>', return_type_name_rs, acty.spelling)
+            # elif ctx.ret_type_name_rs == 'QFunctionPointer' or ctx.ret_type_name_rs == 'EasingFunction':
+            #     return_type_name_rs = 'u64'
+            # elif acty.spelling in self.gctx.classes and self.check_skip_class(acty.get_declaration()):
+            #     return_type_name_rs = 'u64'
+            #     # print(890, ctx.ret_type_name_rs, '=>', return_type_name_rs)
+
+            # if 'QAbstractOpenGLFunctionsPrivate' in acty.spelling:
+            #     print(acty.kind, acty.spelling, return_type_name_rs, acty.spelling in self.gctx.classes,
+            #           self.check_skip_class(acty.get_declaration()))
+                # raise 'wtf'
+            # tc = self.gctx.classes['QMetaObject']
+            # print(tc.kind, tc.spelling, acty.kind, tc.location)
             # print(890, cursor.result_type.spelling, '=>', return_type_name_rs)
+            return_type_name_rs = self.generateReturnForImplTraitT0(ctx)
             return_piece_code_return = 'let mut ret ='
 
         self_code_proto = ctx.static_self_trait
@@ -617,24 +641,26 @@ class GenerateForRust(GenerateBase):
         else:
             ctx.CP.AP('body', "    %s unsafe {C%s(%s)};" % (return_piece_code_return, mangled_name, call_params))
 
-        def iscvoidstar(tyname): return ' c_void' in tyname and '*' in tyname
-        def isrstar(tyname): return '*' in tyname
+        # def iscvoidstar(tyname): return ' c_void' in tyname and '*' in tyname
+        # def isrstar(tyname): return '*' in tyname
 
         # return expr post process
         # TODO 还有一种值返回的情况要处理，值返回的情况需要先创建一个空对象
-        return_type_name_ext = ctx.ret_type_name_ext
-        return_type_name_rs = ctx.ret_type_name_rs
-        if return_type_name_rs == 'String' and 'char' in return_type_name_ext:
-            if has_return: ctx.CP.AP('body', "    let slen = unsafe {strlen(ret as *const i8)} as usize;")
-            if has_return: ctx.CP.AP('body', "    return unsafe{String::from_raw_parts(ret as *mut u8, slen, slen+1)};")
-        # elif return_type_name_ext == '*mut c_void' or return_type_name_ext == '*const c_void':  # no const now
-        elif iscvoidstar(return_type_name_ext) and not isrstar(return_type_name_rs):
-            # 应该是返回一个qt class对象，由于无法返回&mut类型的对象
-            if has_return: ctx.CP.AP('body', "    let mut ret1 = %s::inheritFrom(ret as u64);" % (return_type_name_rs))
-            if has_return: ctx.CP.AP('body', "    return ret1;")
-        else:
-            if has_return: ctx.CP.AP('body', "    return ret as %s;" % (return_type_name_rs))
+        # return_type_name_ext = ctx.ret_type_name_ext
+        # if return_type_name_rs == 'String' and 'char' in return_type_name_ext:
+        #     if has_return: ctx.CP.AP('body', "    let slen = unsafe {strlen(ret as *const i8)} as usize;")
+        #     if has_return: ctx.CP.AP('body', "    return unsafe{String::from_raw_parts(ret as *mut u8, slen, slen+1)};")
+        # # elif return_type_name_ext == '*mut c_void' or return_type_name_ext == '*const c_void':  # no const now
+        # elif iscvoidstar(return_type_name_ext) and ctx.ret_type_name_rs.count('<') > 0:
+        #     if has_return: ctx.CP.AP('body', "    return ret as %s;" % (return_type_name_rs))
+        # elif iscvoidstar(return_type_name_ext) and not isrstar(return_type_name_rs):
+        #     # 应该是返回一个qt class对象，由于无法返回&mut类型的对象
+        #     if has_return: ctx.CP.AP('body', "    let mut ret1 = %s::inheritFrom(ret as u64);" % (return_type_name_rs))
+        #     if has_return: ctx.CP.AP('body', "    return ret1;")
+        # else:
+        #     if has_return: ctx.CP.AP('body', "    return ret as %s;" % (return_type_name_rs))
 
+        if has_return: self.generateReturnForImplTrait(ctx)
         ctx.CP.AP('body', "    // return 1;")
         ctx.CP.AP('body', "  }")
         ctx.CP.AP('body', "}\n")
@@ -660,6 +686,84 @@ class GenerateForRust(GenerateBase):
             ctx.CP.AP('body', "  fn %s(self %s) -> RetType;" %
                        (method_name, self_code_proto))
         ctx.CP.AP('body', "}\n")
+        return
+
+    def generateReturnForImplTraitT0(self, ctx):
+        ret_type = self.tyconv.TypeToActual(ctx.cursor.result_type)
+        cret_type = self.tyconv.TypeToCanonical(ret_type)
+        cret_type = self.tyconv.TypeToActual(cret_type)
+        cret_type = self.tyconv.TypeToCanonical(cret_type)
+
+        rety_name = '()'
+        known_record = cret_type.spelling in self.gctx.classes
+        skip_record = self.check_skip_class(cret_type.get_declaration())
+        if ret_type.kind == clidx.TypeKind.RECORD and not known_record:
+            rety_name = 'u64'
+        elif cret_type.spelling in self.gctx.classes and skip_record:
+            rety_name = 'u64'
+        elif ret_type.kind == clidx.TypeKind.RECORD and known_record and not skip_record:
+            rety_name = ctx.ret_type_name_rs
+        elif ret_type.kind == clidx.TypeKind.POINTER and \
+             'char'.upper() in str(self.tyconv.TypeToActual(ret_type.get_pointee()).kind):
+            rety_name = 'String'
+        elif ret_type.kind == clidx.TypeKind.POINTER and \
+             ret_type.get_pointee().kind == clidx.TypeKind.RECORD:
+            known_record = self.tyconv.TypeToActual(ret_type.get_pointee()).spelling in self.gctx.classes
+            if known_record:
+                rety_name = ctx.ret_type_name_rs
+            else:
+                rety_name = 'u64'
+        elif 'QFunctionPointer' == ctx.ret_type_name_rs or 'EasingFunction' == ctx.ret_type_name_rs:
+            rety_name = 'u64'
+        else:
+            if 'char' in ret_type.spelling and ret_type.kind == clidx.TypeKind.POINTER:
+                print(871320921, ret_type.spelling, ctx.cursor.spelling,
+                      'char'.upper() in str(ret_type.get_pointee().kind),
+                      'char'.upper() in str(self.tyconv.TypeToActual(ret_type.get_pointee()).kind),
+                      ret_type.get_pointee().kind
+                )
+            rety_name = ctx.ret_type_name_rs
+
+        return rety_name
+
+    def generateReturnForImplTrait(self, ctx):
+        ret_type = self.tyconv.TypeToActual(ctx.cursor.result_type)
+        cret_type = self.tyconv.TypeToCanonical(ret_type)
+        cret_type = self.tyconv.TypeToActual(cret_type)
+        cret_type = self.tyconv.TypeToCanonical(cret_type)
+
+        known_record = cret_type.spelling in self.gctx.classes
+        skip_record = self.check_skip_class(cret_type.get_declaration())
+        if ret_type.kind == clidx.TypeKind.RECORD and not known_record:
+            ctx.CP.AP('body', "    return ret as %s; // 5" % ('u64'))
+        elif cret_type.spelling in self.gctx.classes and skip_record:
+            ctx.CP.AP('body', "    return ret as %s; // 2" % ('u64'))
+        elif ret_type.kind == clidx.TypeKind.RECORD and known_record and not skip_record:
+            ctx.CP.AP('body', "    let mut ret1 = %s::inheritFrom(ret as u64);" % (ctx.ret_type_name_rs))
+            ctx.CP.AP('body', "    return ret1;")
+        elif ret_type.kind == clidx.TypeKind.POINTER and \
+             'char'.upper() in str(self.tyconv.TypeToActual(ret_type.get_pointee()).kind):
+            ctx.CP.AP('body', "    let slen = unsafe {strlen(ret as *const i8)} as usize;")
+            ctx.CP.AP('body', "    return unsafe{String::from_raw_parts(ret as *mut u8, slen, slen+1)};")
+        elif ret_type.kind == clidx.TypeKind.POINTER and \
+             ret_type.get_pointee().kind == clidx.TypeKind.RECORD:
+            known_record = self.tyconv.TypeToActual(ret_type.get_pointee()).spelling in self.gctx.classes
+            if known_record:
+                ctx.CP.AP('body', "    let mut ret1 = %s::inheritFrom(ret as u64);" % (ctx.ret_type_name_rs))
+                ctx.CP.AP('body', "    return ret1;")
+            else:
+                ctx.CP.AP('body', "    return ret as %s; // 4" % ('u64'))
+        elif 'QFunctionPointer' == ctx.ret_type_name_rs or 'EasingFunction' == ctx.ret_type_name_rs:
+            ctx.CP.AP('body', "    return ret as %s; // 3" % ('u64'))
+        else:
+            if 'char' in ret_type.spelling and ret_type.kind == clidx.TypeKind.POINTER:
+                print(871320921, ret_type.spelling, ctx.cursor.spelling,
+                      'char'.upper() in str(ret_type.get_pointee().kind),
+                      'char'.upper() in str(self.tyconv.TypeToActual(ret_type.get_pointee()).kind),
+                      ret_type.get_pointee().kind
+                )
+            ctx.CP.AP('body', "    return ret as %s; // 1" % (ctx.ret_type_name_rs))
+
         return
 
     def generateArgConvExprs(self, class_name, method_name, method_cursor, ctx):
@@ -833,7 +937,7 @@ class GenerateForRust(GenerateBase):
         cursor = ctx.cursor
         has_return = ctx.has_return
         # calc ext type name
-        return_type_name = self.tyconv.TypeCXX2RustExtern(ctx.ret_type, cursor)
+        return_type_name = self.tyconv.TypeCXX2RustExtern(ctx.ret_type, cursor, True)
 
         mangled_name = ctx.mangled_name
         return_piece_proto = ''
@@ -867,43 +971,44 @@ class GenerateForRust(GenerateBase):
         # if cursor.spelling == 'buttons':
         #     print(666, has_return, return_type_name, cursor.spelling, return_type.kind, cursor.semantic_parent.spelling)
         #     exit(0)
-        if '::' in return_type_name: has_return = False
-        if '<' in return_type_name: has_return = False
-        if "QStringList" in return_type_name: has_return = False
-        if "QObjectList" in return_type_name: has_return = False
+        # if '::' in return_type_name: has_return = False
+        # if '<' in return_type_name: has_return = False
+        # if "QStringList" in return_type_name: has_return = False
+        # if "QObjectList" in return_type_name: has_return = False
         # if 'QAbstract' in return_type_name: has_return = False
         # if 'QMetaObject' in return_type_name: has_return = False
         # if 'QOpenGL' in return_type_name: has_return = False
-        if 'QAbstractOpenGLFunctionsPrivate' in return_type_name: has_return = False
-        if 'QGraphics' in return_type_name: has_return = False
-        if 'QPlatform' in return_type_name: has_return = False
-        if 'QFunctionPointer' in return_type_name: has_return = False
-        if 'QTextEngine' in return_type_name: has_return = False
-        if 'QTextDocumentPrivate' in return_type_name: has_return = False
+        # if 'QAbstractOpenGLFunctionsPrivate' in return_type_name: has_return = False
+        # if 'QGraphics' in return_type_name: has_return = False
+        # if 'QPlatform' in return_type_name: has_return = False
+        # if 'QFunctionPointer' in return_type_name: has_return = False
+        # if 'QTextEngine' in return_type_name: has_return = False
+        # if 'QTextDocumentPrivate' in return_type_name: has_return = False
         # if 'QJson' in return_type_name: has_return = False
         # if 'QStringRef' in return_type_name: has_return = False
-        if 'QQmlComponentAttached' in return_type_name: has_return = False
-        if 'QV8Engine' in return_type_name: has_return = False
+        # if 'QQmlComponentAttached' in return_type_name: has_return = False
+        # if 'QV8Engine' in return_type_name: has_return = False
 
-        if 'internalPointer' in method_cursor.spelling: has_return = False
-        if 'rwidth' in method_cursor.spelling: has_return = False
-        if 'rheight' in method_cursor.spelling: has_return = False
-        if 'utf16' == method_cursor.spelling: has_return = False
-        if 'x' == method_cursor.spelling: has_return = False
-        if 'rx' == method_cursor.spelling: has_return = False
-        if 'y' == method_cursor.spelling: has_return = False
-        if 'ry' == method_cursor.spelling: has_return = False
-        if class_name == 'QGenericArgument' and method_cursor.spelling == 'data': has_return = False
-        if class_name == 'QSharedMemory' and method_cursor.spelling == 'constData': has_return = False
-        if class_name == 'QSharedMemory' and method_cursor.spelling == 'data': has_return = False
-        if class_name == 'QVariant' and method_cursor.spelling == 'constData': has_return = False
-        if class_name == 'QVariant' and method_cursor.spelling == 'data': has_return = False
-        if class_name == 'QThreadStorageData' and method_cursor.spelling == 'set': has_return = False
-        if class_name == 'QThreadStorageData' and method_cursor.spelling == 'get': has_return = False
-        if class_name == 'QChar' and method_cursor.spelling == 'unicode': has_return = False
+        # if 'internalPointer' in method_cursor.spelling: has_return = False
+        # if 'rwidth' in method_cursor.spelling: has_return = False
+        # if 'rheight' in method_cursor.spelling: has_return = False
+        # if 'utf16' == method_cursor.spelling: has_return = False
+        # if 'x' == method_cursor.spelling: has_return = False
+        # if 'rx' == method_cursor.spelling: has_return = False
+        # if 'y' == method_cursor.spelling: has_return = False
+        # if 'ry' == method_cursor.spelling: has_return = False
+        # if class_name == 'QGenericArgument' and method_cursor.spelling == 'data': has_return = False
+        # if class_name == 'QSharedMemory' and method_cursor.spelling == 'constData': has_return = False
+        # if class_name == 'QSharedMemory' and method_cursor.spelling == 'data': has_return = False
+        # if class_name == 'QVariant' and method_cursor.spelling == 'constData': has_return = False
+        # if class_name == 'QVariant' and method_cursor.spelling == 'data': has_return = False
+        # if class_name == 'QThreadStorageData' and method_cursor.spelling == 'set': has_return = False
+        # if class_name == 'QThreadStorageData' and method_cursor.spelling == 'get': has_return = False
+        # if class_name == 'QChar' and method_cursor.spelling == 'unicode': has_return = False
 
         return has_return
 
+    # TODO 使用use A::*简化use的生成，精确度 到头文件l级别，非struct级别
     def generateUseForRust(self, ctx, aty, cursor):
         class_name = ctx.flat_class_name
         # type_name = self.resolve_swig_type_name(class_name, arg.type)

@@ -43,6 +43,7 @@ class TypeConv(object):
     def __init__(self):
         return
 
+    # 去掉const, typedef, *, &, &&的类型，以及unexposed类型
     def TypeToCanonical(self, cxxtype):
         cxxtype = cxxtype.get_canonical()  # 这个一般不管用
         cxxtype.is_const_qualified()  # 这个函数也不管用
@@ -59,6 +60,7 @@ class TypeConv(object):
 
         return cxxtype
 
+    # 这个好像没什么意义啊，只处理了typedef
     def TypeToConvertable(self, cxxtype):
         if cxxtype.kind == clidx.TypeKind.TYPEDEF:
             under_type = cxxtype.get_declaration().underlying_typedef_type
@@ -93,6 +95,11 @@ class TypeConv(object):
             nty = self.TypeToActual(under_type)
             return nty
 
+        # 去掉const的方式
+        if cxxtype.is_const_qualified() and cxxtype.kind == clidx.TypeKind.RECORD:
+            nty = cxxtype.get_declaration().type
+            return nty
+
         return cxxtype
 
     def TypeCanName(self, cxxtype):
@@ -108,7 +115,10 @@ class TypeConv(object):
         return canname
 
     def TypeIsConst(self, cxxtype):
-        return cxxtype.spelling.startswith('const ')
+        cantype = self.TypeToCanonical(cxxtype)
+        ret1 = cantype.spelling.startswith('const ') or cantype.spelling.startswith('const_')
+        ret2 = cantype.is_const_qualified()
+        return ret1 or ret2
 
     def TypeIsVolatile(self, cxxtype):
         return cxxtype.spelling.startswith('volatile ')
@@ -225,7 +235,11 @@ class TypeConvForRust(TypeConv):
             return self.Type2RustRetRecord(ctx)
 
         if ctx.convable_type.kind == clidx.TypeKind.UNEXPOSED:
-            return '(/*unexposed*/)'
+            nty = self.TypeToActual(ctx.convable_type)
+            if nty.kind != clidx.TypeKind.UNEXPOSED:  # 防止死循环
+                return self.Type2RustRet(nty, cursor)
+            print(ctx.can_type_name, ctx.orig_type_name)
+            return '(/*unexposed %s */)' % (ctx.can_type_name)
 
         if ctx.convable_type.kind == clidx.TypeKind.ENUM:
             return 'i32'
@@ -494,7 +508,7 @@ class TypeConvForRust(TypeConv):
         # glog.debug('just use default type name: ' + str(cxxtype.spelling) + ', ' + str(cxxtype.kind))
         return cxxtype.spelling
 
-    def TypeCXX2RustExtern(self, cxxtype, cursor):
+    def TypeCXX2RustExtern(self, cxxtype, cursor, ret=False):
         raw_type_map = TypeConvForRust.tymap
         ctx = self.createContext(cxxtype, cursor)
 
@@ -504,12 +518,35 @@ class TypeConvForRust(TypeConv):
         can_name = self.TypeCanName(can_type)
         can_name = ctx.can_type_name
 
-        if cxxtype.kind == clidx.TypeKind.POINTER or \
-           cxxtype.kind == clidx.TypeKind.LVALUEREFERENCE:
+        if cxxtype.kind == clidx.TypeKind.POINTER:
             mut_or_const = '*const ' if is_const(cxxtype) else '*mut '
             mut_or_const = '*mut '
             if can_name in raw_type_map:
                 return mut_or_const + '%s' % (raw_type_map[can_name][1])
+            if ctx.can_type.kind == clidx.TypeKind.RECORD:
+                return mut_or_const + 'c_void'
+            if ctx.can_type.kind == clidx.TypeKind.VOID:
+                return mut_or_const + 'c_void'
+            if ctx.can_type.kind == clidx.TypeKind.FUNCTIONPROTO:
+                return mut_or_const + 'c_void'
+            if ctx.can_type.kind == clidx.TypeKind.CHAR32:
+                return mut_or_const + 'c_char'
+            if ctx.can_type.kind == clidx.TypeKind.CHAR16:
+                return mut_or_const + 'c_char'
+            if ctx.can_type.kind == clidx.TypeKind.WCHAR:
+                return mut_or_const + 'wchar_t'
+            if ctx.can_type.kind == clidx.TypeKind.ENUM:
+                return mut_or_const + 'c_int'
+            self.dumpContext(ctx)
+
+        if cxxtype.kind == clidx.TypeKind.LVALUEREFERENCE:
+            mut_or_const = '*const ' if is_const(cxxtype) else '*mut '
+            mut_or_const = '*mut '
+            if can_name in raw_type_map:
+                if ret is True:
+                    return '%s' % (raw_type_map[can_name][1])
+                else:
+                    return mut_or_const + '%s' % (raw_type_map[can_name][1])
             if ctx.can_type.kind == clidx.TypeKind.RECORD:
                 return mut_or_const + 'c_void'
             if ctx.can_type.kind == clidx.TypeKind.VOID:
