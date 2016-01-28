@@ -1014,6 +1014,22 @@ class GenerateForRust(GenerateBase):
         # type_name = self.resolve_swig_type_name(class_name, arg.type)
         # type_name2 = self.hotfix_typename_ifenum_asint(class_name, arg, arg.type)
         # type_name = type_name2 if type_name2 is not None else type_name
+
+        def genuseimpl(ctx, cursor, ncursor, seg):
+            seg_code_file = self.gutil.get_code_file(ncursor)
+            cur_code_file = self.gutil.get_code_file(cursor)
+            seg_mod = self.gutil.get_decl_mod(ncursor)
+            cur_mod = self.gutil.get_decl_mod(cursor)
+
+            if seg_mod != cur_mod:  # 引用的类不在当前mod中
+                ctx.CP.APU('use', "use super::super::%s::%s::*; // 771" % (seg_mod, seg_code_file))
+            else:
+                if seg_code_file == cur_code_file:
+                    ctx.CP.APU('use', "// use super::%s::%s; // 773" % (seg_code_file, seg))
+                else:
+                    ctx.CP.APU('use', "use super::%s::*; // 773" % (seg_code_file))
+            return
+
         type_name = self.tyconv.TypeCXX2Rust(aty, cursor)
         if type_name.startswith('&'): type_name = type_name.replace('&', "&'a ")
         if self.is_qt_class(type_name):
@@ -1022,21 +1038,19 @@ class GenerateForRust(GenerateBase):
             if seg != class_name:
                 if seg in self.gctx.classes:
                     ncursor = self.gctx.classes[seg]
-                    seg_code_file = self.gutil.get_code_file(ncursor)
-                    cur_code_file = self.gutil.get_code_file(cursor)
-                    seg_mod = self.gutil.get_decl_mod(ncursor)
-                    cur_mod = self.gutil.get_decl_mod(cursor)
-
-                    if seg_mod != cur_mod:  # 引用的类不在当前mod中
-                        ctx.CP.APU('use', "use super::super::%s::%s::%s; // 771" % (seg_mod, seg_code_file, seg))
-                    else:
-                        if seg_code_file == cur_code_file:
-                            ctx.CP.APU('use', "// use super::%s::%s; // 773" % (seg_code_file, seg))
-                        else:
-                            ctx.CP.APU('use', "use super::%s::%s; // 773" % (seg_code_file, seg))
+                    genuseimpl(ctx, cursor, ncursor, seg)
                 else:
                     # 不在类列表中的引用不了，如果有使用的地方，还是再找原因比较好
-                    ctx.CP.APU('use', "// use super::%s::%s; // 775" % (seg.lower(), seg))
+                    # 原因找到了，主要是模板类的问题啊
+                    ctx.CP.APU('use', "// use super::%s::*; // 775" % (seg.lower()))
+                    clstp = self.gutil.isTempInstClass(aty.get_declaration())
+                    if clstp is not None:
+                        tcls = self.get_instantiated_class(aty.get_declaration())
+                        if tcls is None:
+                            print(seg, clstp, type_name)
+                            raise 'wtf'
+                        if not self.check_skip_class(tcls):
+                            genuseimpl(ctx, cursor, tcls, seg)
         return
 
     def dedup_return_const_diff_method(self, methods):

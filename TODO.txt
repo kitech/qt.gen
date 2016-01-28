@@ -4,11 +4,11 @@
 # OK - New => new
 # String <=> &str，有需要的地方替换成这个
 # OK - fn() => Fn()通用化，可同时支持普通函数和闭包。
-# Struct to struct alias u64.
+# OK - Struct to struct alias u64.
 # #![feature(libc)]应该可以只放在lib.rs中。应该移动不出来。
 # SlotProxy 实例作为对应sender的child object
 # module层级减少一下，Qt的类名不太容易冲突的。
-# signal方法现在生成了真实的rs方法，去掉。
+# OK - signal方法现在生成了真实的rs方法，去掉。
 # OK - signal的使用方法目前加了个后缀_1()，需要去掉。
 # genrust的ClassContext与MethodContext整合优化
 # 生成的库文件大小问题，有可能太大了，为什么呢？怎么解决呢？
@@ -29,3 +29,4 @@
 # 好像qt.inline偏向rust了，要通用点的。
 # 添加#![derive(Debug)] 调试，或者实现fmt::Display，使用Qt的meta机制。
 # operatorx方法的支持。
+# 也许使用编写编译器后端的方式生成代码不错。

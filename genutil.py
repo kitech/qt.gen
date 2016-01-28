@@ -293,10 +293,15 @@ class GenUtil(object):
         return flat_class_name
 
     def isTempInstClass(self, cursor):
+        # TODO 正则表达式bug
+        # 这个类型，QList<QPair<double, QPointF> >
+        # 生成这个了，('QList<QPair', 'double', '', ' QPointF> ')
         exp = '^(Q[A-Z].+)\<([^,]*)[, ]*?([^,]+)?[, ]*?([^,]+)?\>'
         res = re.findall(exp, cursor.type.spelling)
         # print(123456, res, cursor.type.spelling, cursor.spelling)
         if len(res) > 0:
+            if res[0][0].count('<') > 0:  # 自检测
+                return None
             return res[0]
         return None
 
