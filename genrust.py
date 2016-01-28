@@ -968,44 +968,6 @@ class GenerateForRust(GenerateBase):
 
         has_return = True
         if return_type_name == 'void': has_return = False
-        # if cursor.spelling == 'buttons':
-        #     print(666, has_return, return_type_name, cursor.spelling, return_type.kind, cursor.semantic_parent.spelling)
-        #     exit(0)
-        # if '::' in return_type_name: has_return = False
-        # if '<' in return_type_name: has_return = False
-        # if "QStringList" in return_type_name: has_return = False
-        # if "QObjectList" in return_type_name: has_return = False
-        # if 'QAbstract' in return_type_name: has_return = False
-        # if 'QMetaObject' in return_type_name: has_return = False
-        # if 'QOpenGL' in return_type_name: has_return = False
-        # if 'QAbstractOpenGLFunctionsPrivate' in return_type_name: has_return = False
-        # if 'QGraphics' in return_type_name: has_return = False
-        # if 'QPlatform' in return_type_name: has_return = False
-        # if 'QFunctionPointer' in return_type_name: has_return = False
-        # if 'QTextEngine' in return_type_name: has_return = False
-        # if 'QTextDocumentPrivate' in return_type_name: has_return = False
-        # if 'QJson' in return_type_name: has_return = False
-        # if 'QStringRef' in return_type_name: has_return = False
-        # if 'QQmlComponentAttached' in return_type_name: has_return = False
-        # if 'QV8Engine' in return_type_name: has_return = False
-
-        # if 'internalPointer' in method_cursor.spelling: has_return = False
-        # if 'rwidth' in method_cursor.spelling: has_return = False
-        # if 'rheight' in method_cursor.spelling: has_return = False
-        # if 'utf16' == method_cursor.spelling: has_return = False
-        # if 'x' == method_cursor.spelling: has_return = False
-        # if 'rx' == method_cursor.spelling: has_return = False
-        # if 'y' == method_cursor.spelling: has_return = False
-        # if 'ry' == method_cursor.spelling: has_return = False
-        # if class_name == 'QGenericArgument' and method_cursor.spelling == 'data': has_return = False
-        # if class_name == 'QSharedMemory' and method_cursor.spelling == 'constData': has_return = False
-        # if class_name == 'QSharedMemory' and method_cursor.spelling == 'data': has_return = False
-        # if class_name == 'QVariant' and method_cursor.spelling == 'constData': has_return = False
-        # if class_name == 'QVariant' and method_cursor.spelling == 'data': has_return = False
-        # if class_name == 'QThreadStorageData' and method_cursor.spelling == 'set': has_return = False
-        # if class_name == 'QThreadStorageData' and method_cursor.spelling == 'get': has_return = False
-        # if class_name == 'QChar' and method_cursor.spelling == 'unicode': has_return = False
-
         return has_return
 
     # TODO 使用use A::*简化use的生成，精确度 到头文件l级别，非struct级别
@@ -1160,80 +1122,10 @@ class GenerateForRust(GenerateBase):
     # @return True | False
     def check_skip_method(self, cursor):
         if True: return self.gfilter.skipMethod(cursor)
-
-        method_name = cursor.spelling
-        if method_name.startswith('operator'):
-            # print("Omited operator method: " + mth)
-            return True
-
-        # print('pub:' + str(cursor.access_specifier))
-        if cursor.access_specifier == clang.cindex.AccessSpecifier.PUBLIC:
-            pass
-        if cursor.access_specifier == clang.cindex.AccessSpecifier.PROTECTED:
-            if cursor.kind == clang.cindex.CursorKind.CONSTRUCTOR or \
-               cursor.kind == clang.cindex.CursorKind.DESTRUCTOR:
-                pass
-            else: return True
-        if cursor.access_specifier == clang.cindex.AccessSpecifier.PRIVATE:
-            if cursor.kind == clang.cindex.CursorKind.CONSTRUCTOR or \
-               cursor.kind == clang.cindex.CursorKind.DESTRUCTOR:
-                pass
-            else: return True
-
-        istatic = cursor.is_static_method()
-        # if istatic is True: return True
-
-        # fix method
-        fixmths = ['tr', 'trUtf8', 'qt_metacall', 'qt_metacast', 'data_ptr',
-                   'sprintf', 'vsprintf', 'vasprintf', 'asprintf',
-                   'entryInfoListcc',]
-        if method_name in fixmths: return True
-        fixmths_prefix = ['qt_check_for_']
-        for p in fixmths_prefix:
-            if method_name.startswith(p): return True
-
-        #### toUpper() &&，c++11 move语义的方法去掉
-        # _ZNKR7QString7toUpperEv, _ZNO7QString7toUpperEv
-        mangled_name = cursor.mangled_name
-        if mangled_name.startswith('_ZNO'): return True
-        # TODO fix QString::data() vs. QString::data() const
-        # _ZN7QString4dataEv, _ZNK7QString4dataEv
-        # TODO 这种情况还挺多的。函数名相同，返回值不回的重载方法 。需要想办法处理。
-        # 这是支持方式，http://stackoverflow.com/questions/24594374/overload-operators-with-different-rhs-type
-
         return False
 
     def check_skip_class(self, class_cursor):
         if True: return self.gfilter.skipClass(class_cursor)
-
-        cursor = class_cursor
-        name = cursor.spelling
-        dname = cursor.displayname
-
-        if name in ['QTypeInfo']: return True
-
-        # for template
-        if self.gctx.is_template(cursor): return True
-
-        def has_template_brother(cursor):
-            for key in self.gctx.classes:
-                tc = self.gctx.classes[key]
-                if tc != cursor and tc.spelling == cursor.spelling and tc.kind == clidx.CursorKind.CLASS_TEMPLATE:
-                    return True
-            return False
-
-        hastb = has_template_brother(cursor)
-        if hastb: return True
-
-        # like QIntegerForSize<1/2/3>
-        if '<' in dname: return True
-
-        # if 'QFuture<' in dname:
-        #     for it in cursor.walk_preorder():
-        #         print(it.kind, it.displayname, it.location)
-        #     print(cursor.get_num_template_arguments())
-        #     exit(0)
-
         return False
 
     # def hotfix_typename_ifenum_asint(self, class_name, arg):
