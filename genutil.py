@@ -250,6 +250,8 @@ class GenUtil(object):
 
         cname = cursor.spelling
         if cname.startswith('QAbstract'): return True
+        # shitfix
+        if cname.startswith('QGraphicsObject'): return True
 
         return False
 

@@ -35,7 +35,7 @@ class GenTool:
         self.generator = GenerateForGo()
         # self.generator = GenerateForInlineCXX()
         self.generator = GenerateForInc()
-        self.generator = GenerateForRust()
+        # self.generator = GenerateForRust()
         # self.builder = TestBuilderForGo()
         self.genres = {}  # key => True | False
         self.conflib = clang.cindex.conf.lib

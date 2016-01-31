@@ -45,8 +45,8 @@ set(all_qt5_inline_srcs
   ${qt5_inline_extra_srcs}
   ${qt5_inline_core_srcs}
   ${qt5_inline_gui_srcs}
+  ${qt5_inline_widgets_srcs}
   # ${qt5_inline_network_srcs}
-  # ${qt5_inline_widgets_srcs}
   # ${qt5_inline_qml_srcs}
   # ${qt5_inline_quick_srcs}
   )

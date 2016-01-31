@@ -471,16 +471,14 @@ class GenerateForInc(GenerateBase):
         # 移动到上面
 
         if method_cursor.kind == clidx.CursorKind.CONSTRUCTOR:
+            self.generateCtorAlloc(ctx)
             if ctx.isinline:
                 self.generateCtorAllocInline(ctx)
-            else:
-                self.generateCtorAlloc(ctx)
 
         if method_cursor.kind == clidx.CursorKind.DESTRUCTOR:
+            self.generateDtorDelete(ctx)
             if ctx.isinline:
                 self.generateDtorDeleteInline(ctx)
-            else:
-                self.generateDtorDelete(ctx)
 
         return
 

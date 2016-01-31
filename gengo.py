@@ -382,6 +382,7 @@ class GenerateForGo(GenerateBase):
         class_name = ctx.class_name
         method_name = ctx.method_name
 
+
         # ctx.ret_type_name_rs = self.tyconv.Type2RustRet(ctx.ret_type, method_cursor)
         ctx.ret_type_name_ext = self.tyconv.ArgType2FFIExt(ctx.ret_type, method_cursor)
 
@@ -504,9 +505,9 @@ class GenerateForGo(GenerateBase):
                 ctx.CP.AP('body', '    var qthis = unsafe.Pointer(C.malloc(5))')
                 ctx.CP.AP('body', '    if false {reflect.TypeOf(qthis)}')
             if nctx.isinline:
-                ctx.CP.AP('body', '    C.%s%s(%s)' % (deprefix, nctx.mangled_name, nctx.params_call))
+                ctx.CP.AP('body', '    C.%s%s(%s)' % (deprefix, nctx.cmangled_name, nctx.params_call))
             else:
-                ctx.CP.AP('body', '    C.%s(%s)' % (nctx.mangled_name, nctx.params_call))
+                ctx.CP.AP('body', '    C.%s(%s)' % (nctx.cmangled_name, nctx.params_call))
 
         ctx.CP.AP('body', '  default:')
         ctx.CP.AP('body', '    qtrt.ErrorResolve("%s", "%s", args)' % (ctx.class_name, ctx.method_name))
@@ -613,7 +614,7 @@ class GenerateForGo(GenerateBase):
         return_type_name = 'void'
         # return_type_name = self.tyconv.TypeCXX2RustExtern(ctx.ret_type, cursor)
 
-        mangled_name = ctx.mangled_name
+        mangled_name = ctx.cmangled_name
         return_piece_proto = 'void'
         if cursor.result_type.kind != clidx.TypeKind.VOID and has_return:
             return_piece_proto = '%s' % (return_type_name)
