@@ -25,9 +25,9 @@ function mvgosrc()
     cp -a src/core/*.go qt.go/src/qt5/
     cp -a src/gui/*.go qt.go/src/qt5/
     cp -a src/widgets/*.go qt.go/src/qt5/
-    cp -a src/network/*.go qt.go/src/qt5/
-    cp -a src/qml/*.go qt.go/src/qt5/
-    cp -a src/quick/*.go qt.go/src/qt5/
+    # cp -a src/network/*.go qt.go/src/qt5/
+    # cp -a src/qml/*.go qt.go/src/qt5/
+    # cp -a src/quick/*.go qt.go/src/qt5/
 }
 
 function mvqil()

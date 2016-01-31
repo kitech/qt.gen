@@ -393,13 +393,13 @@ class GenerateForGo(GenerateBase):
         # trait_params = ', '.join(trait_params_array)
 
         call_params_array = self.generateParamsForCall(class_name, method_name, method_cursor)
-        if ctx.ctor: call_params_array.insert(0, 'qthis')
+        # if ctx.ctor: call_params_array.insert(0, 'qthis')
         call_params = ', '.join(call_params_array)
         if not ctx.static and not ctx.ctor: call_params = ('this.qclsinst, ' + call_params).strip(' ,')
 
         extargs_array = self.generateParamsForExtern(class_name, method_name, method_cursor, ctx)
         extargs = ', '.join(extargs_array)
-        if not ctx.static: extargs = ('void* qthis, ' + extargs).strip(' ,')
+        if not ctx.static and not ctx.ctor: extargs = ('void* qthis, ' + extargs).strip(' ,')
 
         ctx.params_cpp = raw_params
         # ctx.params_rs = trait_params
@@ -445,11 +445,16 @@ class GenerateForGo(GenerateBase):
 
         ctx.CP.AP('body', '// %s' % (first_method_cursor.displayname))
         if ctx.ctor:
-            ctx.CP.AP('body', 'func %s(args ...interface{}) %s {'
+            ctx.CP.AP('body', 'func %s(args ...interface{}) *%s {'
                       % (flat_method_name, flat_class_name))
         else:
-            ctx.CP.AP('body', 'func (this *%s) %s(args ...interface{}) () {'
-                      % (flat_class_name, flat_method_name))
+            if ctx.has_return:
+                ctx.CP.AP('body', 'func (this *%s) %s(args ...interface{}) (ret interface{}) {'
+                          % (flat_class_name, flat_method_name.title()))
+
+            else:
+                ctx.CP.AP('body', 'func (this *%s) %s(args ...interface{}) () {'
+                          % (flat_class_name, flat_method_name.title()))
 
         for mangled_name in overload_methods:
             cursor = overload_methods[mangled_name]
@@ -472,7 +477,10 @@ class GenerateForGo(GenerateBase):
         self.generateVTableInvoke(ctx, overload_methods)
 
         if ctx.ctor:
-            ctx.CP.AP('body', '  return %s{}' % (flat_class_name))
+            # ctx.CP.AP('body', '  return %s{qclsinst:qthis}' % (flat_class_name))
+            ctx.CP.AP('body', '  return nil // %s{qclsinst:qthis}' % (flat_class_name))
+        else:
+            ctx.CP.AP('body', '  return')
         ctx.CP.AP('body', "}\n")
 
         # extern
@@ -495,26 +503,39 @@ class GenerateForGo(GenerateBase):
             midx += 1
             cursor = mth = overload_methods[mangled_name]
             # deprefix = 'dector' if ctx.ctor else 'demth'
-            deprefix = ''
+            # deprefix = ''
             ctx.CP.AP('body', '  case %s:' % (midx))
             ctx.CP.AP('body', '    // invoke: %s' % (mth.mangled_name))
             ctx.CP.AP('body', '    // invoke: %s %s' % (mth.result_type.spelling, mth.displayname))
             nctx = self.createGenMethodContext(mth, ctx.class_cursor, ctx.base_class, ctx.unique_methods)
-            self.generateArgConvExprs(ctx.class_name, mth.spelling, mth, nctx)
+            self.generateArgConvExprs(ctx.class_name, mth.spelling, mth, nctx, midx)
             if nctx.ctor:
                 ctx.CP.AP('body', '    var qthis = unsafe.Pointer(C.malloc(5))')
                 ctx.CP.AP('body', '    if false {reflect.TypeOf(qthis)}')
-            if nctx.isinline:
-                ctx.CP.AP('body', '    C.%s%s(%s)' % (deprefix, nctx.cmangled_name, nctx.params_call))
+                ctx.CP.AP('body', '    qthis = C.%s(%s)' % (nctx.cmangled_name, nctx.params_call))
+                ctx.CP.AP('body', '    return &%s{qclsinst:qthis}' % (nctx.flat_class_name))
             else:
-                ctx.CP.AP('body', '    C.%s(%s)' % (nctx.cmangled_name, nctx.params_call))
+                if nctx.has_return:
+                    ctx.CP.AP('body', '    var ret0 = C.%s(%s)' % (nctx.cmangled_name, nctx.params_call))
+                    ctx.CP.AP('body', '    if false {reflect.TypeOf(ret0)}')
+                    # 竟然还有重载的 方c法，有的有返回值，有的没有
+                    if ctx.has_return:
+                        ctx.CP.AP('body', '    ret = ret0')
+                        self.generateReturnTypeDecl(ctx, nctx)
+                        self.generateReturn(ctx, nctx)
+                else:
+                    ctx.CP.AP('body', '    C.%s(%s)' % (nctx.cmangled_name, nctx.params_call))
+            # if nctx.isinline:
+            #     ctx.CP.AP('body', '    C.%s%s(%s)' % (deprefix, nctx.cmangled_name, nctx.params_call))
+            # else:
+            #     ctx.CP.AP('body', '    C.%s(%s)' % (nctx.cmangled_name, nctx.params_call))
 
         ctx.CP.AP('body', '  default:')
         ctx.CP.AP('body', '    qtrt.ErrorResolve("%s", "%s", args)' % (ctx.class_name, ctx.method_name))
         ctx.CP.AP('body', '  }\n')
         return
 
-    def generateArgConvExprs(self, class_name, method_name, method_cursor, ctx):
+    def generateArgConvExprs(self, class_name, method_name, method_cursor, ctx, midx):
         argc = 0
         for arg in method_cursor.get_arguments(): argc += 1
 
@@ -526,14 +547,26 @@ class GenerateForGo(GenerateBase):
             if '%s' not in atc:
                 print(123, atc)
                 raise '123'
-            atc = atc % ('args[%s]' % (idx))
-            if '<' in atc or '::' in atc:
-                ctx.CP.AP('body', "    // var arg%s = %s" % (idx, atc))
-                ctx.CP.AP('body', "    var arg%s unsafe.Pointer" % (idx))
-                ctx.CP.AP('body', '    if false {fmt.Println(arg%s)}' % (idx))
+            if atc.startswith('qtrt.HandyConvert2c'):
+                atc = atc % ('args[%s]' % (idx), 'vtys[%s][%s]' % (midx, idx))
+                if '<' in atc or '::' in atc:
+                    ctx.CP.AP('body', "    // var arg%s = %s" % (idx, atc))
+                    ctx.CP.AP('body', "    var arg%s unsafe.Pointer" % (idx))
+                    ctx.CP.AP('body', '    if false {fmt.Println(arg%s)}' % (idx))
+                else:
+                    ctx.CP.AP('body', "    argif%s, free%s := %s" % (idx, idx, atc))
+                    ctx.CP.AP('body', "    var arg%s = argif%s.(unsafe.Pointer)" % (idx, idx))
+                    ctx.CP.AP('body', '    if false {fmt.Println(argif%s, arg%s)}' % (idx, idx))
+                    ctx.CP.AP('body', '    if free%s {defer C.free(arg%s)}' % (idx, idx))
             else:
-                ctx.CP.AP('body', "    var arg%s = %s" % (idx, atc))
-                ctx.CP.AP('body', '    if false {fmt.Println(arg%s)}' % (idx))
+                atc = atc % ('args[%s]' % (idx))
+                if '<' in atc or '::' in atc:
+                    ctx.CP.AP('body', "    // var arg%s = %s" % (idx, atc))
+                    ctx.CP.AP('body', "    var arg%s unsafe.Pointer" % (idx))
+                    ctx.CP.AP('body', '    if false {fmt.Println(arg%s)}' % (idx))
+                else:
+                    ctx.CP.AP('body', "    var arg%s = %s" % (idx, atc))
+                    ctx.CP.AP('body', '    if false {fmt.Println(arg%s)}' % (idx))
         return
 
     def generateParamsTypeForResolve(self, ctx, method_cursor, method_index):
@@ -613,6 +646,7 @@ class GenerateForGo(GenerateBase):
         # calc ext type name
         return_type_name = 'void'
         # return_type_name = self.tyconv.TypeCXX2RustExtern(ctx.ret_type, cursor)
+        return_type_name = ctx.ret_type_name_ext
 
         mangled_name = ctx.cmangled_name
         return_piece_proto = 'void'
@@ -622,16 +656,30 @@ class GenerateForGo(GenerateBase):
 
         if ctx.isinline:
             if ctx.ctor:
-                ctx.CP.AP('ext', "extern %s %s(%s); // 1" % (return_piece_proto, mangled_name, extargs))
+                ctx.CP.AP('ext', "extern void* %s(%s); // 1" % (mangled_name, extargs))
             else:
                 ctx.CP.AP('ext', "extern %s %s(%s); // 2" % (return_piece_proto, mangled_name, extargs))
         else:
             if ctx.ctor:
-                ctx.CP.AP('ext', "extern %s %s(%s); // 3" % (return_piece_proto, mangled_name, extargs))
+                ctx.CP.AP('ext', "extern void* %s(%s); // 3" % (mangled_name, extargs))
             else:
                 ctx.CP.AP('ext', "extern %s %s(%s); // 4" % (return_piece_proto, mangled_name, extargs))
 
         return has_return, return_type_name
+
+    def generateReturnTypeDecl(self, ctx, nctx):
+        if ctx.has_return:
+            arty = self.tyconv.ArgType2GoReflectType(nctx.cursor.result_type, nctx.cursor)
+            if '<' in arty or '::' in arty:
+                ctx.CP.AP('body', '    // var rety = %s // "%s"' % (arty, nctx.ret_type_name_cpp))
+            else:
+                ctx.CP.AP('body', '    var rety = %s // "%s"' % (arty, nctx.ret_type_name_cpp))
+        return
+
+    def generateReturn(self, ctx, nctx):
+        if ctx.has_return:
+            ctx.CP.AP('body', '    ret = reflect.ValueOf(ret0).Convert(rety).Interface()')
+        return
 
     def methodHasReturn(self, ctx):
         method_cursor = cursor = ctx.cursor
@@ -869,8 +917,12 @@ class GenerateForGo(GenerateBase):
                    '_ZN5QMenu15setPlatformMenuEP13QPlatformMenu',
                    '_ZN7QPixmapC1EP15QPlatformPixmap',
                    '_ZN7QString9fromUtf16EPKDsi', '_ZN7QString8fromUcs4EPKDii',
+                   '_ZN15QAnimationGroupC2EP7QObject', '_ZN17QAccessibleObjectC2EP7QObject',
                    ]
         if mangled_name in howfixs: return True
+
+        absfixs = ['_ZN15QAnimationGroupC1EP7QObject', '_ZN17QAccessibleObjectC1EP7QObject',]
+        if mangled_name in absfixs: return True
 
         # shitfix end
 
@@ -886,6 +938,7 @@ class GenerateForGo(GenerateBase):
 
         if name.startswith('QOpenGLFunctions'): return True
         if name == 'QAbstractOpenGLFunctionsPrivate': return True
+        if name == 'QSignalMapper': return True
         # shitfix end
 
         if True: return self.gfilter.skipClass(class_cursor)

@@ -34,7 +34,7 @@ class GenTool:
         self.cursors = {}  # module => clang.cindex.Cursor
         self.generator = GenerateForGo()
         # self.generator = GenerateForInlineCXX()
-        self.generator = GenerateForInc()
+        # self.generator = GenerateForInc()
         # self.generator = GenerateForRust()
         # self.builder = TestBuilderForGo()
         self.genres = {}  # key => True | False
