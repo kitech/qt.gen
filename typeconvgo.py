@@ -350,31 +350,31 @@ class TypeConvForGo(TypeConv):
             return 'C.bool(%s.(bool))'
         if ctx.convable_type.kind == clidx.TypeKind.USHORT \
            or ctx.convable_type.kind == clidx.TypeKind.SHORT:
-            return 'C.int16_t(%s.(int16))'
+            return 'C.int16_t(qtrt.PrimConv(%s, qtrt.Int16Ty(false)).(int16))'
         if ctx.convable_type.kind == clidx.TypeKind.INT \
            or ctx.convable_type.kind == clidx.TypeKind.UINT \
            or ctx.convable_type.kind == clidx.TypeKind.LONG \
            or ctx.convable_type.kind == clidx.TypeKind.ULONG:
-            return 'C.int32_t(%s.(int32))'
+            return 'C.int32_t(qtrt.PrimConv(%s, qtrt.Int32Ty(false)).(int32))'
         if ctx.convable_type.kind == clidx.TypeKind.ULONGLONG \
            or ctx.convable_type.kind == clidx.TypeKind.LONGLONG:
-            return 'C.int64_t(%s.(int64))'
+            return 'C.int64_t(qtrt.PrimConv(%s, qtrt.Int64Ty(false)).(int64))'
 
         if ctx.convable_type.kind == clidx.TypeKind.DOUBLE:
-            return 'C.double(%s.(float64))'
+            return 'C.double(qtrt.PrimConv(%s, qtrt.DoubleTy(false)).(float64))'
         if ctx.convable_type.kind == clidx.TypeKind.FLOAT:
-            return 'C.float(%s.(float32))'
+            return 'C.float(qtrt.PrimConv(%s, qtrt.FloatTy(false)).(float32))'
 
         if ctx.convable_type.kind == clidx.TypeKind.UCHAR \
            or ctx.convable_type.kind == clidx.TypeKind.CHAR_S:
             return 'C.uchar(%s.(byte))'
 
         if ctx.convable_type.kind == clidx.TypeKind.ENUM:
-            return 'C.int32_t(%s.(int32))'
+            return 'C.int32_t(qtrt.PrimConv(%s, qtrt.Int32Ty(false)).(int32))'
 
         if ctx.convable_type.kind == clidx.TypeKind.LVALUEREFERENCE:
             if ctx.can_type_name.startswith('Q'):
-                return '%%s.(%s).qclsinst' % (ctx.can_type_name)
+                return '%%s.(*%s).Qclsinst' % (ctx.can_type_name)
             if ctx.can_type.kind == clidx.TypeKind.CHAR_S:
                 return 'qtrt.HandyConvert2c(%s, %s)'
                 # return self.Byte2Charp()  # 'qtrt.Byte2Charp(%s)'
@@ -400,17 +400,17 @@ class TypeConvForGo(TypeConv):
 
         if ctx.convable_type.kind == clidx.TypeKind.RVALUEREFERENCE:
             if ctx.can_type_name.startswith('Q'):
-                return '%%s.(%s).qclsinst' % (ctx.can_type_name)
+                return '%%s.(*%s).Qclsinst' % (ctx.can_type_name)
             self.dumpContext(ctx)
 
         if ctx.convable_type.kind == clidx.TypeKind.RECORD:
-            return '%%s.(%s).qclsinst' % (ctx.can_type_name)
+            return '%%s.(*%s).Qclsinst' % (ctx.can_type_name)
 
         if ctx.convable_type.kind == clidx.TypeKind.POINTER:
             if ctx.can_type.kind == clidx.TypeKind.RECORD:
                 # TODO like QListData::Data
                 # if '::' not in ctx.can_type_name:
-                return '%%s.(%s).qclsinst' % (ctx.can_type_name)
+                return '%%s.(*%s).Qclsinst' % (ctx.can_type_name)
                 self.dumpContext(ctx)
             if ctx.can_type.kind == clidx.TypeKind.BOOL:
                 return '(unsafe.Pointer)(%s.(*bool))'

@@ -179,7 +179,7 @@ class GenerateForGo(GenerateBase):
         else:
             # TODO 需要use 基类
             CP.AP('body', "  /*qbase*/ %s;" % (base_class.spelling))
-        CP.AP('body', "  qclsinst unsafe.Pointer /* *C.void */;")
+        CP.AP('body', "  Qclsinst unsafe.Pointer /* *C.void */;")
         for key in usignals:
             sigmth = usignals[key]
             CP.AP('body', '//  _%s %s_%s_signal;' % (sigmth.spelling, flat_class_name, sigmth.spelling))
@@ -206,7 +206,7 @@ class GenerateForGo(GenerateBase):
                 ctx.CP.AP('body', 'impl /* struct */ %s {' % (class_name))
                 ctx.CP.AP('body', '  pub fn %s(&self) -> %s_%s_signal {'
                           % (sigmth.spelling, class_name, sigmth.spelling))
-                ctx.CP.AP('body', '     return %s_%s_signal{poi:self.qclsinst};' % (class_name, sigmth.spelling))
+                ctx.CP.AP('body', '     return %s_%s_signal{poi:self.Qclsinst};' % (class_name, sigmth.spelling))
                 ctx.CP.AP('body', '  }')
                 ctx.CP.AP('body', '}')
 
@@ -395,7 +395,7 @@ class GenerateForGo(GenerateBase):
         call_params_array = self.generateParamsForCall(class_name, method_name, method_cursor)
         # if ctx.ctor: call_params_array.insert(0, 'qthis')
         call_params = ', '.join(call_params_array)
-        if not ctx.static and not ctx.ctor: call_params = ('this.qclsinst, ' + call_params).strip(' ,')
+        if not ctx.static and not ctx.ctor: call_params = ('this.Qclsinst, ' + call_params).strip(' ,')
 
         extargs_array = self.generateParamsForExtern(class_name, method_name, method_cursor, ctx)
         extargs = ', '.join(extargs_array)
@@ -477,8 +477,8 @@ class GenerateForGo(GenerateBase):
         self.generateVTableInvoke(ctx, overload_methods)
 
         if ctx.ctor:
-            # ctx.CP.AP('body', '  return %s{qclsinst:qthis}' % (flat_class_name))
-            ctx.CP.AP('body', '  return nil // %s{qclsinst:qthis}' % (flat_class_name))
+            # ctx.CP.AP('body', '  return %s{Qclsinst:qthis}' % (flat_class_name))
+            ctx.CP.AP('body', '  return nil // %s{Qclsinst:qthis}' % (flat_class_name))
         else:
             ctx.CP.AP('body', '  return')
         ctx.CP.AP('body', "}\n")
@@ -513,7 +513,7 @@ class GenerateForGo(GenerateBase):
                 ctx.CP.AP('body', '    var qthis = unsafe.Pointer(C.malloc(5))')
                 ctx.CP.AP('body', '    if false {reflect.TypeOf(qthis)}')
                 ctx.CP.AP('body', '    qthis = C.%s(%s)' % (nctx.cmangled_name, nctx.params_call))
-                ctx.CP.AP('body', '    return &%s{qclsinst:qthis}' % (nctx.flat_class_name))
+                ctx.CP.AP('body', '    return &%s{Qclsinst:qthis}' % (nctx.flat_class_name))
             else:
                 if nctx.has_return:
                     ctx.CP.AP('body', '    var ret0 = C.%s(%s)' % (nctx.cmangled_name, nctx.params_call))
@@ -678,7 +678,11 @@ class GenerateForGo(GenerateBase):
 
     def generateReturn(self, ctx, nctx):
         if ctx.has_return:
-            ctx.CP.AP('body', '    ret = reflect.ValueOf(ret0).Convert(rety).Interface()')
+            ctx.CP.AP('body', '    if reflect.TypeOf(ret0).ConvertibleTo(rety) {')
+            ctx.CP.AP('body', '        ret = reflect.ValueOf(ret0).Convert(rety).Interface()')
+            ctx.CP.AP('body', '    } else {')
+            ctx.CP.AP('body', '        ret = qtrt.HandyConvert2go(ret0, rety)')
+            ctx.CP.AP('body', '    }')
         return
 
     def methodHasReturn(self, ctx):
