@@ -5,20 +5,20 @@
 # String <=> &str，有需要的地方替换成这个
 # OK - fn() => Fn()通用化，可同时支持普通函数和闭包。
 # OK - Struct to struct alias u64.
-# #![feature(libc)]应该可以只放在lib.rs中。应该移动不出来。
-# SlotProxy 实例作为对应sender的child object
+# OK - #![feature(libc)]应该可以只放在lib.rs中。应该移动不出来。
+# OK - SlotProxy 实例作为对应sender的child object
 # module层级减少一下，Qt的类名不太容易冲突的。
 # OK - signal方法现在生成了真实的rs方法，去掉。
 # OK - signal的使用方法目前加了个后缀_1()，需要去掉。
 # genrust的ClassContext与MethodContext整合优化
 # 生成的库文件大小问题，有可能太大了，为什么呢？怎么解决呢？
 # 写一些供内部使用的宏。(变参重载)？
-# 命令行参数。
+# 命令行参数，实现执行不同生成器。
 # OK - 静态方法与动态方法同名
 # 参数默认值，怎么用rs表达呢？有可能还要继续加重载方法实现。Default::default。把默认值转换为对应的Rust值。
 # OK - Qt类的内联方法
 # enum类型成员
-# qt 全局函数
+# qt 全局函数，全局常量。
 # OK - C++类的继承方法
 # OK - 继承依赖继承链，而中间可能有QAbstractxxx类，需要处理。
 # 集合参数或返回值的转换，像Vec<T> <=> QList<T>, 或者Vec<T> <=> T **
@@ -26,7 +26,7 @@
 # OK - 代码整理, GenContext -- OK
 # 生成个简单文档？然后生成文档。
 # 一些c++字符串类型，是不是可以使用CString, OsString这些表示呢?
-# 好像qt.inline偏向rust了，要通用点的。
+# OK - 好像qt.inline偏向rust了，要通用点的。
 # 添加#![derive(Debug)] 调试，或者实现fmt::Display，使用Qt的meta机制。
 # operatorx方法的支持。
 # 也许使用编写编译器后端的方式生成代码不错。

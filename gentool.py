@@ -8,7 +8,6 @@ import clang.cindex as clidx
 
 from genbase import GenerateBase, TestBuilder
 from gengo import GenerateForGo  # , TestBuilderForGo
-from geninline import GenerateForInlineCXX
 from geninc import GenerateForInc
 from genrust import GenerateForRust
 from gencontext import *
@@ -33,7 +32,6 @@ class GenTool:
     def __init__(self):
         self.cursors = {}  # module => clang.cindex.Cursor
         self.generator = GenerateForGo()
-        # self.generator = GenerateForInlineCXX()
         # self.generator = GenerateForInc()
         # self.generator = GenerateForRust()
         # self.builder = TestBuilderForGo()

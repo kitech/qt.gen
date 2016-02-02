@@ -52,27 +52,6 @@ class GenFilter(object):
         return False
 
 
-class GenFilterInline(GenFilter):
-    def __init__(self):
-        super(GenFilterInline, self).__init__()
-        return
-
-    def skipClass(self, cursor):
-        if GenFilter.skipClass(self, cursor): return True
-
-        cname = cursor.spelling
-        if cursor.kind == clidx.CursorKind.CLASS_TEMPLATE: return True
-
-        # 对于抽象类，还是要处理的
-
-        return False
-
-    def skipMethod(self, cursor):
-        if GenFilter.skipMethod(self, cursor): return True
-
-        return False
-
-
 class GenFilterInc(GenFilter):
     def __init__(self):
         super(GenFilterInc, self).__init__()
