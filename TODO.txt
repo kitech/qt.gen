@@ -1,6 +1,7 @@
 
 这个TODO包括要生成的代码的优化或者功能，也包括生成代码的代码的优化改进。
 
+### genrust
 # OK - New => new
 # String <=> &str，有需要的地方替换成这个
 # OK - fn() => Fn()通用化，可同时支持普通函数和闭包。
@@ -20,6 +21,7 @@
 # enum类型成员
 # qt 全局函数，全局常量。
 # OK - C++类的继承方法
+# 也许可以使用模式匹配实现类型C++方法重载。
 # OK - 继承依赖继承链，而中间可能有QAbstractxxx类，需要处理。
 # 集合参数或返回值的转换，像Vec<T> <=> QList<T>, 或者Vec<T> <=> T **
 # qt模板类型的封装实现
@@ -29,4 +31,11 @@
 # OK - 好像qt.inline偏向rust了，要通用点的。
 # 添加#![derive(Debug)] 调试，或者实现fmt::Display，使用Qt的meta机制。
 # operatorx方法的支持。
+# 手工编写String相关trait，支持与出现QString的部分相互替换。
 # 也许使用编写编译器后端的方式生成代码不错。
+
+
+### gengo
+# 分package，package名分别叫，qtcore,qtgui,qtwidgets
+# 每个类的类型ID分配，则在方法实现的时候，只记录类型ID，也许最终生成的库大小会有所优化
+# overload方法的返回值准确化。目前发现overload有返回值不同的情况，使用了interface{}。
