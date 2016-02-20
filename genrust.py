@@ -1121,10 +1121,18 @@ class GenerateForRust(GenerateBase):
 
     # @return True | False
     def check_skip_method(self, cursor):
+        # shitfix begin
+        # shitfix end
+
         if True: return self.gfilter.skipMethod(cursor)
         return False
 
     def check_skip_class(self, class_cursor):
+        # shitfix begin
+        class_name = class_cursor.spelling
+        if class_name in ['QSignalMapper']: return True
+        # shitfix end
+
         if True: return self.gfilter.skipClass(class_cursor)
         return False
 
