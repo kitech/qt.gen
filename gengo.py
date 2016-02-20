@@ -56,7 +56,8 @@ class GenerateForGo(GenerateBase):
             CP = self.gctx.codes[key]
             mod = self.gctx.get_decl_mod_by_path(key)
             code_file = self.gctx.get_code_file_by_path(key)
-            CP.AP('header', 'package %s' % ('qt5'))
+            # CP.AP('header', 'package %s' % ('qt5'))
+            CP.AP('header', 'package qt%s' % (mod))
             CP.AP('header', '// auto generated, do not modify.')
             CP.AP('header', '// created: ' + time.ctime())
             CP.AP('header', '// src-file: ' + key)
@@ -69,6 +70,8 @@ class GenerateForGo(GenerateBase):
         return
 
     def genpass_code_header(self):
+        modeps = {'core': [], 'gui': ['core'], 'widgets': ['core', 'gui']}
+
         for key in self.gctx.codes:
             CP = self.gctx.codes[key]
             CP.AP('header', self.generateHeader(''))
@@ -76,6 +79,9 @@ class GenerateForGo(GenerateBase):
             CP.AP('use', 'import "reflect"')
             CP.AP('use', 'import "unsafe"')
             CP.AP('use', 'import "qtrt"')
+            mod = self.gctx.get_decl_mod_by_path(key)
+            for dep in modeps[mod]:
+                CP.AP('use', 'import "qt%s"' % (dep))
 
             # CP.AP('ext', "// extern {")
             CP.AP('ext', "\n/*")
@@ -87,6 +93,8 @@ class GenerateForGo(GenerateBase):
 
             CP.AP('body', 'func init() {')
             CP.AP('body', '  if false {qtrt.KeepMe()}')
+            for dep in modeps[mod]:
+                CP.AP('body', '  if false {qt%s.KeepMe()}' % (dep))
             CP.AP('body', '  if false {fmt.Println(123)}')
             CP.AP('body', '  if false {reflect.TypeOf(123)}')
             CP.AP('body', '  if false {reflect.TypeOf(unsafe.Sizeof(0))}')
@@ -178,7 +186,12 @@ class GenerateForGo(GenerateBase):
             CP.AP('body', "  // qbase: %s;" % (base_class))
         else:
             # TODO 需要use 基类
-            CP.AP('body', "  /*qbase*/ %s;" % (base_class.spelling))
+            bmod = self.gutil.get_decl_mod(self.get_qt_class_cursor(base_class.spelling))
+            cmod = self.gutil.get_decl_mod(cursor)
+            if bmod != cmod:
+                CP.AP('body', "  /*qbase*/ qt%s.%s;" % (bmod, base_class.spelling))
+            else:
+                CP.AP('body', "  /*qbase*/ %s;" % (base_class.spelling))
         CP.AP('body', "  Qclsinst unsafe.Pointer /* *C.void */;")
         for key in usignals:
             sigmth = usignals[key]
@@ -782,6 +795,7 @@ class GenerateForGo(GenerateBase):
         # print(overload_methods, '=>', save)
         return save
 
+    # TODO depcreated
     def is_qt_class(self, type_name):
         # should be qt class name
         for seg in type_name.split(' '):
@@ -789,6 +803,7 @@ class GenerateForGo(GenerateBase):
                 return True
         return False
 
+    # TODO depcreated
     def get_qt_class(self, type_name):
         # should be qt class name
         for seg in type_name.split(' '):
@@ -928,6 +943,11 @@ class GenerateForGo(GenerateBase):
         absfixs = ['_ZN15QAnimationGroupC1EP7QObject', '_ZN17QAccessibleObjectC1EP7QObject',]
         if mangled_name in absfixs: return True
 
+        # forward declaration type reference
+        fdtfixs = ['_ZNK12QActionEvent6actionEv', '_ZNK12QActionEvent6beforeEv',
+        ]
+        if mangled_name in fdtfixs: return True
+
         # shitfix end
 
         if True: return self.gfilter.skipMethod(cursor)
@@ -943,6 +963,8 @@ class GenerateForGo(GenerateBase):
         if name.startswith('QOpenGLFunctions'): return True
         if name == 'QAbstractOpenGLFunctionsPrivate': return True
         if name == 'QSignalMapper': return True
+        if name == 'QActionEvent': return True
+
         # shitfix end
 
         if True: return self.gfilter.skipClass(class_cursor)

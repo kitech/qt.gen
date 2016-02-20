@@ -39,3 +39,5 @@
 # 分package，package名分别叫，qtcore,qtgui,qtwidgets
 # 每个类的类型ID分配，则在方法实现的时候，只记录类型ID，也许最终生成的库大小会有所优化
 # overload方法的返回值准确化。目前发现overload有返回值不同的情况，使用了interface{}。
+# 对于forward declaration type类型，分package之后着实不好处理。比如在core包中引用了gui包中的类型。
+

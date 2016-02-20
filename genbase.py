@@ -78,6 +78,10 @@ class GenerateBase(object):
                 return seg
         return None
 
+    def get_qt_class_cursor(self, class_name):
+        c = self.gctx.classes[class_name]
+        return c
+
     def get_instantiated_class(self, inst_class_cursor):
         tic = self.gutil.isTempInstClass(inst_class_cursor)
         if tic is None:

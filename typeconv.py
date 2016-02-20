@@ -41,6 +41,7 @@ class TypeConv(object):
     tymap = {}
 
     def __init__(self):
+        self.gutil = GenUtil()
         return
 
     # 去掉const, typedef, *, &, &&的类型，以及unexposed类型

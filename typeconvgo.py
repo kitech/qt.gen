@@ -56,7 +56,12 @@ class TypeConvForGo(TypeConv):
 
         if ctx.convable_type.kind == clidx.TypeKind.LVALUEREFERENCE:
             if ctx.can_type_name.startswith('Q'):
-                return 'reflect.TypeOf(%s{})' % (ctx.can_type_name)
+                cmod = self.gutil.get_decl_mod(cursor)
+                tmod = self.gutil.get_decl_mod(ctx.can_type.get_declaration())
+                if cmod != tmod:
+                    return 'reflect.TypeOf(qt%s.%s{})' % (tmod, ctx.can_type_name)
+                else:
+                    return 'reflect.TypeOf(%s{})' % (ctx.can_type_name)
             if ctx.can_type.kind == clidx.TypeKind.CHAR_S:
                 return 'qtrt.StringTy(false)'
             if ctx.can_type.kind == clidx.TypeKind.UINT \
@@ -69,16 +74,31 @@ class TypeConvForGo(TypeConv):
 
         if ctx.convable_type.kind == clidx.TypeKind.RVALUEREFERENCE:
             if ctx.can_type.kind == clidx.TypeKind.RECORD:
-                return 'reflect.TypeOf(%s{})' % (ctx.can_type_name)
+                cmod = self.gutil.get_decl_mod(cursor)
+                tmod = self.gutil.get_decl_mod(ctx.can_type.get_declaration())
+                if cmod != tmod:
+                    return 'reflect.TypeOf(qt%s.%s{})' % (tmod, ctx.can_type_name)
+                else:
+                    return 'reflect.TypeOf(%s{})' % (ctx.can_type_name)
             self.dumpContext(ctx)
         if ctx.convable_type.kind == clidx.TypeKind.RECORD:
-            return 'reflect.TypeOf(%s{})' % (ctx.can_type_name)
+            cmod = self.gutil.get_decl_mod(cursor)
+            tmod = self.gutil.get_decl_mod(ctx.can_type.get_declaration())
+            if cmod != tmod:
+                return 'reflect.TypeOf(qt%s.%s{})' % (tmod, ctx.can_type_name)
+            else:
+                return 'reflect.TypeOf(%s{})' % (ctx.can_type_name)
 
         if ctx.convable_type.kind == clidx.TypeKind.POINTER:
             if ctx.can_type.kind == clidx.TypeKind.RECORD:
                 # TODO like QListData::Data
                 # if '::' not in ctx.can_type_name:
-                return 'reflect.TypeOf(%s{})' % (ctx.can_type_name)
+                cmod = self.gutil.get_decl_mod(cursor)
+                tmod = self.gutil.get_decl_mod(ctx.can_type.get_declaration())
+                if cmod != tmod:
+                    return 'reflect.TypeOf(qt%s.%s{})' % (tmod, ctx.can_type_name)
+                else:
+                    return 'reflect.TypeOf(%s{})' % (ctx.can_type_name)
                 self.dumpContext(ctx)
             if ctx.can_type.kind == clidx.TypeKind.BOOL:
                 return 'qtrt.BoolTy(true)'
@@ -374,7 +394,12 @@ class TypeConvForGo(TypeConv):
 
         if ctx.convable_type.kind == clidx.TypeKind.LVALUEREFERENCE:
             if ctx.can_type_name.startswith('Q'):
-                return '%%s.(*%s).Qclsinst' % (ctx.can_type_name)
+                cmod = self.gutil.get_decl_mod(cursor)
+                tmod = self.gutil.get_decl_mod(ctx.can_type.get_declaration())
+                if cmod != tmod:
+                    return '%%s.(*qt%s.%s).Qclsinst' % (tmod, ctx.can_type_name)
+                else:
+                    return '%%s.(*%s).Qclsinst' % (ctx.can_type_name)
             if ctx.can_type.kind == clidx.TypeKind.CHAR_S:
                 return 'qtrt.HandyConvert2c(%s, %s)'
                 # return self.Byte2Charp()  # 'qtrt.Byte2Charp(%s)'
@@ -400,17 +425,32 @@ class TypeConvForGo(TypeConv):
 
         if ctx.convable_type.kind == clidx.TypeKind.RVALUEREFERENCE:
             if ctx.can_type_name.startswith('Q'):
-                return '%%s.(*%s).Qclsinst' % (ctx.can_type_name)
+                cmod = self.gutil.get_decl_mod(cursor)
+                tmod = self.gutil.get_decl_mod(ctx.can_type.get_declaration())
+                if cmod != tmod:
+                    return '%%s.(*qt%s.%s).Qclsinst' % (tmod, ctx.can_type_name)
+                else:
+                    return '%%s.(*%s).Qclsinst' % (ctx.can_type_name)
             self.dumpContext(ctx)
 
         if ctx.convable_type.kind == clidx.TypeKind.RECORD:
-            return '%%s.(*%s).Qclsinst' % (ctx.can_type_name)
+            cmod = self.gutil.get_decl_mod(cursor)
+            tmod = self.gutil.get_decl_mod(ctx.can_type.get_declaration())
+            if cmod != tmod:
+                return '%%s.(*qt%s.%s).Qclsinst' % (tmod, ctx.can_type_name)
+            else:
+                return '%%s.(*%s).Qclsinst' % (ctx.can_type_name)
 
         if ctx.convable_type.kind == clidx.TypeKind.POINTER:
             if ctx.can_type.kind == clidx.TypeKind.RECORD:
                 # TODO like QListData::Data
                 # if '::' not in ctx.can_type_name:
-                return '%%s.(*%s).Qclsinst' % (ctx.can_type_name)
+                cmod = self.gutil.get_decl_mod(cursor)
+                tmod = self.gutil.get_decl_mod(ctx.can_type.get_declaration())
+                if cmod != tmod:
+                    return '%%s.(*qt%s.%s).Qclsinst' % (tmod, ctx.can_type_name)
+                else:
+                    return '%%s.(*%s).Qclsinst' % (ctx.can_type_name)
                 self.dumpContext(ctx)
             if ctx.can_type.kind == clidx.TypeKind.BOOL:
                 return '(unsafe.Pointer)(%s.(*bool))'
