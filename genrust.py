@@ -529,7 +529,7 @@ class GenerateForRust(GenerateBase):
         ctx.CP.AP('body', ctx.fn_proto_cpp)
         ctx.CP.AP('body', "impl /*struct*/ %s {" % (class_name))
         ctx.CP.AP('body', "  pub fn %s<T: %s_%s>(value: T) -> %s {"
-                   % (method_name, class_name, method_name, class_name))
+                  % (method_name, class_name, method_name, class_name))
         ctx.CP.AP('body', "    let rsthis = value.%s();" % (method_name))
         ctx.CP.AP('body', "    return rsthis;")
         ctx.CP.AP('body', "    // return 1;")
@@ -569,10 +569,6 @@ class GenerateForRust(GenerateBase):
         ctx.CP.AP('body', "    let ctysz: c_int = unsafe{%s_Class_Size()};" % (ctx.flat_class_name))
         ctx.CP.AP('body', "    let qthis_ph: u64 = unsafe{calloc(1, ctysz as usize)} as u64;")
         self.generateArgConvExprs(class_name, method_name, method_cursor, ctx)
-        # if len(call_params) == 0:
-        #    ctx.CP.AP('body', "    unsafe {C%s(qthis_ph%s)};" % (mangled_name, call_params))
-        # else:
-        #    ctx.CP.AP('body', "    unsafe {C%s(qthis_ph, %s)};" % (mangled_name, call_params))
         ctx.CP.AP('body', "    let qthis: u64 = unsafe {C%s(%s)};" % (mangled_name, call_params))
         # ctx.CP.AP('body', "    let qthis: u64 = qthis_ph;")
         if ctx.has_base:
@@ -597,29 +593,6 @@ class GenerateForRust(GenerateBase):
         return_piece_code_return = ''
         return_type_name_rs = '()'
         if has_return:
-            # return_type_name_rs = ctx.ret_type_name_rs
-            # # fix template, just return u64
-            # # if return_type_name_rs.count('<') > 0: return_type_name_rs = 'u64'
-            # acty = self.tyconv.TypeToActual(ctx.ret_type)
-            # acty = self.tyconv.TypeToCanonical(acty)
-            # acty = self.tyconv.TypeToActual(ctx.ret_type)  # drop const
-            # acty = self.tyconv.TypeToCanonical(acty)
-            # if acty.kind == clidx.TypeKind.RECORD and acty.spelling not in self.gctx.classes:
-            #     return_type_name_rs = 'u64'
-            #     print(890, ctx.ret_type_name_rs, '=>', return_type_name_rs, acty.spelling)
-            # elif ctx.ret_type_name_rs == 'QFunctionPointer' or ctx.ret_type_name_rs == 'EasingFunction':
-            #     return_type_name_rs = 'u64'
-            # elif acty.spelling in self.gctx.classes and self.check_skip_class(acty.get_declaration()):
-            #     return_type_name_rs = 'u64'
-            #     # print(890, ctx.ret_type_name_rs, '=>', return_type_name_rs)
-
-            # if 'QAbstractOpenGLFunctionsPrivate' in acty.spelling:
-            #     print(acty.kind, acty.spelling, return_type_name_rs, acty.spelling in self.gctx.classes,
-            #           self.check_skip_class(acty.get_declaration()))
-                # raise 'wtf'
-            # tc = self.gctx.classes['QMetaObject']
-            # print(tc.kind, tc.spelling, acty.kind, tc.location)
-            # print(890, cursor.result_type.spelling, '=>', return_type_name_rs)
             return_type_name_rs = self.generateReturnForImplTraitT0(ctx)
             return_piece_code_return = 'let mut ret ='
 
@@ -630,9 +603,9 @@ class GenerateForRust(GenerateBase):
         mangled_name = ctx.mangled_name
         ctx.CP.AP('body', ctx.fn_proto_cpp)
         ctx.CP.AP('body', "impl<'a> /*trait*/ %s_%s<%s> for (%s) {" %
-                   (class_name, method_name, return_type_name_rs, trait_params))
+                  (class_name, method_name, return_type_name_rs, trait_params))
         ctx.CP.AP('body', "  fn %s(self %s) -> %s {" %
-                   (method_name, self_code_proto, return_type_name_rs))
+                  (method_name, self_code_proto, return_type_name_rs))
         ctx.CP.AP('body', "    // let qthis: *mut c_void = unsafe{calloc(1, %s)};" % (ctx.ctysz))
         ctx.CP.AP('body', "    // unsafe{%s()};" % (mangled_name))
         self.generateArgConvExprs(class_name, method_name, method_cursor, ctx)
@@ -640,25 +613,6 @@ class GenerateForRust(GenerateBase):
             ctx.CP.AP('body', "    %s unsafe {C%s(%s)};" % (return_piece_code_return, mangled_name, call_params))
         else:
             ctx.CP.AP('body', "    %s unsafe {C%s(%s)};" % (return_piece_code_return, mangled_name, call_params))
-
-        # def iscvoidstar(tyname): return ' c_void' in tyname and '*' in tyname
-        # def isrstar(tyname): return '*' in tyname
-
-        # return expr post process
-        # TODO 还有一种值返回的情况要处理，值返回的情况需要先创建一个空对象
-        # return_type_name_ext = ctx.ret_type_name_ext
-        # if return_type_name_rs == 'String' and 'char' in return_type_name_ext:
-        #     if has_return: ctx.CP.AP('body', "    let slen = unsafe {strlen(ret as *const i8)} as usize;")
-        #     if has_return: ctx.CP.AP('body', "    return unsafe{String::from_raw_parts(ret as *mut u8, slen, slen+1)};")
-        # # elif return_type_name_ext == '*mut c_void' or return_type_name_ext == '*const c_void':  # no const now
-        # elif iscvoidstar(return_type_name_ext) and ctx.ret_type_name_rs.count('<') > 0:
-        #     if has_return: ctx.CP.AP('body', "    return ret as %s;" % (return_type_name_rs))
-        # elif iscvoidstar(return_type_name_ext) and not isrstar(return_type_name_rs):
-        #     # 应该是返回一个qt class对象，由于无法返回&mut类型的对象
-        #     if has_return: ctx.CP.AP('body', "    let mut ret1 = %s::inheritFrom(ret as u64);" % (return_type_name_rs))
-        #     if has_return: ctx.CP.AP('body', "    return ret1;")
-        # else:
-        #     if has_return: ctx.CP.AP('body', "    return ret as %s;" % (return_type_name_rs))
 
         if has_return: self.generateReturnForImplTrait(ctx)
         ctx.CP.AP('body', "    // return 1;")
@@ -771,7 +725,81 @@ class GenerateForRust(GenerateBase):
         for arg in method_cursor.get_arguments(): argc += 1
 
         def isvec(tyname): return 'Vec<' in tyname
+
         def isrstr(tyname): return 'String' in tyname.split(' ')
+
+        def hasdarg(arg): return self.gutil.hasDefaultArg(arg)
+
+        def dargsrc(arg): return self.gutil.defaultArgSrc(arg)
+
+        def evaldarg(arg):
+            dva = False
+            tks = list(arg.get_tokens())
+            for idx, (tk) in enumerate(tks):
+                if tk.kind == clidx.TokenKind.PUNCTUATION and tk.spelling == '=':
+                    dva = True
+                    continue
+                if tk.kind == clidx.TokenKind.PUNCTUATION and tk.spelling == ')':
+                    break
+                if dva is True:
+                    tkc = tk.cursor
+                    if tkc.kind == clidx.CursorKind.CHARACTER_LITERAL:
+                        return "%s as i8" % (tk.spelling)
+                    elif tkc.kind == clidx.CursorKind.INTEGER_LITERAL:
+                        aty = self.tyconv.TypeToCanonical(self.tyconv.TypeToActual(arg.type))
+                        srctype = self.tyconv.TypeCXX2Rust(arg.type, arg)
+                        if isrstr(srctype):
+                            return tk.spelling + ' as *const u8'
+                        elif isvec(srctype):
+                            if aty.kind == clidx.TypeKind.INT:
+                                return tk.spelling + ' as *const i32'
+                            elif aty.kind == clidx.TypeKind.LONGLONG:
+                                return tk.spelling + ' as *const i64'
+                            elif aty.kind == clidx.TypeKind.DOUBLE:
+                                return tk.spelling + ' as *const f64'
+                            return tk.spelling + ' as *const i8'
+                        elif arg.type.spelling.endswith('void *'):
+                            return tk.spelling + ' as *mut c_void'
+                        elif aty.kind == clidx.TypeKind.DOUBLE:
+                            return tk.spelling + ' as f64'
+                        else:
+                            return tk.spelling
+                    elif tkc.kind == clidx.CursorKind.FLOATING_LITERAL:
+                        return tk.spelling.strip('f')
+                    elif tkc.kind == clidx.CursorKind.CXX_BOOL_LITERAL_EXPR:
+                        return tk.spelling + ' as i8'  # maybe change to as u8
+                    elif tkc.kind == clidx.CursorKind.UNARY_OPERATOR:
+                        return '%s%s' % (tk.spelling, tks[idx + 1].spelling)
+                    elif tkc.kind == clidx.CursorKind.TYPE_REF:
+                        aty = self.tyconv.TypeToCanonical(self.tyconv.TypeToActual(arg.type))
+                        if aty.kind == clidx.TypeKind.INT:
+                            return '0 as i32'
+                        if tk.spelling == 'QLatin1Char':
+                            return '%s::new((0 as i8)).qclsinst' % (tk.spelling)
+                        return '%s::new(()).qclsinst' % (tk.spelling)
+                    elif tkc.kind == clidx.CursorKind.NAMESPACE_REF:
+                        aty = self.tyconv.TypeToCanonical(self.tyconv.TypeToActual(arg.type))
+                        if aty.kind == clidx.TypeKind.RECORD:
+                            return '%s::new(()).qclsinst' % (aty.spelling)
+                        return '0 as i32'
+                    elif tkc.kind == clidx.CursorKind.DECL_REF_EXPR and tk.spelling.startswith('ApplicationFlags'):
+                        return '0 as i32'
+                    elif tkc.kind == clidx.CursorKind.DECL_REF_EXPR and tk.spelling.startswith('SO_'):
+                        return '0 as i32'
+                    elif tkc.kind == clidx.CursorKind.DECL_REF_EXPR and tk.spelling.startswith('SH_'):
+                        return '0 as i32'
+                    elif tkc.kind == clidx.CursorKind.DECL_REF_EXPR and tk.spelling == 'Type':
+                        return '0 as i32'
+                    elif tkc.kind == clidx.CursorKind.PARM_DECL and tk.spelling.startswith('GL_'):
+                        return '0 as u32'
+                    elif tkc.kind == clidx.CursorKind.CXX_METHOD and tk.spelling == 'ULONG_MAX':
+                        return 'i32::max_value() as u64'
+                    else:
+                        print(55555, ctx.method_name, arg.displayname, arg.kind, dargsrc(arg))
+                        print(5555, tk.kind, tk.spelling.strip("'"), tk.cursor.kind)
+                        # raise 'wtf'
+                    break
+            return ''
 
         for idx, (arg) in enumerate(method_cursor.get_arguments()):
             srctype = self.tyconv.TypeCXX2Rust(arg.type, arg)
@@ -786,10 +814,16 @@ class GenerateForRust(GenerateBase):
             qclsinst = ''
             can_name = self.tyconv.TypeCanName(arg.type)
             if self.is_qt_class(can_name): qclsinst = '.qclsinst'
-            if argc == 1:  # fix shit rust tuple index
-                ctx.CP.AP('body', "    let arg%s = self%s%s %s;" % (idx, qclsinst, asptr, astype))
+            selfn = 'self' if argc == 1 else 'self.%s' % (idx)  # fix shit rust tuple index
+            if hasdarg(arg):
+                ctx.CP.AP('body', "    let arg%s = (if %s.is_none() {%s} else {%s.unwrap()%s%s}) %s;"
+                          % (idx, selfn, evaldarg(arg), selfn, qclsinst, asptr, astype))
             else:
-                ctx.CP.AP('body', "    let arg%s = self.%s%s%s %s;" % (idx, idx, qclsinst, asptr, astype))
+                ctx.CP.AP('body', "    let arg%s = %s%s%s %s;" % (idx, selfn, qclsinst, asptr, astype))
+            # if argc == 1:  # fix shit rust tuple index
+            #    ctx.CP.AP('body', "    let arg%s = self%s%s %s;" % (idx, qclsinst, asptr, astype))
+            # else:
+            #    ctx.CP.AP('body', "    let arg%s = self.%s%s%s %s;" % (idx, idx, qclsinst, asptr, astype))
         return
 
     # @return []
@@ -801,8 +835,6 @@ class GenerateForRust(GenerateBase):
             idx += 1
             # print('%s, %s, ty:%s, kindty:%s' % (method_name, arg.displayname, arg.type.spelling, arg.kind))
             # print('arg type kind: %s, %s' % (arg.type.kind, arg.type.get_declaration()))
-            # param_line2 = self.restore_param_by_token(arg)
-            # print(param_line2)
 
             type_name = self.resolve_swig_type_name(class_name, arg.type)
             type_name2 = self.hotfix_typename_ifenum_asint(class_name, arg, arg.type)
@@ -836,8 +868,6 @@ class GenerateForRust(GenerateBase):
             idx += 1
             # print('%s, %s, ty:%s, kindty:%s' % (method_name, arg.displayname, arg.type.spelling, arg.kind))
             # print('arg type kind: %s, %s' % (arg.type.kind, arg.type.get_declaration()))
-            # param_line2 = self.restore_param_by_token(arg)
-            # print(param_line2)
 
             type_name = self.resolve_swig_type_name(class_name, arg.type)
             type_name2 = self.hotfix_typename_ifenum_asint(class_name, arg, arg.type)
@@ -859,24 +889,17 @@ class GenerateForRust(GenerateBase):
             idx += 1
             # print('%s, %s, ty:%s, kindty:%s' % (method_name, arg.displayname, arg.type.spelling, arg.kind))
             # print('arg type kind: %s, %s' % (arg.type.kind, arg.type.get_declaration()))
-            # param_line2 = self.restore_param_by_token(arg)
-            # print(param_line2)
 
             if self.check_skip_param(arg, method_name) is False:
                 self.generateUseForRust(ctx, arg.type, arg)
 
-            # type_name = self.resolve_swig_type_name(class_name, arg.type)
-            # type_name2 = self.hotfix_typename_ifenum_asint(class_name, arg, arg.type)
-            # type_name = type_name2 if type_name2 is not None else type_name
             type_name = self.tyconv.TypeCXX2Rust(arg.type, arg, inty=True)
             if type_name.startswith('&'): type_name = type_name.replace('&', "&'a ")
-            # if self.is_qt_class(type_name) and self.check_skip_param(arg, method_name) is False:
-            #     seg = self.get_qt_class(type_name)
-            #     if seg != class_name:
-            #         ctx.CP.APU('use', "use super::%s::%s;\n" % (seg.lower(), seg))
 
-            arg_name = 'arg%s' % idx if arg.displayname == '' else arg.displayname
-            argelem = "%s" % (type_name)
+            if self.gutil.hasDefaultArg(arg):
+                argelem = "Option<%s>" % (type_name)
+            else:
+                argelem = "%s" % (type_name)
             argv.append(argelem)
 
         return argv
@@ -894,22 +917,13 @@ class GenerateForRust(GenerateBase):
             idx += 1
             # print('%s, %s, ty:%s, kindty:%s' % (method_name, arg.displayname, arg.type.spelling, arg.kind))
             # print('arg type kind: %s, %s' % (arg.type.kind, arg.type.get_declaration()))
-            # param_line2 = self.restore_param_by_token(arg)
-            # print(param_line2)
 
             if self.check_skip_param(arg, method_name) is False:
                 self.generateUseForRust(ctx, arg.type, arg)
-            # type_name = self.resolve_swig_type_name(class_name, arg.type)
-            # type_name2 = self.hotfix_typename_ifenum_asint(class_name, arg, arg.type)
-            # type_name = type_name2 if type_name2 is not None else type_name
             type_name = self.tyconv.TypeCXX2RustExtern(arg.type, arg)
-            # if self.is_qt_class(type_name) and self.check_skip_param(arg, method_name) is False:
-            #    seg = self.get_qt_class(type_name)
-            #    if seg != class_name:
-            #        ctx.CP.APU('use', "use super::%s::%s;\n" % (seg.lower(), seg))
 
             arg_name = 'arg%s' % idx if arg.displayname == '' else arg.displayname
-            argelem = "arg%s: %s" % (idx-1, type_name)
+            argelem = "arg%s: %s" % (idx - 1, type_name)
             argv.append(argelem)
 
         return argv
@@ -1140,7 +1154,7 @@ class GenerateForRust(GenerateBase):
     def hotfix_typename_ifenum_asint(self, class_name, token_cursor, atype):
         type_name = self.resolve_swig_type_name(class_name, atype)
         # if type_name not in ('int', 'int *', 'const int &'): return None
-        type_name_segs = type_name.split(' ') 
+        type_name_segs = type_name.split(' ')
         if 'int' not in type_name_segs: return None
 
         tokens = []
@@ -1170,8 +1184,6 @@ class GenerateForRust(GenerateBase):
         type_name = atype.spelling
 
         if atype.kind == clang.cindex.TypeKind.TYPEDEF:
-            # print('underlying type: %s' % atype.get_declaration().underlying_typedef_type.spelling)
-            # print('underlying type: %s' % arg.type.underlying_typedef_type.spelling)
             type_name = atype.get_declaration().underlying_typedef_type.spelling
             if type_name.startswith('QFlags<'):
                 type_name = type_name[7:len(type_name) - 1]
@@ -1184,18 +1196,11 @@ class GenerateForRust(GenerateBase):
         if type_name in ['QFunctionPointer', 'CategoryFilter',
                          'EasingFunction']:
             type_bclass = atype.get_declaration().semantic_parent
-            # if type_name.startswith('Q'):
             # 全局定义的，不需要前缀
             if type_bclass.kind == clang.cindex.CursorKind.TRANSLATION_UNIT: pass
             else: type_name = '%s::%s' % (type_bclass.spelling, type_name)
         else:
             type_name = self.real_type_name(atype)
-
-            # QTextStreamManipulator(void (QTextStream::*)(int) m, int a);
-            # int registerNormalizedType(const ::QByteArray & normalizedTypeName, void * destructor, void *(*)(void *, const void *) constructor, int size, QMetaType::TypeFlags flags, const QMetaObject * metaObject);
-            # qreal (*)(qreal) customType();
-            # if type_name == 'void (*)(void *)':
-            #    type_name = "void *"
 
         return type_name
 

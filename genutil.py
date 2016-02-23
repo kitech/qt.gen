@@ -326,6 +326,18 @@ class GenUtil(object):
                 num += 1
         return None
 
+    def hasDefaultArg(self, cursor):
+        for tk in cursor.get_tokens():
+            if tk.kind == clidx.TokenKind.PUNCTUATION and tk.spelling == '=':
+                return True
+        return False
+
+    def defaultArgSrc(self, cursor):
+        tks = []
+        for tk in cursor.get_tokens():
+            tks.append(tk.spelling)
+        return ' '.join(tks)
+
     pass
 
 
