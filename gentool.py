@@ -31,9 +31,7 @@ for module in qtmodules: compile_args += ['-I/usr/include/qt/%s' % (module)]
 class GenTool:
     def __init__(self):
         self.cursors = {}  # module => clang.cindex.Cursor
-        self.generator = GenerateForGo()
-        # self.generator = GenerateForInc()
-        self.generator = GenerateForRust()
+        self.generator = None  # GenerateBase
         # self.builder = TestBuilderForGo()
         self.genres = {}  # key => True | False
         self.conflib = clang.cindex.conf.lib
@@ -43,7 +41,22 @@ class GenTool:
         return
 
     # 单独测试每个qt类
+    def walkinc(self):
+        self.generator = GenerateForInc()
+        self.walkCommon()
+        return
+
     def walkgo(self):
+        self.generator = GenerateForGo()
+        self.walkCommon()
+        return
+
+    def walkrust(self):
+        self.generator = GenerateForRust()
+        self.walkCommon()
+        return
+
+    def walkCommon(self):
         self.tuc = cursor = self.build_ast()
         print(self.tuc.kind)
 

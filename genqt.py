@@ -5,6 +5,9 @@ import os
 import clang
 import clang.cindex
 
+# usage:
+#    python2 genqt.py <inc|go|rust>
+
 # TODO 类中的enum
 # 方法参数的默认值。
 # signal/slots，这个有希望吗
@@ -19,9 +22,21 @@ from gentool import GenTool
 
 
 # 解析参数，调用不同的GenTool工具方法
+def usage():
+    print('    python2 <inc|go|rust>')
+    os.exit(0)
+    return
+
+
 def main():
     tool = GenTool()
-    tool.walkgo()
+    if len(sys.argv) < 2: usage()
+
+    if sys.argv[1] == 'inc': tool.walkinc()
+    elif sys.argv[1] == 'go': tool.walkgo()
+    elif sys.argv[1] == 'rust': tool.walkrust()
+    else: usage()
+
     okcnt = 0
     for header in tool.genres:
         ok = tool.genres[header]

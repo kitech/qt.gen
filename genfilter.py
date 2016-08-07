@@ -20,8 +20,13 @@ class GenFilter(object):
         # 这个也许是因为qt有bug，也许是因为arch上的qt包有问题。QT_OPENGL_ES_2相关。
         if cname.startswith('QOpenGLFunctions_') and 'CoreBackend' in cname: return True
         if cname.startswith('QOpenGLFunctions_') and 'DeprecatedBackend' in cname: return True
+        if cname.startswith('QOpenGLFunctions'): return True
+        if cname.startswith('QOpenGLExtraFunctions'): return True
         if cname == 'QAbstractOpenGLFunctionsPrivate': return True
         if cname == 'QOpenGLFunctionsPrivate': return True
+        if cname == 'QOpenGLExtraFunctionsPrivate': return True
+        if cname.startswith('QOpenGLVersion'): return True
+        if cname.startswith('QOpenGL'): return True
 
         if cursor.kind == clidx.CursorKind.CLASS_TEMPLATE: return True
 
@@ -45,6 +50,8 @@ class GenFilter(object):
         #     if tdef.access_specifier in [clidx.AccessSpecifier.PRIVATE,
         #                                  clidx.AccessSpecifier.PROTECTED]:
         #         return True
+
+        if cursor.spelling in ['rend', 'append', 'insert', 'rbegin', 'prepend', 'crend', 'crbegin']: return True
 
         return False
 

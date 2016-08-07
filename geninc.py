@@ -515,6 +515,7 @@ class GenerateForInc(GenerateBase):
         self.generateReturnDecl(ctx)
         ctx.CP.AP('ext', 'C%s(%s) {' % (ctx.mangled_name, prms))
         if ctx.isabstract:
+            args = ',\n// '.join(argv)
             ctx.CP.AP('ext', '  // auto ret = new %s(%s);' % (ctx.full_class_name, args))
         else:
             ctx.CP.AP('ext', '  auto ret = new %s(%s);' % (ctx.full_class_name, args))

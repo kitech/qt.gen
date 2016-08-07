@@ -18,13 +18,13 @@ function help()
 
 function mvgosrc()
 {
-    mkdir -p qt.go/src/{qt5,core,gui,widgets,network,qml,quick}
-    rm -f qt.go/src/{qt5,core,gui,widgets,network,qml,quick}/q*.go
+    mkdir -p ../qt.go/src/{qt5,core,gui,widgets,network,qml,quick}
+    rm -f ../qt.go/src/{qt5,core,gui,widgets,network,qml,quick}/q*.go
 
     # cp -a src/qtrt/*.go qt.go/src/qtrt/
-    cp -a src/core/*.go qt.go/src/qt5/
-    cp -a src/gui/*.go qt.go/src/qt5/
-    cp -a src/widgets/*.go qt.go/src/qt5/
+    cp -a src/core/*.go ../qt.go/src/qt5/
+    cp -a src/gui/*.go ../qt.go/src/qt5/
+    cp -a src/widgets/*.go ../qt.go/src/qt5/
     # cp -a src/network/*.go qt.go/src/qt5/
     # cp -a src/qml/*.go qt.go/src/qt5/
     # cp -a src/quick/*.go qt.go/src/qt5/
@@ -32,13 +32,13 @@ function mvgosrc()
 
 function mvgosrc2()
 {
-    mkdir -p qt.go/src/{qt5,qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}
-    rm -f qt.go/src/{qt5,qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}/q*.go
+    mkdir -p ../qt.go/src/{qt5,qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}
+    rm -f ../qt.go/src/{qt5,qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}/q*.go
 
     # cp -a src/qtrt/*.go qt.go/src/qtrt/
-    cp -a src/core/*.go qt.go/src/qtcore/
-    cp -a src/gui/*.go qt.go/src/qtgui/
-    cp -a src/widgets/*.go qt.go/src/qtwidgets/
+    cp -a src/core/*.go ../qt.go/src/qtcore/
+    cp -a src/gui/*.go ../qt.go/src/qtgui/
+    cp -a src/widgets/*.go ../qt.go/src/qtwidgets/
     # cp -a src/network/*.go qt.go/src/qt5/
     # cp -a src/qml/*.go qt.go/src/qt5/
     # cp -a src/quick/*.go qt.go/src/qt5/
@@ -52,9 +52,9 @@ function mvqil()
     cp -a src/core/*.{cxx,cmake} ~/oss/qt.inline/src/core/
     cp -a src/gui/*.{cxx,cmake} ~/oss/qt.inline/src/gui/
     cp -a src/widgets/*.{cxx,cmake} ~/oss/qt.inline/src/widgets/
-    cp -a src/network/*.{cxx,cmake} ~/oss/qt.inline/src/network/
-    cp -a src/qml/*.{cxx,cmake} ~/oss/qt.inline/src/qml/
-    cp -a src/quick/*.{cxx,cmake} ~/oss/qt.inline/src/quick/
+    # cp -a src/network/*.{cxx,cmake} ~/oss/qt.inline/src/network/
+    # cp -a src/qml/*.{cxx,cmake} ~/oss/qt.inline/src/qml/
+    # cp -a src/quick/*.{cxx,cmake} ~/oss/qt.inline/src/quick/
 
     # cp -a CMakeLists.txt ~/oss/qt.inline/
     cp -a src/qihotfix.cpp ~/oss/qt.inline/src/

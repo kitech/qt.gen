@@ -473,15 +473,21 @@ class GenerateForGo(GenerateBase):
             cursor = overload_methods[mangled_name]
             ctx.CP.AP('body', "  // %s" % (cursor.displayname))
 
+        # overload method args matrix
         ctx.CP.AP('body', '  var vtys = make(map[int32]map[int32]reflect.Type)')
         ctx.CP.AP('body', "  if false {fmt.Println(vtys)}")
-
         midx = 0
         for mangled_name in overload_methods:
             cursor = overload_methods[mangled_name]
             ctx.CP.AP('body', '  vtys[%s] = make(map[int32]reflect.Type)' % (midx))
             self.generateParamsTypeForResolve(ctx, cursor, midx)
             midx += 1
+
+        # overload method default args matrix
+        ctx.CP.AP('body', '  var dargExists = make(map[int32]map[int32]bool)')
+        ctx.CP.AP('body', "  if false {fmt.Println(dargExists)}")
+        ctx.CP.AP('body', '  var dargValues = make(map[int32]map[int32]interface{})')
+        ctx.CP.AP('body', "  if false {fmt.Println(dargValues)}")
 
         ctx.CP.AP('body', '')
         ctx.CP.AP('body', "  var matched_index = qtrt.SymbolResolve(args, vtys)")
