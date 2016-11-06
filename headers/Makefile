@@ -1,0 +1,2 @@
+all:
+	clang++ -c -o a.o -x c++ -std=c++11 -D __CODE_GENERATOR__ -D _GLIBCXX_USE_CXX11ABI=1 -I/usr/include/qt -D QT_NO_DEBUG -D _GNU_SOURCE -pipe -fno-exceptions -O2 -march=x86-64 -mtune=generic -O2 -pipe -fstack-protector-strong -std=c++11 -Wall -W -D _REENTRANT -fPIC -D QT_CORE_LIB -I/usr/include/qt/QtCore -D QT_GUI_LIB -I/usr/include/qt/QtGui -D QT_WIDGETS_LIB -I/usr/include/qt/QtWidgets -I/usr/lib/gcc/x86_64-pc-linux-gnu/6.2.1/include a.cpp
