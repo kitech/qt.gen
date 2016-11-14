@@ -123,7 +123,7 @@ func (this *GenCtrl) collectClasses() {
 		case clang.Cursor_ClassDecl:
 			if !this.filter.skipClass(cursor, parent) {
 				this.genor.genClass(cursor, parent)
-				return clang.ChildVisit_Break
+				// return clang.ChildVisit_Break
 			}
 		case clang.Cursor_FunctionDecl:
 		case clang.Cursor_StructDecl:

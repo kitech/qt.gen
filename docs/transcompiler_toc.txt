@@ -1,0 +1,4 @@
+
+### *this_ 全部在proto中使用 void*
+### & 引用参数，转成指针类型
+### return RECORD, 围成指针类型

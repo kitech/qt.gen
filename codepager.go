@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"strings"
 
@@ -104,6 +105,19 @@ func (this *CodePager) AP(name, code string)  { this.Append(name, code) }
 func (this *CodePager) APU(name, code string) { this.AppendUnique(name, code) }
 func (this *CodePager) PP(name, code string)  { this.Prepend(name, code) }
 func (this *CodePager) PPU(name, code string) { this.PrependUnique(name, code) }
+
+func (this *CodePager) APf(name, format string, args ...interface{}) {
+	this.Append(name, fmt.Sprintf(format, args...))
+}
+func (this *CodePager) APUf(name, format string, args ...interface{}) {
+	this.AppendUnique(name, fmt.Sprintf(format, args...))
+}
+func (this *CodePager) PPf(name, format string, args ...interface{}) {
+	this.Prepend(name, fmt.Sprintf(format, args...))
+}
+func (this *CodePager) PPUf(name, format string, args ...interface{}) {
+	this.PrependUnique(name, fmt.Sprintf(format, args...))
+}
 
 func (this *CodePager) GetPoint(name string) string {
 	return strings.Join(this.lines[name], this.newline)

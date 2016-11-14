@@ -21,3 +21,12 @@ func init() {
 type GenBase struct {
 	tu *clang.TranslationUnit
 }
+
+// TODO is what?
+func (this *GenBase) isSignal() bool {
+	return false
+}
+
+func (this *GenBase) isSlot() bool {
+	return false
+}

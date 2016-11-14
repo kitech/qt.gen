@@ -20,11 +20,14 @@ func (this *GenFilterBase) skipClass(cursor, parent clang.Cursor) bool {
 	prefixes := []string{
 		"QMetaTypeId", "QTypeInfo", "QOpenGLFunctions",
 		"QOpenGLExtraFunctions", "QOpenGLVersion", "QOpenGL",
+		"QAbstract", "QPrivate",
 	}
 	equals := []string{
 		"QAbstractOpenGLFunctionsPrivate",
 		"QOpenGLFunctionsPrivate",
 		"QOpenGLExtraFunctionsPrivate",
+		"QAnimationGroup",
+		"QMetaType",
 	}
 
 	for _, prefix := range prefixes {
@@ -51,10 +54,32 @@ func (this *GenFilterBase) skipClass(cursor, parent clang.Cursor) bool {
 	if !cursor.IsCursorDefinition() {
 		return true
 	}
+	// pure virtual class check
+	pure_virtual_class := false
+	cursor.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
+		if cursor.CXXMethod_IsPureVirtual() {
+			pure_virtual_class = true
+		}
+		return clang.ChildVisit_Continue
+	})
+	if pure_virtual_class {
+		return true
+	}
+
 	// if cursor.kind == clidx.CursorKind.CLASS_TEMPLATE: return True
+	if cursor.SpecializedCursorTemplate().IsNull() == false {
+		return true
+	}
+	// inner class
+	if cursor.SemanticParent().Kind() == clang.Cursor_StructDecl {
+		return true
+	}
+	if cursor.SemanticParent().Kind() == clang.Cursor_StructDecl {
+		return true
+	}
 	// test
 	if cname != "QString" {
-		return true
+		// return true
 	}
 
 	return false
@@ -91,10 +116,50 @@ func (this *GenFilterBase) skipMethod(cursor, parent clang.Cursor) bool {
 	if cursor.IsVariadic() {
 		return true
 	}
+	// TODO move ctor and copy ctor?
+	if cursor.CXXConstructor_IsCopyConstructor() {
+		return true
+	}
+	if cursor.CXXConstructor_IsMoveConstructor() {
+		return true
+	}
+
+	//
+	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
+		if this.skipArg(cursor.Argument(uint32(idx)), cursor) {
+			return true
+		}
+	}
 
 	return false
 }
 func (this *GenFilterBase) skipArg(cursor, parent clang.Cursor) bool {
+	// C_ZN16QCoreApplication11aboutToQuitENS_14QPrivateSignalE(void *this_, QCoreApplication::QPrivateSignal a0)
+	if strings.Contains(cursor.Type().Spelling(), "QPrivate") {
+		return true
+	}
+	if strings.HasSuffix(cursor.Type().Spelling(), "Function") {
+		return true
+	}
+	if strings.HasSuffix(cursor.Type().Spelling(), "Func") {
+		return true
+	}
+	inenums := []string{
+		"ComponentFormattingOptions",
+		"FormattingOptions",
+		"CategoryFilter",
+		"KeyValues",
+	}
+	for _, inenum := range inenums {
+		if strings.Contains(cursor.Type().Spelling(), inenum) {
+			return true
+		}
+	}
+	// C_ZN18QThreadStorageDataC1EPFvPvE(void (*)(void *) func) {
+	if cursor.Type().Spelling() == "void (*)(void *)" {
+		return true
+	}
+
 	return false
 }
 
