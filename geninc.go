@@ -258,7 +258,7 @@ func (this *GenerateInline) genParams(cursor, parent clang.Cursor) {
 
 func (this *GenerateInline) genParam(cursor, parent clang.Cursor, idx int) {
 	if len(cursor.Spelling()) == 0 {
-		this.paramDesc = append(this.paramDesc, fmt.Sprintf("a%d", idx))
+		this.paramDesc = append(this.paramDesc, fmt.Sprintf("arg%d", idx))
 	} else {
 		this.paramDesc = append(this.paramDesc, fmt.Sprintf("%s", cursor.Spelling()))
 	}

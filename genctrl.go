@@ -12,14 +12,20 @@ import (
 	"gopp"
 )
 
+var ast_file = "./qthdrsrc.ast"
+var hdr_file = "./headers/qthdrsrc.h"
+var modDeps = make(map[string][]string)
+
 func init() {
 	if false {
 		log.Println(123)
 	}
-}
 
-var ast_file = "./qthdrsrc.ast"
-var hdr_file = "./headers/qthdrsrc.h"
+	modDeps["core"] = []string{}
+	modDeps["gui"] = []string{"core"}
+	modDeps["widgets"] = []string{"core", "gui"}
+	modDeps["network"] = []string{"core"}
+}
 
 type GenCtrl struct {
 	tu       clang.TranslationUnit
@@ -50,6 +56,9 @@ func (this *GenCtrl) main() {
 func (this *GenCtrl) setupLang() {
 	this.filter = &GenFilterInc{}
 	this.genor = NewGenerateInline()
+
+	this.filter = &GenFilterGo{}
+	this.genor = NewGenerateGo()
 }
 
 func (this *GenCtrl) setupEnv() {

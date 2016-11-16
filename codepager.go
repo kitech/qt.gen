@@ -147,8 +147,12 @@ func (this *CodePager) RemoveLine(name, code string) {
 
 // 按照names给出的顺序合并并导出代码。
 func (this *CodePager) ExportCode(names []string) string {
-	blocks := gopp.Domap(names, func(i interface{}) interface{} {
-		return strings.Join(this.lines[i.(string)], this.newline)
+	comment := "// "
+	blocks := gopp.Domap(names, func(name interface{}) interface{} {
+		return fmt.Sprintf("%s %s block begin\n%s\n%s %s block end\n",
+			comment, name.(string),
+			strings.Join(this.lines[name.(string)], this.newline),
+			comment, name.(string))
 	})
 	return strings.Join(gopp.IV2Strings(blocks), this.newline)
 }
