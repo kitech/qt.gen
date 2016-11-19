@@ -18,20 +18,6 @@ function help()
 
 function mvgosrc()
 {
-    mkdir -p ../qt.go/src/{qt5,core,gui,widgets,network,qml,quick}
-    rm -f ../qt.go/src/{qt5,core,gui,widgets,network,qml,quick}/q*.go
-
-    # cp -a src/qtrt/*.go qt.go/src/qtrt/
-    cp -a src/core/*.go ../qt.go/src/qt5/
-    cp -a src/gui/*.go ../qt.go/src/qt5/
-    cp -a src/widgets/*.go ../qt.go/src/qt5/
-    # cp -a src/network/*.go qt.go/src/qt5/
-    # cp -a src/qml/*.go qt.go/src/qt5/
-    # cp -a src/quick/*.go qt.go/src/qt5/
-}
-
-function mvgosrc2()
-{
     mkdir -p ../qt.go/src/{qt5,qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}
     rm -f ../qt.go/src/{qt5,qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}/q*.go
 
@@ -82,9 +68,6 @@ case $cmd in
         ;;
     gosrc)
         mvgosrc;
-        ;;
-    gosrc2)
-        mvgosrc2;
         ;;
     rssrc)
         mvrssrc;

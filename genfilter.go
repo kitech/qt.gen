@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"strings"
 
 	"github.com/go-clang/v3.9/clang"
@@ -78,7 +79,20 @@ func (this *GenFilterBase) skipClass(cursor, parent clang.Cursor) bool {
 		return true
 	}
 	// test
+	fixclasses := []string{"QDebug", "QNoDebug", "QDebugStateSaver", "QFileDevice",
+		"QLibraryInfo", "QInternal", "QAccessibleObject", "QGraphicsObject"}
+	for _, c := range fixclasses {
+		if cursor.Spelling() == c {
+			return true
+		}
+	}
 	if cname != "QString" {
+		// return true
+	}
+	if cname != "QStringRef" {
+		// return true
+	}
+	if cname != "QSysInfo" {
 		// return true
 	}
 
@@ -149,15 +163,53 @@ func (this *GenFilterBase) skipArg(cursor, parent clang.Cursor) bool {
 		"FormattingOptions",
 		"CategoryFilter",
 		"KeyValues",
+		"InterfaceFactory",
+		"RootObjectHandler",
+		"UpdateHandler",
+		"QtMetaTypePrivate",
+		"va_list",
 	}
 	for _, inenum := range inenums {
 		if strings.Contains(cursor.Type().Spelling(), inenum) {
 			return true
 		}
 	}
+	if cursor.Type().Spelling() == "Id" {
+		return true
+	}
 	// C_ZN18QThreadStorageDataC1EPFvPvE(void (*)(void *) func) {
 	if cursor.Type().Spelling() == "void (*)(void *)" {
 		return true
+	}
+
+	if this.skipType(cursor.Type(), cursor) {
+		return true
+	}
+
+	return false
+}
+
+func (this *GenFilterBase) skipType(ty clang.Type, cursor clang.Cursor) bool {
+
+	switch ty.Kind() {
+	case clang.Type_LValueReference:
+		fallthrough
+	case clang.Type_RValueReference:
+		fallthrough
+	case clang.Type_Pointer:
+		// is template
+		if ty.PointeeType().NumTemplateArguments() != -1 {
+			return true
+		}
+	case clang.Type_MemberPointer:
+		return true
+	case clang.Type_Typedef:
+		log.Println(ty.Kind().Spelling(), ty.CanonicalType().Kind().Spelling())
+		return this.skipType(ty.CanonicalType(), cursor)
+	default:
+		if ty.NumTemplateArguments() != -1 {
+			return true
+		}
 	}
 
 	return false

@@ -57,8 +57,10 @@ func (this *GenCtrl) setupLang() {
 	this.filter = &GenFilterInc{}
 	this.genor = NewGenerateInline()
 
-	this.filter = &GenFilterGo{}
-	this.genor = NewGenerateGo()
+	if true {
+		this.filter = &GenFilterGo{}
+		this.genor = NewGenerateGo()
+	}
 }
 
 func (this *GenCtrl) setupEnv() {

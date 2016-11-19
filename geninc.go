@@ -63,8 +63,7 @@ func (this *GenerateInline) saveCode(cursor, parent clang.Cursor) {
 		log.Printf("%s:%d:%d @%s\n", file.Name(), line, col, file.Time().String())
 	}
 	modname := strings.ToLower(filepath.Base(filepath.Dir(file.Name())))[2:]
-	savefile := fmt.Sprintf("src/%s/%s.cxx", modname,
-		strings.Split(filepath.Base(file.Name()), ".")[0])
+	savefile := fmt.Sprintf("src/%s/%s.cxx", modname, strings.ToLower(cursor.Spelling()))
 
 	ioutil.WriteFile(savefile, []byte(this.cp.ExportAll()), 0644)
 }
@@ -226,7 +225,7 @@ func (this *GenerateInline) genArg(cursor, parent clang.Cursor, idx int) {
 	// log.Println(cursor.DisplayName(), cursor.Type().Spelling(), cursor.Type().Kind() == clang.Type_LValueReference, this.mangler.convTo(parent))
 
 	if len(cursor.Spelling()) == 0 {
-		this.argDesc = append(this.argDesc, fmt.Sprintf("%s a%d", cursor.Type().Spelling(), idx))
+		this.argDesc = append(this.argDesc, fmt.Sprintf("%s arg%d", cursor.Type().Spelling(), idx))
 	} else {
 		if cursor.Type().Kind() == clang.Type_LValueReference {
 			// 转成指针
