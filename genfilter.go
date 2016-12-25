@@ -1,11 +1,18 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"strings"
 
 	"github.com/go-clang/v3.9/clang"
 )
+
+var filterClass string
+
+func init() {
+	flag.StringVar(&filterClass, "fclass", filterClass, "set only one class")
+}
 
 type GenFilter interface {
 	skipClass(cursor, parent clang.Cursor) bool
@@ -94,6 +101,12 @@ func (this *GenFilterBase) skipClass(cursor, parent clang.Cursor) bool {
 	}
 	if cname != "QSysInfo" {
 		// return true
+	}
+	if cname != "QCoreApplication" {
+		// return true
+	}
+	if len(filterClass) > 0 && cname != filterClass {
+		return true
 	}
 
 	return false
@@ -204,7 +217,9 @@ func (this *GenFilterBase) skipType(ty clang.Type, cursor clang.Cursor) bool {
 	case clang.Type_MemberPointer:
 		return true
 	case clang.Type_Typedef:
-		log.Println(ty.Kind().Spelling(), ty.CanonicalType().Kind().Spelling())
+		if false {
+			log.Println(ty.Kind().Spelling(), ty.CanonicalType().Kind().Spelling())
+		}
 		return this.skipType(ty.CanonicalType(), cursor)
 	default:
 		if ty.NumTemplateArguments() != -1 {

@@ -1,8 +1,11 @@
 package main
 
-import ()
+import (
+	"flag"
+)
 
 func main() {
+	flag.Parse()
 	ctrl := NewGenCtrl()
 	ctrl.main()
 }

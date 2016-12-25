@@ -1,2 +1,6 @@
 ### types
-char ** => []string
+char** => []string
+uchar* => []byte
+RValue => ???
+类内类：=> ???
+

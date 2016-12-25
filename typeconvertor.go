@@ -3,9 +3,17 @@ package main
 import (
 	"fmt"
 	"log"
+	"reflect"
+	"strings"
 
 	"github.com/go-clang/v3.9/clang"
 )
+
+func init() {
+	if false {
+		reflect.TypeOf("heheh")
+	}
+}
 
 type TypeConvertor interface {
 	// 目标语言传递参数进来时的类型
@@ -89,6 +97,185 @@ func (this *TypeConvertGo) toCall(ty clang.Type, cursor clang.Cursor) string {
 		return "C.float"
 	case clang.Type_IncompleteArray:
 		return "unsafe.Pointer"
+	default:
+		log.Fatalln(ty.Spelling(), ty.Kind().Spelling())
+	}
+	return fmt.Sprintf("C.unkown_%s_%s", ty.Spelling(), ty.Kind().String())
+}
+
+func (this *TypeConvertGo) toDestMetaType(ty clang.Type, cursor clang.Cursor) string {
+	switch ty.Kind() {
+	case clang.Type_Int:
+		return "qtrt.Int32Ty(false)"
+	case clang.Type_UInt:
+		return "qtrt.Int32Ty(false)"
+	case clang.Type_LongLong:
+		return "qtrt.Int64Ty(false)"
+	case clang.Type_ULongLong:
+		return "qtrt.Int64Ty(false)"
+	case clang.Type_Short:
+		return "qtrt.Int16Ty(false)"
+	case clang.Type_UShort:
+		return "qtrt.Int16Ty(false)"
+	case clang.Type_UChar:
+		return "qtrt.ByteTy(false)"
+	case clang.Type_Char_S:
+		return "qtrt.ByteTy(false)"
+	case clang.Type_Long:
+		return "qtrt.Int32Ty(false)"
+	case clang.Type_ULong:
+		return "qtrt.Int32Ty(false)"
+	case clang.Type_Typedef:
+		return this.toDestMetaType(ty.CanonicalType(), cursor)
+	case clang.Type_Record:
+		cmod := get_decl_mod(cursor)
+		tmod := get_decl_mod(cursor.Definition())
+		if cmod != tmod {
+			return fmt.Sprintf("reflect.TypeOf(qt%s.%s{}) // 5", tmod, ty.Spelling())
+		} else {
+			if strings.Contains(ty.Spelling(), "::") {
+				return fmt.Sprintf(" qtrt.VoidpTy() // 16")
+			}
+			return fmt.Sprintf("reflect.TypeOf(%s{}) // 6", ty.Spelling())
+		}
+		// return "reflect.TypeOf(qt%s.%s{}) // 1"
+	case clang.Type_Pointer:
+		var canty clang.Type
+		if ty.PointeeType().Declaration().Type().Spelling() == "" {
+			canty = ty.PointeeType()
+		} else {
+			canty = ty.PointeeType().Declaration().Type()
+		}
+		if is_qt_class(canty) {
+			cmod := get_decl_mod(cursor)
+			tmod := get_decl_mod(cursor.Definition())
+			if cmod != tmod {
+				return fmt.Sprintf("reflect.TypeOf(qt%s.%s{}) // 3", tmod, ty.CanonicalType().Spelling())
+			} else {
+				return fmt.Sprintf("reflect.TypeOf(%s{}) // 4", canty.Spelling())
+			}
+		} else {
+		recalc:
+			switch canty.Kind() {
+			case clang.Type_Int:
+				return "qtrt.Int32Ty(true)"
+			case clang.Type_UInt:
+				return "qtrt.UInt32Ty(true)"
+			case clang.Type_Char_S:
+				return "qtrt.ByteTy(true)"
+			case clang.Type_Char_U:
+				return "qtrt.ByteTy(true)"
+			case clang.Type_UChar:
+				return "qtrt.ByteTy(true)"
+			case clang.Type_Short:
+				return "qtrt.Int16Ty(true)"
+			case clang.Type_UShort:
+				return "qtrt.UInt16Ty(true)"
+			case clang.Type_Char16:
+				return "qtrt.UInt16Ty(true)"
+			case clang.Type_Char32:
+				return "qtrt.UInt32Ty(true)"
+			case clang.Type_WChar:
+				return "qtrt.UInt32Ty(true)"
+			case clang.Type_LongLong:
+				return "qtrt.Int64Ty(true)"
+			case clang.Type_Float:
+				return "qtrt.FloatTy(true)"
+			case clang.Type_Double:
+				return "qtrt.DoubleTy(true)"
+			case clang.Type_Pointer: // for char ** => []string
+				return "reflect.TypeOf([]string{})"
+			case clang.Type_Typedef:
+				// log.Fatalln(canty.Spelling(), canty.CanonicalType().Spelling())
+				canty = canty.CanonicalType()
+				goto recalc
+			case clang.Type_Bool:
+				return "qtrt.BoolTy(true)"
+			case clang.Type_Void:
+				return "qtrt.VoidpTy()"
+			case clang.Type_FunctionProto:
+				return "qtrt.VoidpTy()"
+			case clang.Type_Enum:
+				return "qtrt.UInt32Ty(true)"
+			case clang.Type_Record:
+				return "qtrt.VoidpTy()"
+			default:
+				log.Println("unsupported type:", ty.Spelling(), canty.Spelling(), canty.Kind().String())
+			}
+		}
+		// return fmt.Sprintf("reflect.TypeOf(qt%s.%s{}) // 2", get_decl_mod(cursor), "%")
+	case clang.Type_LValueReference:
+		var canty clang.Type
+		if ty.PointeeType().Declaration().Type().Spelling() == "" {
+			canty = ty.PointeeType()
+		} else {
+			canty = ty.PointeeType().Declaration().Type()
+		}
+		if is_qt_class(canty) {
+			cmod := get_decl_mod(cursor)
+			tmod := get_decl_mod(cursor.Definition())
+			if cmod != tmod {
+				return fmt.Sprintf("reflect.TypeOf(qt%s.%s{}) // 3", tmod, ty.CanonicalType().Spelling())
+			} else {
+				return fmt.Sprintf("reflect.TypeOf(%s{}) // 4", canty.Spelling())
+			}
+		} else {
+		recalc2:
+			switch canty.Kind() {
+			case clang.Type_Int:
+				return "qtrt.Int32Ty(false)"
+			case clang.Type_UInt:
+				return "qtrt.UInt32Ty(false)"
+			case clang.Type_Char_S:
+				return "qtrt.ByteTy(false)"
+			case clang.Type_Short:
+				return "qtrt.Int16Ty(false)"
+			case clang.Type_Float:
+				return "qtrt.FloatTy(false)"
+			case clang.Type_Typedef:
+				canty = canty.CanonicalType()
+				goto recalc2
+			case clang.Type_LongLong:
+				return "qtrt.Int64Ty(false)"
+			case clang.Type_Pointer:
+				return this.toDestMetaType(canty, cursor)
+			case clang.Type_Record:
+				return "qtrt.VoidpTy()"
+			default:
+				log.Println("unsupported type:", ty.Spelling(), canty.Spelling(), canty.Kind().String())
+			}
+		}
+
+	case clang.Type_RValueReference:
+		var canty clang.Type
+		if ty.PointeeType().Declaration().Type().Spelling() == "" {
+			canty = ty.PointeeType()
+		} else {
+			canty = ty.PointeeType().Declaration().Type()
+		}
+		if is_qt_class(canty) {
+			cmod := get_decl_mod(cursor)
+			tmod := get_decl_mod(cursor.Definition())
+			if cmod != tmod {
+				return fmt.Sprintf("reflect.TypeOf(qt%s.%s{}) // 8", tmod, ty.CanonicalType().Spelling())
+			} else {
+				return fmt.Sprintf("reflect.TypeOf(%s{}) // 9", canty.Spelling())
+			}
+		} else {
+		}
+		// return "reflect.TypeOf(qt%s.%s{}) // 7"
+	case clang.Type_Elaborated:
+		return "qtrt.Int32Ty(false)"
+	case clang.Type_Enum:
+		return "qtrt.Int32Ty(false)"
+	case clang.Type_Bool:
+		return "qtrt.BoolTy(false)"
+	case clang.Type_Double:
+		return "qtrt.DoubleTy(false)"
+	case clang.Type_Float:
+		return "qtrt.FloatTy(false)"
+	case clang.Type_IncompleteArray:
+		return "qtrt.VoidpTy()"
 	default:
 		log.Fatalln(ty.Spelling(), ty.Kind().Spelling())
 	}

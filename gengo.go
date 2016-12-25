@@ -72,7 +72,7 @@ func (this *GenerateGo) saveCode(cursor, parent clang.Cursor) {
 	savefile := fmt.Sprintf("src/%s/%s.go", modname, strings.ToLower(cursor.Spelling()))
 
 	// TODO gofmt the code
-	log.Println(this.cp.AllPoints())
+	// log.Println(this.cp.AllPoints())
 	ioutil.WriteFile(savefile, []byte(this.cp.ExportAll()), 0644)
 	cmd := exec.Command("/usr/bin/gofmt", []string{"-w", savefile}...)
 	err := cmd.Run()
@@ -186,7 +186,7 @@ func (this *GenerateGo) genClassDef(cursor, parent clang.Cursor) {
 func (this *GenerateGo) genMethods(cursor, parent clang.Cursor) {
 	log.Println("process class:", len(this.methods), cursor.Spelling())
 	grpMethods := this.groupMethods()
-	log.Println(len(grpMethods))
+	// log.Println(len(grpMethods))
 
 	for _, cursors := range grpMethods {
 		this.genMethodHeader(cursors[0], cursors[0].SemanticParent())
@@ -305,12 +305,37 @@ func (this *GenerateGo) genMethodFooter(cursor, parent clang.Cursor) {
 }
 
 func (this *GenerateGo) genVTableTypes(cursor, parent clang.Cursor, midx int) {
-	this.cp.APf("body", "  // vtypes %d", midx)
-	this.cp.APf("body", "  // dargExists %d", midx)
-	this.cp.APf("body", "  // dargValues %d", midx)
+
+	this.cp.APf("body", "  // vtypes %d // dargExists %d // dargValues %d", midx, midx, midx)
 	this.cp.APf("body", "  vtys[%d] = make(map[uint8]reflect.Type)", midx)
 	this.cp.APf("body", "  dargExists[%d] = make(map[uint8]bool)", midx)
 	this.cp.APf("body", "  dargValues[%d] = make(map[uint8]interface{})", midx)
+
+	tyconv := this.tyconver.(*TypeConvertGo)
+	for aidx := 0; aidx < int(cursor.NumArguments()); aidx++ {
+
+		arg := cursor.Argument(uint32(aidx))
+		aty := arg.Type()
+		this.cp.APf("body", "  vtys[%d][%d] = %s", midx, aidx,
+			tyconv.toDestMetaType(aty, arg))
+
+		// has default value?
+		dvres := arg.Evaluate()
+		if cursor.Spelling() == "QCoreApplication" {
+			log.Println(dvres.Kind().Spelling(), arg, cursor.DisplayName())
+		}
+		switch dvres.Kind() {
+		case clang.Eval_Int:
+			this.cp.APf("body", "  dargExists[%d][%d] = true", midx, aidx)
+			this.cp.APf("body", "  dargValues[%d][%d] = %d", midx, aidx, dvres.AsInt())
+		case clang.Eval_UnExposed:
+			fallthrough
+		default:
+			this.cp.APf("body", "  dargExists[%d][%d] = false", midx, aidx)
+			this.cp.APf("body", "  dargValues[%d][%d] = nil", midx, aidx)
+		}
+
+	}
 }
 
 func (this *GenerateGo) genNameLookup(cursor, parent clang.Cursor) {
@@ -367,6 +392,10 @@ func (this *GenerateGo) genStaticMethod(cursor, parent clang.Cursor, midx int) {
 	this.genArgsConv(cursor, parent, midx)
 	this.cp.APf("body", "      C.%s(%s)", this.mangler.convTo(cursor), paramStr)
 	this.cp.APf("body", "      // %s", cursor.DisplayName())
+}
+
+func (this *GenerateGo) genNonVirtualMethod(cursor, parent clang.Cursor, midx int) {
+
 }
 
 func (this *GenerateGo) genArgs(cursor, parent clang.Cursor) {

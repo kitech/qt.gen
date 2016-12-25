@@ -1,0 +1,3 @@
+
+CanonicalType():
+    可用于typedef
