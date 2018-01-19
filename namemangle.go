@@ -9,6 +9,7 @@ import (
 type GenMangler interface {
 	convTo(cursor clang.Cursor) string
 	// convFrom(mname string) string
+	origin(cursor clang.Cursor) string
 }
 
 type IncMangler struct {
@@ -27,6 +28,17 @@ func (this *IncMangler) convTo(cursor clang.Cursor) string {
 	return fmt.Sprintf("C%s", cursor.Mangling())
 }
 
+func (this *IncMangler) origin(cursor clang.Cursor) string {
+	if false {
+		// C1/C2/C3 for case
+		fmt.Println("what's the manglings:", cursor.Manglings().Strings())
+	}
+	if cursor.Manglings().Count() > 1 {
+		return cursor.Manglings().Strings()[0].String()
+	}
+	return cursor.Mangling()
+}
+
 type GoMangler struct {
 }
 
@@ -41,4 +53,15 @@ func (this *GoMangler) convTo(cursor clang.Cursor) string {
 		fmt.Println("what's the manglings:", cursor.Manglings().Strings())
 	}
 	return fmt.Sprintf("C%s", cursor.Mangling())
+}
+
+func (this *GoMangler) origin(cursor clang.Cursor) string {
+	if false {
+		// C1/C2/C3 for case
+		fmt.Println("what's the manglings:", cursor.Manglings().Strings())
+	}
+	if cursor.Manglings().Count() > 1 {
+		return cursor.Manglings().Strings()[0].String()
+	}
+	return cursor.Mangling()
 }

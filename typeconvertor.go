@@ -44,9 +44,64 @@ func NewTypeConvertGo() *TypeConvertGo {
 	return this
 }
 
+// 把C/C++类型转换为Go的类型表示法
 func (this *TypeConvertGo) toDest(ty clang.Type, cursor clang.Cursor) string {
-
-	return ""
+	switch ty.Kind() {
+	case clang.Type_Int:
+		return "int"
+	case clang.Type_UInt:
+		return "uint"
+	case clang.Type_LongLong:
+		return "int64"
+	case clang.Type_ULongLong:
+		return "uint64"
+	case clang.Type_Short:
+		return "int16"
+	case clang.Type_UShort:
+		return "uint16"
+	case clang.Type_UChar:
+		return "byte"
+	case clang.Type_Char_S:
+		return "byte"
+	case clang.Type_Long:
+		return "int"
+	case clang.Type_ULong:
+		return "uint"
+	case clang.Type_Typedef:
+		return this.toDest(ty.CanonicalType(), cursor)
+	case clang.Type_Record:
+		return "unsafe.Pointer"
+	case clang.Type_Pointer:
+		if isPrimitivePPType(ty) && ty.PointeeType().PointeeType().Kind() == clang.Type_Char_S {
+			return "[]string"
+		}
+		return "unsafe.Pointer"
+	case clang.Type_LValueReference:
+		if isPrimitiveType(ty.PointeeType()) {
+			return this.toDest(ty.PointeeType(), cursor)
+		}
+		return "unsafe.Pointer"
+	case clang.Type_RValueReference:
+		return "unsafe.Pointer"
+	case clang.Type_Elaborated:
+		return "int"
+	case clang.Type_Enum:
+		return "int"
+	case clang.Type_Bool:
+		return "bool"
+	case clang.Type_Double:
+		return "float64"
+	case clang.Type_Float:
+		return "float32"
+	case clang.Type_IncompleteArray:
+		// TODO xpm const char *const []
+		return "[]interface{}"
+	case clang.Type_Char16:
+		return "int16"
+	default:
+		log.Fatalln(ty.Spelling(), ty.Kind().Spelling())
+	}
+	return fmt.Sprintf("Unknown_%s_%s", ty.Spelling(), ty.Kind().String())
 }
 
 func (this *TypeConvertGo) toBind(ty clang.Type, cursor clang.Cursor) string {
@@ -97,10 +152,12 @@ func (this *TypeConvertGo) toCall(ty clang.Type, cursor clang.Cursor) string {
 		return "C.float"
 	case clang.Type_IncompleteArray:
 		return "unsafe.Pointer"
+	case clang.Type_Char16:
+		return "C.short"
 	default:
 		log.Fatalln(ty.Spelling(), ty.Kind().Spelling())
 	}
-	return fmt.Sprintf("C.unkown_%s_%s", ty.Spelling(), ty.Kind().String())
+	return fmt.Sprintf("C.unknown_%s_%s", ty.Spelling(), ty.Kind().String())
 }
 
 func (this *TypeConvertGo) toDestMetaType(ty clang.Type, cursor clang.Cursor) string {
@@ -276,8 +333,74 @@ func (this *TypeConvertGo) toDestMetaType(ty clang.Type, cursor clang.Cursor) st
 		return "qtrt.FloatTy(false)"
 	case clang.Type_IncompleteArray:
 		return "qtrt.VoidpTy()"
+	case clang.Type_Char16:
+		return "qtrt.Int16Ty(false)"
 	default:
 		log.Fatalln(ty.Spelling(), ty.Kind().Spelling())
 	}
 	return fmt.Sprintf("C.unkown_%s_%s", ty.Spelling(), ty.Kind().String())
+}
+
+// 是否是基本数据类型的指针的指针
+// 像char**
+func isPrimitivePPType(ty clang.Type) bool {
+	if ty.Kind() == clang.Type_Pointer &&
+		ty.PointeeType().Kind() == clang.Type_Pointer &&
+		isPrimitiveType(ty.PointeeType().PointeeType()) {
+		return true
+	}
+	return false
+}
+
+func isPrimitiveType(ty clang.Type) bool {
+	switch ty.Kind() {
+	case clang.Type_Int:
+		return true
+	case clang.Type_UInt:
+		return true
+	case clang.Type_LongLong:
+		return true
+	case clang.Type_ULongLong:
+		return true
+	case clang.Type_Short:
+		return true
+	case clang.Type_UShort:
+		return true
+	case clang.Type_UChar:
+		return true
+	case clang.Type_Char_S:
+		return true
+	case clang.Type_Long:
+		return true
+	case clang.Type_ULong:
+		return true
+	case clang.Type_Typedef:
+		return isPrimitiveType(ty.CanonicalType())
+	case clang.Type_Record:
+		return false
+	case clang.Type_Pointer:
+		return false
+	case clang.Type_LValueReference:
+		return false
+	case clang.Type_RValueReference:
+		return false
+	case clang.Type_Elaborated:
+		return true
+	case clang.Type_Enum:
+		return true
+	case clang.Type_Bool:
+		return true
+	case clang.Type_Double:
+		return true
+	case clang.Type_Float:
+		return true
+	case clang.Type_IncompleteArray:
+		return false
+	case clang.Type_Char16:
+		return true
+	case clang.Type_Void:
+	default:
+		log.Println(ty.Spelling(), ty.Kind().Spelling())
+	}
+	return false
 }

@@ -56,6 +56,18 @@ func (this *CodePager) Append(name, code string) {
 	this.lines[name] = append(this.lines[name], code)
 }
 
+func (this *CodePager) Appendv(name string, args ...interface{}) {
+	code := ""
+	for _, argx := range args {
+		code += fmt.Sprintf("%v, ", argx)
+	}
+	this.Append(name, code)
+}
+
+func (this *CodePager) Appendf(name, fmts string, args ...interface{}) {
+	this.Append(name, fmt.Sprintf(fmts, args...))
+}
+
 func (this *CodePager) AppendUnique(name, code string) {
 	if !this.HasPointer(name) {
 		this.AddPointer(name)
