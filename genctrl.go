@@ -15,6 +15,7 @@ import (
 var ast_file = "./qthdrsrc.ast"
 var hdr_file = "./headers/qthdrsrc.h"
 var modDeps = make(map[string][]string)
+var skipClasses = make(map[string]int) // 全局过滤掉的class
 
 func init() {
 	if false {
@@ -128,6 +129,21 @@ func (this *GenCtrl) createTU() {
 func (this *GenCtrl) collectClasses() {
 	cursor := this.tuc
 
+	cursor.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
+		switch cursor.Kind() {
+		case clang.Cursor_ClassDecl:
+			if !cursor.IsCursorDefinition() {
+				break
+			}
+			if !this.filter.skipClass(cursor, parent) {
+				skipClasses[cursor.Type().Spelling()] = 1
+			}
+		}
+		return clang.ChildVisit_Continue
+	})
+
+	var maxClassSize int64
+	var maxSizeClass string
 	cnter := 0
 	cursor.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		switch cursor.Kind() {
@@ -138,6 +154,10 @@ func (this *GenCtrl) collectClasses() {
 			if !this.filter.skipClass(cursor, parent) {
 				this.genor.genClass(cursor, parent)
 				// return clang.ChildVisit_Break
+			}
+			if cursor.Type().SizeOf() > maxClassSize {
+				maxClassSize = cursor.Type().SizeOf()
+				maxSizeClass = cursor.Type().Spelling()
 			}
 		case clang.Cursor_FunctionDecl:
 		case clang.Cursor_StructDecl:
@@ -156,6 +176,7 @@ func (this *GenCtrl) collectClasses() {
 		case clang.Cursor_UsingDeclaration:
 		case clang.Cursor_StaticAssert:
 		case clang.Cursor_UnexposedDecl:
+		case clang.Cursor_TypeAliasTemplateDecl:
 		case clang.Cursor_InvalidCode:
 			fallthrough
 		default:
@@ -165,7 +186,7 @@ func (this *GenCtrl) collectClasses() {
 		cnter += 1
 		return clang.ChildVisit_Continue
 	})
-	log.Println(cnter)
+	log.Println(cnter, "maxClassSize:", maxClassSize, "name:", maxSizeClass)
 
 }
 

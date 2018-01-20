@@ -70,15 +70,37 @@ func (this *TypeConvertGo) toDest(ty clang.Type, cursor clang.Cursor) string {
 	case clang.Type_Typedef:
 		return this.toDest(ty.CanonicalType(), cursor)
 	case clang.Type_Record:
+		if is_qt_class(ty) {
+			refmod := get_decl_mod(ty.Declaration())
+			usemod := get_decl_mod(cursor)
+			pkgSuff := ""
+			if refmod != usemod {
+				pkgSuff = fmt.Sprintf("qt%s.", refmod)
+				// log.Println(ty.Spelling(), usemod, refmod)
+			}
+			return "*" + pkgSuff + get_bare_type(ty).Spelling()
+		}
 		return "unsafe.Pointer"
 	case clang.Type_Pointer:
 		if isPrimitivePPType(ty) && ty.PointeeType().PointeeType().Kind() == clang.Type_Char_S {
 			return "[]string"
 		}
+		if ty.PointeeType().Kind() == clang.Type_Char_S {
+			return "string"
+		}
 		return "unsafe.Pointer"
 	case clang.Type_LValueReference:
 		if isPrimitiveType(ty.PointeeType()) {
 			return this.toDest(ty.PointeeType(), cursor)
+		} else if is_qt_class(ty.PointeeType()) {
+			refmod := get_decl_mod(get_bare_type(ty).Declaration())
+			usemod := get_decl_mod(cursor)
+			pkgSuff := ""
+			if refmod != usemod {
+				pkgSuff = fmt.Sprintf("qt%s.", refmod)
+				// log.Println(ty.Spelling(), usemod, refmod)
+			}
+			return "*" + pkgSuff + get_bare_type(ty).Spelling()
 		}
 		return "unsafe.Pointer"
 	case clang.Type_RValueReference:

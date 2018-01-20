@@ -43,7 +43,8 @@ func calc_package_suffix(curc, refc clang.Cursor) string {
 }
 
 func is_qt_class(ty clang.Type) bool {
-	name := ty.Spelling()
+	nty := get_bare_type(ty)
+	name := nty.Spelling()
 	if len(name) < 2 {
 		return false
 	}
@@ -51,6 +52,15 @@ func is_qt_class(ty clang.Type) bool {
 		return true
 	}
 	return false
+}
+
+func get_bare_type(ty clang.Type) clang.Type {
+	switch ty.Kind() {
+	case clang.Type_LValueReference:
+		return get_bare_type(ty.PointeeType())
+	}
+
+	return ty.Declaration().Type()
 }
 
 func is_go_keyword(s string) bool {
@@ -85,4 +95,12 @@ func find_base_classes(cursor clang.Cursor) []clang.Cursor {
 		return clang.ChildVisit_Continue
 	})
 	return bcs
+}
+
+func TypeIsCharPtrPtr(ty clang.Type) bool {
+	return isPrimitivePPType(ty) && ty.PointeeType().PointeeType().Kind() == clang.Type_Char_S
+}
+
+func TypeIsCharPtr(ty clang.Type) bool {
+	return ty.Kind() == clang.Type_Pointer && ty.PointeeType().Kind() == clang.Type_Char_S
 }

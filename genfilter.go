@@ -25,7 +25,7 @@ type GenFilterBase struct {
 
 func (this *GenFilterBase) skipClass(cursor, parent clang.Cursor) bool {
 	skip := this.skipClassImpl(cursor, parent)
-	if strings.Contains(cursor.Spelling(), "QPaintDevice") && skip > 0 {
+	if strings.Contains(cursor.Spelling(), "QAbstractState") && skip > 0 {
 		// log.Fatalln("skipped:", skip)
 	}
 	return skip > 0
@@ -118,8 +118,12 @@ func (this *GenFilterBase) skipClassImpl(cursor, parent clang.Cursor) int {
 
 func (this *GenFilterBase) skipMethod(cursor, parent clang.Cursor) bool {
 	skip := this.skipMethodImpl(cursor, parent)
-	if cursor.Spelling() == "QPaintDevice" && skip > 0 {
-		// log.Fatalln(cursor.Spelling(), parent.Spelling(), skip)
+	if cursor.Spelling() == "QApplication" {
+
+	}
+	if cursor.Spelling() == "QApplication" && skip > 0 {
+		// log.Println(cursor.Spelling(), parent.Spelling(), cursor.DisplayName(), skip)
+		// os.Exit(0)
 	}
 	return skip > 0
 }
@@ -189,15 +193,29 @@ func (this *GenFilterBase) skipArg(cursor, parent clang.Cursor) bool {
 
 func (this *GenFilterBase) skipArgImpl(cursor, parent clang.Cursor) int {
 	// C_ZN16QCoreApplication11aboutToQuitENS_14QPrivateSignalE(void *this_, QCoreApplication::QPrivateSignal a0)
-	if strings.Contains(cursor.Type().Spelling(), "QPrivate") {
+	// log.Println(cursor.DisplayName(), cursor.DisplayName(), cursor.Type().Spelling())
+	argTyBare := get_bare_type(cursor.Type())
+	if strings.Contains(argTyBare.Spelling(), "QPrivate") {
 		return 1
 	}
-	if strings.HasSuffix(cursor.Type().Spelling(), "Function") {
+	if strings.HasSuffix(argTyBare.Spelling(), "Function") {
 		return 2
 	}
-	if strings.HasSuffix(cursor.Type().Spelling(), "Func") {
+	if strings.HasSuffix(argTyBare.Spelling(), "Func") {
 		return 3
 	}
+	if strings.HasSuffix(argTyBare.Spelling(), "Private") {
+		return 4
+	}
+	if strings.HasSuffix(argTyBare.Spelling(), "DataPtr") {
+		return 5
+	}
+	if _, ok := skipClasses[argTyBare.Spelling()]; !ok {
+		if argTyBare.Kind() != clang.Type_Invalid && !isPrimitiveType(argTyBare) {
+			return 6
+		}
+	}
+
 	inenums := []string{
 		"ComponentFormattingOptions",
 		"FormattingOptions",
@@ -211,19 +229,19 @@ func (this *GenFilterBase) skipArgImpl(cursor, parent clang.Cursor) int {
 	}
 	for _, inenum := range inenums {
 		if strings.Contains(cursor.Type().Spelling(), inenum) {
-			return 4
+			return 7
 		}
 	}
 	if cursor.Type().Spelling() == "Id" {
-		return 5
+		return 8
 	}
 	// C_ZN18QThreadStorageDataC1EPFvPvE(void (*)(void *) func) {
 	if cursor.Type().Spelling() == "void (*)(void *)" {
-		return 6
+		return 9
 	}
 
 	if this.skipType(cursor.Type(), cursor) {
-		return 7
+		return 10
 	}
 
 	return 0
