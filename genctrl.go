@@ -132,6 +132,9 @@ func (this *GenCtrl) collectClasses() {
 	cursor.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		switch cursor.Kind() {
 		case clang.Cursor_ClassDecl:
+			if !cursor.IsCursorDefinition() {
+				break
+			}
 			if !this.filter.skipClass(cursor, parent) {
 				this.genor.genClass(cursor, parent)
 				// return clang.ChildVisit_Break

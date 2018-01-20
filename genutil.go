@@ -32,6 +32,16 @@ func get_decl_mod(cursor clang.Cursor) string {
 	return dmod
 }
 
+// 计算包名补全
+func calc_package_suffix(curc, refc clang.Cursor) string {
+	curmod := get_decl_mod(curc)
+	refmod := get_decl_mod(refc)
+	if refmod != curmod {
+		return "qt" + refmod + "."
+	}
+	return ""
+}
+
 func is_qt_class(ty clang.Type) bool {
 	name := ty.Spelling()
 	if len(name) < 2 {
@@ -48,4 +58,31 @@ func is_go_keyword(s string) bool {
 		"range": 1, "var": 1}
 	_, ok := keywords[s]
 	return ok
+}
+
+// 包含1个以上的纯虚方法
+func is_pure_virtual_class(cursor clang.Cursor) bool {
+	// pure virtual class check
+	pure_virtual_class := false
+	cursor.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
+		if cursor.CXXMethod_IsPureVirtual() {
+			pure_virtual_class = true
+		}
+		return clang.ChildVisit_Continue
+	})
+	return pure_virtual_class
+}
+
+func find_base_classes(cursor clang.Cursor) []clang.Cursor {
+	bcs := make([]clang.Cursor, 0)
+	cursor.Visit(func(c, p clang.Cursor) clang.ChildVisitResult {
+		if c.Kind() == clang.Cursor_CXXBaseSpecifier {
+			bcs = append(bcs, c.Definition())
+		}
+		if c.Kind() == clang.Cursor_CXXMethod {
+			return clang.ChildVisit_Break
+		}
+		return clang.ChildVisit_Continue
+	})
+	return bcs
 }

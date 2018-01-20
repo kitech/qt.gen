@@ -191,9 +191,32 @@ func (this *GenerateGo) genImports(cursor, parent clang.Cursor) {
 }
 
 func (this *GenerateGo) genClassDef(cursor, parent clang.Cursor) {
+	bcs := find_base_classes(cursor)
+	bcs = this.filter_base_classes(bcs)
+
 	this.cp.APf("body", "type %s struct {", cursor.Spelling())
-	this.cp.APf("body", "    cthis unsafe.Pointer")
+	if len(bcs) == 0 {
+		this.cp.APf("body", "    *qtrt.CObject")
+	} else {
+		for _, bc := range bcs {
+			this.cp.APf("body", "    *%s%s", calc_package_suffix(cursor, bc), bc.Type().Spelling())
+			// break // TODO multiple base class
+		}
+	}
+	// this.cp.APf("body", "    cthis unsafe.Pointer")
 	this.cp.APf("body", "}")
+
+	this.genGetCthis(cursor, cursor, 0) // 只要定义了结构体，就有GetCthis方法
+}
+
+func (this *GenerateGo) filter_base_classes(bcs []clang.Cursor) []clang.Cursor {
+	newbcs := make([]clang.Cursor, 0)
+	for _, bc := range bcs {
+		if !this.filter.skipClass(bc, bc.SemanticParent()) {
+			newbcs = append(newbcs, bc)
+		}
+	}
+	return newbcs
 }
 
 func (this *GenerateGo) genMethods(cursor, parent clang.Cursor) {
@@ -221,6 +244,8 @@ func (this *GenerateGo) genMethods(cursor, parent clang.Cursor) {
 			switch cursor.Kind() {
 			case clang.Cursor_Constructor:
 				this.genCtor(cursor, parent, idx)
+				this.genCtorFromPointer(cursor, parent, idx)
+				// this.genGetCthis(cursor, parent, idx)
 			case clang.Cursor_Destructor:
 				this.genDtor(cursor, parent, idx)
 			default:
@@ -427,9 +452,55 @@ func (this *GenerateGo) genCtor(cursor, parent clang.Cursor, midx int) {
 	this.cp.APf("body", "    rv, err := ffiqt.InvokeQtFunc6(\"%s\", ffiqt.FFI_TYPE_VOID, cthis, %s)",
 		this.mangler.origin(cursor), paramStr)
 	this.cp.APf("body", "    gopp.ErrPrint(err, rv)")
-	this.cp.APf("body", "    return &%s{cthis}", parent.Spelling())
+	// this.cp.APf("body", "    return &%s{qtrt.CObject{cthis}}", parent.Spelling())
+	this.cp.APf("body", "    gothis := New%sFromPointer(cthis)", parent.Spelling())
+	this.cp.APf("body", "    return gothis")
 
 	this.genMethodFooterFFI(cursor, parent, midx)
+}
+
+func (this *GenerateGo) genCtorFromPointer(cursor, parent clang.Cursor, midx int) {
+	if midx > 0 { // 忽略更多重载
+		return
+	}
+	bcs := find_base_classes(parent)
+	bcs = this.filter_base_classes(bcs)
+
+	this.cp.APf("body", "func New%sFromPointer(cthis unsafe.Pointer) *%s {",
+		cursor.Spelling(), cursor.Spelling())
+	if len(bcs) == 0 {
+		this.cp.APf("body", "    return &%s{&qtrt.CObject{cthis}}", cursor.Spelling())
+	} else {
+		bcobjs := []string{}
+		for i, bc := range bcs {
+			pkgSuff := calc_package_suffix(cursor, bc)
+			this.cp.APf("body", "    bcthis%d := %sNew%sFromPointer(cthis)", i, pkgSuff, bc.Spelling())
+			bcobjs = append(bcobjs, fmt.Sprintf("bcthis%d", i))
+			// break // TODO multiple base classes
+		}
+		bcobjArgs := strings.Join(bcobjs, ", ")
+		this.cp.APf("body", "    return &%s{%s}", parent.Spelling(), bcobjArgs)
+	}
+	this.cp.APf("body", "}")
+}
+
+func (this *GenerateGo) genGetCthis(cursor, parent clang.Cursor, midx int) {
+	if midx > 0 { // 忽略更多重载
+		return
+	}
+	bcs := find_base_classes(parent)
+	bcs = this.filter_base_classes(bcs)
+
+	this.cp.APf("body", "func (this *%s) GetCthis() unsafe.Pointer {", parent.Spelling())
+	if len(bcs) == 0 {
+		this.cp.APf("body", "    return this.Cthis")
+	} else {
+		for _, bc := range bcs {
+			this.cp.APf("body", "    return this.%s.GetCthis()", bc.Spelling())
+			break
+		}
+	}
+	this.cp.APf("body", "}")
 }
 
 func (this *GenerateGo) genDtor(cursor, parent clang.Cursor, midx int) {
@@ -471,7 +542,7 @@ func (this *GenerateGo) genNonStaticMethod(cursor, parent clang.Cursor, midx int
 		this.cp.APf("body", "      // %s", cursor.DisplayName())
 	*/
 	this.genArgsConvFFI(cursor, parent, midx)
-	this.cp.APf("body", "    rv, err := ffiqt.InvokeQtFunc6(\"%s\", ffiqt.FFI_TYPE_VOID, this.cthis, %s)",
+	this.cp.APf("body", "    rv, err := ffiqt.InvokeQtFunc6(\"%s\", ffiqt.FFI_TYPE_VOID, this.GetCthis(), %s)",
 		this.mangler.origin(cursor), paramStr)
 	this.cp.APf("body", "    gopp.ErrPrint(err, rv)")
 
@@ -549,12 +620,15 @@ func (this *GenerateGo) genArg(cursor, parent clang.Cursor, idx int) {
 		} else {
 			if cursor.Type().Kind() == clang.Type_IncompleteArray ||
 				cursor.Type().Kind() == clang.Type_ConstantArray {
-				idx := strings.Index(cursor.Type().Spelling(), " [")
-				this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s %s",
-					cursor.Type().Spelling()[0:idx], cursor.Spelling(), cursor.Type().Spelling()[idx+1:]))
+				this.argDesc = append(this.argDesc, fmt.Sprintf("%s unsafe.Pointer",
+					cursor.Spelling()))
+				// log.Println(cursor.Type().Spelling(), cursor.Type().ArrayElementType().Spelling())
+				// idx := strings.Index(cursor.Type().Spelling(), " [")
+				// this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s %s",
+				//	cursor.Type().Spelling()[0:idx], cursor.Spelling(), cursor.Type().Spelling()[idx+1:]))
 			} else {
 				this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s",
-					cursor.Type().Spelling(), cursor.Spelling()))
+					cursor.Spelling(), cursor.Type().Spelling()))
 			}
 		}
 	}
@@ -584,9 +658,8 @@ func (this *GenerateGo) genArgDest(cursor, parent clang.Cursor, idx int) {
 		if cursor.Type().Kind() == clang.Type_LValueReference {
 			// 转成指针
 		}
-		if strings.Contains(cursor.Type().CanonicalType().Spelling(), "QFlags<") {
-			this.destArgDesc = append(this.argDesc, fmt.Sprintf("%s %s",
-				argName, cursor.Type().CanonicalType().Spelling()))
+		if strings.HasPrefix(cursor.Type().CanonicalType().Spelling(), "QFlags<") {
+			this.destArgDesc = append(this.destArgDesc, fmt.Sprintf("%s int", argName))
 		} else {
 			if cursor.Type().Kind() == clang.Type_IncompleteArray {
 				this.destArgDesc = append(this.destArgDesc, fmt.Sprintf("%s %s", argName, destTy))

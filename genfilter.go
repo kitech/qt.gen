@@ -24,11 +24,19 @@ type GenFilterBase struct {
 }
 
 func (this *GenFilterBase) skipClass(cursor, parent clang.Cursor) bool {
+	skip := this.skipClassImpl(cursor, parent)
+	if strings.Contains(cursor.Spelling(), "QPaintDevice") && skip > 0 {
+		// log.Fatalln("skipped:", skip)
+	}
+	return skip > 0
+}
+
+func (this *GenFilterBase) skipClassImpl(cursor, parent clang.Cursor) int {
 	cname := cursor.Spelling()
 	prefixes := []string{
 		"QMetaTypeId", "QTypeInfo", "QOpenGLFunctions",
 		"QOpenGLExtraFunctions", "QOpenGLVersion", "QOpenGL",
-		"QAbstract", "QPrivate",
+		"QAbstract-", "QPrivate",
 	}
 	equals := []string{
 		"QAbstractOpenGLFunctionsPrivate",
@@ -40,57 +48,53 @@ func (this *GenFilterBase) skipClass(cursor, parent clang.Cursor) bool {
 
 	for _, prefix := range prefixes {
 		if strings.HasPrefix(cname, prefix) {
-			return true
+			return 1
 		}
 	}
 	for _, equal := range equals {
 		if equal == cname {
-			return true
+			return 2
 		}
 	}
 
 	// 这个也许是因为qt有bug，也许是因为arch上的qt包有问题。QT_OPENGL_ES_2相关。
 	if strings.HasPrefix(cname, "QOpenGLFunctions_") &&
 		strings.Contains(cname, "CoreBackend") {
-		return true
+		return 3
 	}
 	if strings.HasPrefix(cname, "QOpenGLFunctions_") &&
 		strings.Contains(cname, "DeprecatedBackend") {
-		return true
+		return 4
 	}
 
 	if !cursor.IsCursorDefinition() {
-		return true
+		// log.Println("filtered by not definition", cursor.Spelling())
+		return 5
 	}
 	// pure virtual class check
-	pure_virtual_class := false
-	cursor.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
-		if cursor.CXXMethod_IsPureVirtual() {
-			pure_virtual_class = true
-		}
-		return clang.ChildVisit_Continue
-	})
+	pure_virtual_class := is_pure_virtual_class(cursor)
 	if pure_virtual_class {
-		return true
+		// return true
 	}
 
 	// if cursor.kind == clidx.CursorKind.CLASS_TEMPLATE: return True
 	if cursor.SpecializedCursorTemplate().IsNull() == false {
-		return true
+		return 6
 	}
 	// inner class
 	if cursor.SemanticParent().Kind() == clang.Cursor_StructDecl {
-		return true
+		return 7
 	}
 	if cursor.SemanticParent().Kind() == clang.Cursor_StructDecl {
-		return true
+		return 8
 	}
 	// test
 	fixclasses := []string{"QDebug", "QNoDebug", "QDebugStateSaver", "QFileDevice",
-		"QLibraryInfo", "QInternal", "QAccessibleObject", "QGraphicsObject"}
+		"QLibraryInfo", "QInternal", "QAccessibleObject", "QAccessibleActionInterface",
+		"QGraphicsObject"}
 	for _, c := range fixclasses {
 		if cursor.Spelling() == c {
-			return true
+			return 9
 		}
 	}
 	if cname != "QString" {
@@ -106,70 +110,93 @@ func (this *GenFilterBase) skipClass(cursor, parent clang.Cursor) bool {
 		// return true
 	}
 	if len(filterClass) > 0 && cname != filterClass {
-		return true
+		return 10
 	}
 
-	return false
+	return 0
 }
+
 func (this *GenFilterBase) skipMethod(cursor, parent clang.Cursor) bool {
+	skip := this.skipMethodImpl(cursor, parent)
+	if cursor.Spelling() == "QPaintDevice" && skip > 0 {
+		// log.Fatalln(cursor.Spelling(), parent.Spelling(), skip)
+	}
+	return skip > 0
+}
+
+func (this *GenFilterBase) skipMethodImpl(cursor, parent clang.Cursor) int {
 	if cursor.AccessSpecifier() != clang.AccessSpecifier_Public {
-		return true
+		if cursor.AccessSpecifier() != clang.AccessSpecifier_Protected {
+			if cursor.Spelling() == "QPaintDevice" {
+				return 0
+			}
+			return 1
+		}
 	}
 
 	cname := cursor.Spelling()
 	metamths := []string{"qt_metacall", "qt_metacast", "qt_check_for_"}
 	for _, mm := range metamths {
 		if strings.HasPrefix(cname, mm) {
-			return true
+			return 2
 		}
 	}
 
 	for _, mm := range []string{"tr", "trUtf8", "data_ptr"} {
 		if cname == mm {
-			return true
+			return 3
 		}
 	}
 
 	if strings.HasPrefix(cname, "operator") {
-		return true
+		return 4
 	}
 
 	for _, mm := range []string{"rend", "append", "insert", "rbegin", "prepend", "crend", "crbegin"} {
 		if cname == mm {
-			return true
+			return 5
 		}
 	}
 
 	if cursor.IsVariadic() {
-		return true
+		return 6
 	}
 	// TODO move ctor and copy ctor?
 	if cursor.CXXConstructor_IsCopyConstructor() {
-		return true
+		return 7
 	}
 	if cursor.CXXConstructor_IsMoveConstructor() {
-		return true
+		return 8
 	}
 
 	//
 	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
 		if this.skipArg(cursor.Argument(uint32(idx)), cursor) {
-			return true
+			return 9
 		}
 	}
 
-	return false
+	return 0
 }
+
 func (this *GenFilterBase) skipArg(cursor, parent clang.Cursor) bool {
+	skip := this.skipArgImpl(cursor, parent)
+	if skip > 0 {
+		// log.Println(skip)
+	}
+	return skip > 0
+}
+
+func (this *GenFilterBase) skipArgImpl(cursor, parent clang.Cursor) int {
 	// C_ZN16QCoreApplication11aboutToQuitENS_14QPrivateSignalE(void *this_, QCoreApplication::QPrivateSignal a0)
 	if strings.Contains(cursor.Type().Spelling(), "QPrivate") {
-		return true
+		return 1
 	}
 	if strings.HasSuffix(cursor.Type().Spelling(), "Function") {
-		return true
+		return 2
 	}
 	if strings.HasSuffix(cursor.Type().Spelling(), "Func") {
-		return true
+		return 3
 	}
 	inenums := []string{
 		"ComponentFormattingOptions",
@@ -184,25 +211,33 @@ func (this *GenFilterBase) skipArg(cursor, parent clang.Cursor) bool {
 	}
 	for _, inenum := range inenums {
 		if strings.Contains(cursor.Type().Spelling(), inenum) {
-			return true
+			return 4
 		}
 	}
 	if cursor.Type().Spelling() == "Id" {
-		return true
+		return 5
 	}
 	// C_ZN18QThreadStorageDataC1EPFvPvE(void (*)(void *) func) {
 	if cursor.Type().Spelling() == "void (*)(void *)" {
-		return true
+		return 6
 	}
 
 	if this.skipType(cursor.Type(), cursor) {
-		return true
+		return 7
 	}
 
-	return false
+	return 0
 }
 
 func (this *GenFilterBase) skipType(ty clang.Type, cursor clang.Cursor) bool {
+	skip := this.skipTypeImpl(ty, cursor)
+	if skip > 0 {
+		// log.Println(skip)
+	}
+	return skip > 0
+}
+
+func (this *GenFilterBase) skipTypeImpl(ty clang.Type, cursor clang.Cursor) int {
 
 	switch ty.Kind() {
 	case clang.Type_LValueReference:
@@ -212,22 +247,25 @@ func (this *GenFilterBase) skipType(ty clang.Type, cursor clang.Cursor) bool {
 	case clang.Type_Pointer:
 		// is template
 		if ty.PointeeType().NumTemplateArguments() != -1 {
-			return true
+			return 1
 		}
 	case clang.Type_MemberPointer:
-		return true
+		return 2
 	case clang.Type_Typedef:
 		if false {
 			log.Println(ty.Kind().Spelling(), ty.CanonicalType().Kind().Spelling())
 		}
-		return this.skipType(ty.CanonicalType(), cursor)
+		return this.skipTypeImpl(ty.CanonicalType(), cursor)
 	default:
 		if ty.NumTemplateArguments() != -1 {
-			return true
+			// if strings.HasPrefix(ty.CanonicalType().Spelling(), "QFlags<") 这个会过滤掉太多方法
+			if !strings.HasPrefix(ty.CanonicalType().Spelling(), "QFlags<") {
+				return 3
+			}
 		}
 	}
 
-	return false
+	return 0
 }
 
 type GenFilterInc struct {
