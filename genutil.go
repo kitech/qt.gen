@@ -1,9 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"log"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/go-clang/v3.9/clang"
 )
@@ -12,7 +13,10 @@ import (
 func get_decl_mod(cursor clang.Cursor) string {
 	loc := cursor.Location()
 	file, _, _, _ := loc.FileLocation()
-	// log.Println(file)
+	// log.Println(file.Name())
+	if !strings.HasPrefix(file.Name(), "/usr/include/qt") {
+		return "stdglobal"
+	}
 	segs := strings.Split(file.Name(), "/")
 	// log.Println(segs[len(segs)-2], segs[len(segs)-2][2:])
 	dmod := strings.ToLower(segs[len(segs)-2][2:])
@@ -26,7 +30,11 @@ func get_decl_mod(cursor clang.Cursor) string {
 		}
 	}
 	if !found {
-		log.Fatalln(fmt.Sprintf("unknown module: %s, %s ", dmod, cursor.Spelling()))
+		if false {
+			log.Printf("unknown module: %s, %s %s, %s\n",
+				dmod, cursor.Spelling(), file.Name(), filepath.Base(file.Name()))
+			time.Sleep(500 * time.Millisecond)
+		}
 	}
 
 	return dmod
@@ -54,9 +62,14 @@ func is_qt_class(ty clang.Type) bool {
 	return false
 }
 
+func is_private_method(c clang.Cursor) bool {
+	return c.Kind() == clang.Cursor_CXXMethod &&
+		c.AccessSpecifier() == clang.AccessSpecifier_Private
+}
+
 func get_bare_type(ty clang.Type) clang.Type {
 	switch ty.Kind() {
-	case clang.Type_LValueReference:
+	case clang.Type_LValueReference, clang.Type_Pointer:
 		return get_bare_type(ty.PointeeType())
 	}
 
@@ -103,4 +116,19 @@ func TypeIsCharPtrPtr(ty clang.Type) bool {
 
 func TypeIsCharPtr(ty clang.Type) bool {
 	return ty.Kind() == clang.Type_Pointer && ty.PointeeType().Kind() == clang.Type_Char_S
+}
+
+func TypeIsQFlags(ty clang.Type) bool {
+	if ty.Kind() == clang.Type_Typedef &&
+		strings.HasPrefix(ty.CanonicalType().Spelling(), "QFlags") &&
+		strings.ContainsAny(ty.CanonicalType().Spelling(), "<>") {
+		if strings.Contains(ty.Spelling(), "::") { // for QFlags<xxx> Qxxx::xxx
+			return true
+		}
+	}
+	return false
+}
+
+func TypeIsFuncPointer(ty clang.Type) bool {
+	return strings.Contains(ty.Spelling(), " (*)(")
 }

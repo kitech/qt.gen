@@ -14,18 +14,20 @@ import (
 
 var ast_file = "./qthdrsrc.ast"
 var hdr_file = "./headers/qthdrsrc.h"
-var modDeps = make(map[string][]string)
+
+// module depend table
+var modDeps = map[string][]string{
+	"core":    []string{},
+	"gui":     []string{"core"},
+	"widgets": []string{"core", "gui"},
+	"network": []string{"core"},
+}
 var skipClasses = make(map[string]int) // 全局过滤掉的class
 
 func init() {
 	if false {
 		log.Println(123)
 	}
-
-	modDeps["core"] = []string{}
-	modDeps["gui"] = []string{"core"}
-	modDeps["widgets"] = []string{"core", "gui"}
-	modDeps["network"] = []string{"core"}
 }
 
 type GenCtrl struct {
@@ -86,14 +88,15 @@ func (this *GenCtrl) setupEnv() {
 		args = append(args, fmt.Sprintf("-I/usr/include/qt/%s", e.(string)))
 		return nil
 	})
-	cmd := exec.Command("gcc", "--print-file-name=include")
+	cmd := exec.Command("g++", "--print-file-name=include")
 	out, err := cmd.Output()
-	if err != nil {
-		log.Println(err)
-	}
+	gopp.ErrPrint(err)
 	args = append(args, fmt.Sprintf("-I%s", string(out[:len(out)-1])))
 	args = append(args, fmt.Sprintf("-I%s-fixed", string(out[:len(out)-1])))
-	args = append(args, "-I/usr/include/c++/6.2.1")
+	cmd = exec.Command("g++", "-dumpversion")
+	out, err = cmd.Output()
+	gopp.ErrPrint(err)
+	args = append(args, fmt.Sprintf("-I/usr/include/c++/%s", strings.TrimSpace(string(out))))
 	log.Println(args)
 
 	this.cidx = cidx
@@ -126,6 +129,106 @@ func (this *GenCtrl) createTU() {
 	this.save_ast = save_ast
 }
 
+func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
+	{
+		log.Println(cursor.Spelling(), cursor.Kind().String(), cursor.DisplayName(),
+
+			cursor.SpecializedCursorTemplate().Spelling(), cursor.CanonicalCursor().Kind())
+	}
+
+	switch cursor.Kind() {
+	case clang.Cursor_ClassDecl:
+		if !cursor.IsCursorDefinition() {
+			break
+		}
+		if !is_qt_class(cursor.Type()) {
+			break
+		}
+		clts.ClassCount += 1
+		log.Println(cursor.Spelling(), cursor.Kind().String(), cursor.DisplayName())
+		if !this.filter.skipClass(cursor, parent) {
+			this.genor.genClass(cursor, parent)
+			// return clang.ChildVisit_Break
+		} else {
+			clts.SkippedClassCount += 1
+		}
+		if cursor.Type().SizeOf() > clts.MaxClassSize {
+			clts.MaxClassSize = cursor.Type().SizeOf()
+			clts.MaxSizeClass = cursor.Type().Spelling()
+		}
+		clts.addClassSize(cursor.Type().SizeOf())
+		// cursor.Visit(this.visfn)
+	case clang.Cursor_FunctionDecl:
+		clts.FunctionCount += 1
+	case clang.Cursor_StructDecl:
+		if !this.filter.skipClass(cursor, parent) {
+			this.genor.genClass(cursor, parent)
+			// return clang.ChildVisit_Break
+		}
+	case clang.Cursor_CXXMethod:
+		clts.MethodCount += 1
+		if this.filter.skipMethod(cursor, parent) {
+			clts.SkippedMethodCount += 1
+		}
+		if is_private_method(cursor) {
+			clts.PrivateMethodCount += 1
+		}
+	case clang.Cursor_TypedefDecl:
+		if is_qt_class(cursor.Type()) {
+			log.Println("got", cursor.Spelling(), ",", cursor.Type().Spelling(), ",", cursor.Type().Kind(), cursor.Type().ClassType().Spelling(), ",", cursor.Type().ClassType().Kind(), ",", cursor.Type().CanonicalType().Spelling(), ",", cursor.Type().CanonicalType().Kind(), ",", cursor.Type().CanonicalType().Declaration().Kind(), ",", cursor.Type().CanonicalType().Declaration().Spelling(), ",", cursor.Type().CanonicalType().Declaration().Definition().Kind().String())
+			log.Println(cursor.Type().CanonicalType().Declaration().Kind().String(), cursor.Type().CanonicalType().Declaration().Spelling(), cursor.Type().CanonicalType().Declaration().IsCursorDefinition(), cursor.Spelling())
+			/*
+				cursor.Type().CanonicalType().Declaration().Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
+					log.Println(c1.Kind().String(), c1.Spelling(), p1.Spelling(), cursor.Spelling())
+					return clang.ChildVisit_Recurse
+					// return clang.ChildVisit_Continue
+				})
+			*/
+			if cursor.Spelling() == "QWidgetList" {
+				// os.Exit(0)
+			}
+			// cursor.Visit(this.visfn)
+		}
+
+	case clang.Cursor_TypeRef:
+		log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName())
+	case clang.Cursor_TemplateRef:
+		log.Println(cursor.Definition().Kind(), cursor.Definition().Spelling())
+		log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName())
+	case clang.Cursor_ClassTemplate:
+		log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName())
+	case clang.Cursor_ClassTemplatePartialSpecialization:
+		log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName())
+	case clang.Cursor_FunctionTemplate:
+		log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName())
+	case clang.Cursor_Constructor:
+		clts.MethodCount += 1
+	case clang.Cursor_Destructor:
+		clts.MethodCount += 1
+	case clang.Cursor_ConversionFunction:
+	case clang.Cursor_VarDecl:
+	case clang.Cursor_EnumDecl:
+		clts.EnumCount += 1
+		// log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName())
+	case clang.Cursor_UnionDecl:
+	case clang.Cursor_Namespace:
+		// cursor.Visit(this.visfn)
+	case clang.Cursor_UsingDeclaration:
+	case clang.Cursor_StaticAssert:
+	case clang.Cursor_UnexposedDecl:
+	case clang.Cursor_TypeAliasTemplateDecl:
+		log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName())
+	case clang.Cursor_InvalidCode:
+		fallthrough
+	default:
+		log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName(), cursor.Type().Spelling())
+	}
+
+	clts.CursorCount += 1
+	return clang.ChildVisit_Continue
+	// return clang.ChildVisit_Recurse
+}
+
 func (this *GenCtrl) collectClasses() {
 	cursor := this.tuc
 
@@ -142,56 +245,43 @@ func (this *GenCtrl) collectClasses() {
 		return clang.ChildVisit_Continue
 	})
 
-	var maxClassSize int64
-	var maxSizeClass string
-	cnter := 0
-	cursor.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
-		switch cursor.Kind() {
-		case clang.Cursor_ClassDecl:
-			if !cursor.IsCursorDefinition() {
-				break
-			}
-			if !this.filter.skipClass(cursor, parent) {
-				this.genor.genClass(cursor, parent)
-				// return clang.ChildVisit_Break
-			}
-			if cursor.Type().SizeOf() > maxClassSize {
-				maxClassSize = cursor.Type().SizeOf()
-				maxSizeClass = cursor.Type().Spelling()
-			}
-		case clang.Cursor_FunctionDecl:
-		case clang.Cursor_StructDecl:
-		case clang.Cursor_CXXMethod:
-		case clang.Cursor_TypedefDecl:
-		case clang.Cursor_ClassTemplate:
-		case clang.Cursor_ClassTemplatePartialSpecialization:
-		case clang.Cursor_FunctionTemplate:
-		case clang.Cursor_Constructor:
-		case clang.Cursor_Destructor:
-		case clang.Cursor_ConversionFunction:
-		case clang.Cursor_VarDecl:
-		case clang.Cursor_EnumDecl:
-		case clang.Cursor_UnionDecl:
-		case clang.Cursor_Namespace:
-		case clang.Cursor_UsingDeclaration:
-		case clang.Cursor_StaticAssert:
-		case clang.Cursor_UnexposedDecl:
-		case clang.Cursor_TypeAliasTemplateDecl:
-		case clang.Cursor_InvalidCode:
-			fallthrough
-		default:
-			log.Println(cursor.Spelling(), cursor.Kind().String(), cursor.DisplayName())
-		}
+	cursor.Visit(this.visfn)
 
-		cnter += 1
-		return clang.ChildVisit_Continue
-	})
-	log.Println(cnter, "maxClassSize:", maxClassSize, "name:", maxSizeClass)
-
+	log.Printf("%+v\n", clts)
 }
 
 func (this *GenCtrl) cleanupEnv() {
 	if this.save_ast {
 		this.tu.SaveTranslationUnit(ast_file, 0)
+	}
+}
+
+type collects struct {
+	CursorCount   int
+	MaxClassSize  int64
+	MaxSizeClass  string
+	ClassSizeMap  map[int64]int // size => count
+	ClassCount    int           // 查找到的所有的qt类
+	MethodCount   int           // 查找到的所有的qt方法
+	FunctionCount int           // 全局函数
+	EnumCount     int
+
+	TemplateClassCount int
+	SkippedClassCount  int
+	SkippedMethodCount int
+	PrivateMethodCount int
+}
+
+var clts = &collects{}
+
+func init() { clts.ClassSizeMap = map[int64]int{} }
+func (this *collects) addClassSize(sz int64) {
+	if sz <= 256 {
+		return
+	}
+	if _, ok := this.ClassSizeMap[sz]; ok {
+		this.ClassSizeMap[sz] += 1
+	} else {
+		this.ClassSizeMap[sz] = 1
 	}
 }

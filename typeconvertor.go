@@ -46,6 +46,9 @@ func NewTypeConvertGo() *TypeConvertGo {
 
 // 把C/C++类型转换为Go的类型表示法
 func (this *TypeConvertGo) toDest(ty clang.Type, cursor clang.Cursor) string {
+	if strings.Contains(ty.Spelling(), "::Flags") {
+		log.Println(ty.Spelling(), ty.Kind().String(), ty.CanonicalType().Spelling(), ty.CanonicalType().Kind().String())
+	}
 	switch ty.Kind() {
 	case clang.Type_Int:
 		return "int"
@@ -68,6 +71,13 @@ func (this *TypeConvertGo) toDest(ty clang.Type, cursor clang.Cursor) string {
 	case clang.Type_ULong:
 		return "uint"
 	case clang.Type_Typedef:
+		if TypeIsQFlags(ty) {
+			return "int"
+		} else if strings.HasPrefix(ty.CanonicalType().Spelling(), "Q") &&
+			strings.ContainsAny(ty.CanonicalType().Spelling(), "<>") {
+			log.Println(ty.Spelling(), ty.CanonicalType().Spelling())
+			return "*" + ty.Spelling()
+		}
 		return this.toDest(ty.CanonicalType(), cursor)
 	case clang.Type_Record:
 		if is_qt_class(ty) {
@@ -78,17 +88,33 @@ func (this *TypeConvertGo) toDest(ty clang.Type, cursor clang.Cursor) string {
 				pkgSuff = fmt.Sprintf("qt%s.", refmod)
 				// log.Println(ty.Spelling(), usemod, refmod)
 			}
-			return "*" + pkgSuff + get_bare_type(ty).Spelling()
+			if strings.ContainsAny(get_bare_type(ty).Spelling(), "<>") {
+				log.Println(ty.Spelling(), get_bare_type(ty).Spelling())
+			}
+			return "*" + pkgSuff + get_bare_type(ty).Spelling() + "/*123*/"
 		}
-		return "unsafe.Pointer"
+		return "unsafe.Pointer /*444*/"
 	case clang.Type_Pointer:
 		if isPrimitivePPType(ty) && ty.PointeeType().PointeeType().Kind() == clang.Type_Char_S {
 			return "[]string"
-		}
-		if ty.PointeeType().Kind() == clang.Type_Char_S {
+		} else if ty.PointeeType().Kind() == clang.Type_Char_S {
 			return "string"
+		} else if is_qt_class(ty.PointeeType()) {
+			refmod := get_decl_mod(get_bare_type(ty).Declaration())
+			usemod := get_decl_mod(cursor)
+			pkgSuff := ""
+			if refmod != usemod {
+				pkgSuff = fmt.Sprintf("qt%s.", refmod)
+				// log.Println(ty.Spelling(), usemod, refmod)
+			}
+			if usemod == "core" && refmod == "widgets" {
+			} else if usemod == "gui" && refmod == "widgets" {
+			} else {
+				return "*" + pkgSuff + get_bare_type(ty).Spelling() +
+					fmt.Sprintf("/*444 %s*/", ty.Spelling())
+			}
 		}
-		return "unsafe.Pointer"
+		return "unsafe.Pointer /*666*/"
 	case clang.Type_LValueReference:
 		if isPrimitiveType(ty.PointeeType()) {
 			return this.toDest(ty.PointeeType(), cursor)
@@ -102,9 +128,9 @@ func (this *TypeConvertGo) toDest(ty clang.Type, cursor clang.Cursor) string {
 			}
 			return "*" + pkgSuff + get_bare_type(ty).Spelling()
 		}
-		return "unsafe.Pointer"
+		return "unsafe.Pointer /*555*/"
 	case clang.Type_RValueReference:
-		return "unsafe.Pointer"
+		return "unsafe.Pointer /*333*/"
 	case clang.Type_Elaborated:
 		return "int"
 	case clang.Type_Enum:
@@ -120,8 +146,11 @@ func (this *TypeConvertGo) toDest(ty clang.Type, cursor clang.Cursor) string {
 		return "[]interface{}"
 	case clang.Type_Char16:
 		return "int16"
+	case clang.Type_Void:
+		return "void"
 	default:
-		log.Fatalln(ty.Spelling(), ty.Kind().Spelling())
+		log.Fatalln(ty.Spelling(), ty.Kind().Spelling(),
+			cursor.SemanticParent().DisplayName(), cursor.DisplayName())
 	}
 	return fmt.Sprintf("Unknown_%s_%s", ty.Spelling(), ty.Kind().String())
 }

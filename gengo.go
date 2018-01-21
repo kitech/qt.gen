@@ -37,7 +37,7 @@ func NewGenerateGo() *GenerateGo {
 	blocks := []string{"header", "main", "use", "ext", "body"}
 	for _, block := range blocks {
 		this.cp.AddPointer(block)
-		this.cp.APf(block, "// block begin %s", block)
+		// this.cp.APf(block, "// block begin--- %s", block)
 	}
 
 	return this
@@ -82,7 +82,11 @@ func (this *GenerateGo) saveCode(cursor, parent clang.Cursor) {
 
 	// TODO gofmt the code
 	// log.Println(this.cp.AllPoints())
-	ioutil.WriteFile(savefile, []byte(this.cp.ExportAll()), 0644)
+	bcc := this.cp.ExportAll()
+	if strings.HasPrefix(bcc, "//") {
+		bcc = bcc[strings.Index(bcc, "\n"):]
+	}
+	ioutil.WriteFile(savefile, []byte(bcc), 0644)
 	cmd := exec.Command("/usr/bin/gofmt", []string{"-w", savefile}...)
 	err := cmd.Run()
 	if err != nil {
@@ -95,11 +99,11 @@ func (this *GenerateGo) genHeader(cursor, parent clang.Cursor) {
 	if false {
 		log.Printf("%s:%d:%d @%s\n", file.Name(), line, col, file.Time().String())
 	}
+	fullModname := filepath.Base(filepath.Dir(file.Name()))
+	this.cp.APf("header", "package %s", strings.ToLower(fullModname[0:]))
 	this.cp.APf("header", "// %s", file.Name())
 	this.cp.APf("header", "// #include <%s>", filepath.Base(file.Name()))
-	fullModname := filepath.Base(filepath.Dir(file.Name()))
 	this.cp.APf("header", "// #include <%s>", fullModname)
-	this.cp.APf("header", "package %s", strings.ToLower(fullModname[0:]))
 	this.cp.APf("header", "")
 	this.cp.APf("ext", "")
 	this.cp.APf("ext", "/*")
@@ -227,7 +231,7 @@ func (this *GenerateGo) filter_base_classes(bcs []clang.Cursor) []clang.Cursor {
 }
 
 func (this *GenerateGo) genMethods(cursor, parent clang.Cursor) {
-	log.Println("process class:", len(this.methods), cursor.Spelling())
+	// log.Println("process class:", len(this.methods), cursor.Spelling())
 	grpMethods := this.groupMethods()
 	// log.Println(len(grpMethods))
 
@@ -366,6 +370,7 @@ func (this *GenerateGo) genMethodSignature(cursor, parent clang.Cursor, midx int
 			overloadSuffix, parent.Spelling())
 	default:
 		retPlace := "interface{}"
+		retPlace = this.tyconver.toDest(cursor.ResultType(), cursor)
 		if cursor.ResultType().Kind() == clang.Type_Void {
 			retPlace = ""
 		}
@@ -387,9 +392,14 @@ func (this *GenerateGo) genMethodSignatureNoThis(cursor, parent clang.Cursor, mi
 	case clang.Cursor_Constructor:
 	case clang.Cursor_Destructor:
 	default:
-		this.cp.APf("body", "func %s_%s%s(%s) {",
+		retPlace := "interface{}"
+		retPlace = this.tyconver.toDest(cursor.ResultType(), cursor)
+		if cursor.ResultType().Kind() == clang.Type_Void {
+			retPlace = ""
+		}
+		this.cp.APf("body", "func %s_%s%s(%s) %s {",
 			parent.Spelling(), strings.Title(cursor.Spelling()),
-			overloadSuffix, argStr)
+			overloadSuffix, argStr, retPlace)
 	}
 
 	// TODO fill types, default args
@@ -508,10 +518,10 @@ func (this *GenerateGo) genGetCthis(cursor, parent clang.Cursor, midx int) {
 
 	this.cp.APf("body", "func (this *%s) GetCthis() unsafe.Pointer {", parent.Spelling())
 	if len(bcs) == 0 {
-		this.cp.APf("body", "    return this.Cthis")
+		this.cp.APf("body", "    if this == nil{ return nil } else { return this.Cthis }")
 	} else {
 		for _, bc := range bcs {
-			this.cp.APf("body", "    return this.%s.GetCthis()", bc.Spelling())
+			this.cp.APf("body", "    if this == nil {return nil} else {return this.%s.GetCthis() }", bc.Spelling())
 			break
 		}
 	}
@@ -563,9 +573,9 @@ func (this *GenerateGo) genNonStaticMethod(cursor, parent clang.Cursor, midx int
 		this.mangler.origin(cursor), paramStr)
 	this.cp.APf("body", "    gopp.ErrPrint(err, rv)")
 	if cursor.ResultType().Kind() != clang.Type_Void {
-		this.cp.APf("body", "    return rv")
+		this.cp.APf("body", "   //  return rv")
 	}
-
+	this.genRetFFI(cursor, parent, midx)
 	this.genMethodFooterFFI(cursor, parent, midx)
 }
 
@@ -591,8 +601,9 @@ func (this *GenerateGo) genStaticMethod(cursor, parent clang.Cursor, midx int) {
 		this.mangler.origin(cursor), paramStr)
 	this.cp.APf("body", "    gopp.ErrPrint(err, rv)")
 	if cursor.ResultType().Kind() != clang.Type_Void {
-		this.cp.APf("body", "    return rv")
+		this.cp.APf("body", "    // return rv")
 	}
+	this.genRetFFI(cursor, parent, midx)
 
 	this.genMethodFooterFFI(cursor, parent, midx)
 }
@@ -610,9 +621,15 @@ func (this *GenerateGo) genStaticMethodNoThis(cursor, parent clang.Cursor, midx 
 
 	// this.cp.APf("body", "    // %d: (%s), (%s)", midx, argStr, paramStr)
 	this.cp.APf("body", "    var nilthis *%s", parent.Spelling())
-	this.cp.APf("body", "    nilthis.%s%s(%s)",
-		strings.Title(cursor.Spelling()), overloadSuffix, paramStr)
-
+	if cursor.ResultType().Kind() == clang.Type_Void {
+		this.cp.APf("body", "    nilthis.%s%s(%s)",
+			strings.Title(cursor.Spelling()), overloadSuffix, paramStr)
+	} else {
+		this.cp.APf("body", "    rv := nilthis.%s%s(%s)",
+			strings.Title(cursor.Spelling()), overloadSuffix, paramStr)
+		this.cp.APf("body", "    return rv")
+	}
+	// this.genRetFFI(cursor, parent, midx)
 	this.genMethodFooterFFI(cursor, parent, midx)
 }
 
@@ -740,8 +757,15 @@ func (this *GenerateGo) genArgConvFFI(cursor, parent clang.Cursor, midx, aidx in
 		if argty.Spelling() == "QRgb" {
 			log.Fatalln(argty.Spelling(), argty.CanonicalType().Kind().String())
 		}
-		this.cp.APf("body", "    var convArg%d = %s.GetCthis()", aidx,
-			this.genParamRet(cursor, parent, aidx))
+		refmod := get_decl_mod(argty.PointeeType().Declaration())
+		usemod := get_decl_mod(cursor)
+		log.Println("kkkkk", refmod, usemod, parent.Spelling())
+		if usemod == "core" && refmod == "widgets" {
+		} else if usemod == "gui" && refmod == "widgets" {
+		} else {
+			this.cp.APf("body", "    var convArg%d = %s.GetCthis()", aidx,
+				this.genParamRet(cursor, parent, aidx))
+		}
 	}
 }
 
@@ -786,7 +810,15 @@ func (this *GenerateGo) genParamFFI(cursor, parent clang.Cursor, idx int) {
 	} else if TypeIsCharPtr(argty) {
 		this.paramDesc = append(this.paramDesc, fmt.Sprintf("convArg%d", idx))
 	} else if is_qt_class(argty) && !isPrimitiveType(argty.CanonicalType()) {
-		this.paramDesc = append(this.paramDesc, fmt.Sprintf("convArg%d", idx))
+		usemod := get_decl_mod(cursor)
+		refmod := get_decl_mod(argty.PointeeType().Declaration())
+		if usemod == "core" && refmod == "widgets" {
+			this.paramDesc = append(this.paramDesc, cursor.Spelling())
+		} else if usemod == "gui" && refmod == "widgets" {
+			this.paramDesc = append(this.paramDesc, cursor.Spelling())
+		} else {
+			this.paramDesc = append(this.paramDesc, fmt.Sprintf("convArg%d", idx))
+		}
 	} else {
 		argName := cursor.Spelling()
 		if is_go_keyword(argName) {
@@ -798,6 +830,95 @@ func (this *GenerateGo) genParamFFI(cursor, parent clang.Cursor, idx int) {
 		this.paramDesc = append(this.paramDesc,
 			andop+gopp.IfElseStr(cursor.Spelling() == "",
 				fmt.Sprintf("arg%d", idx), fmt.Sprintf("%s", argName)))
+	}
+}
+
+func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
+	rety := cursor.ResultType()
+	refmod := get_decl_mod(get_bare_type(rety.CanonicalType()).Declaration())
+	usemod := get_decl_mod(cursor)
+	log.Println("hhhhh use ==? ref", refmod, usemod, rety.Spelling(), cursor.DisplayName(), parent.Spelling())
+	pkgSuff := gopp.IfElseStr(refmod == usemod, "/*==*/", fmt.Sprintf("qt%s.", refmod))
+
+	switch rety.Kind() {
+	case clang.Type_Void:
+	case clang.Type_Int, clang.Type_UInt, clang.Type_Long, clang.Type_ULong,
+		clang.Type_Short, clang.Type_UShort, clang.Type_Char_S, clang.Type_Char_U,
+		clang.Type_Float, clang.Type_Double, clang.Type_UChar:
+		this.cp.APf("body", "    return %s(rv) // 111", this.tyconver.toDest(rety, cursor))
+	case clang.Type_Typedef:
+		if TypeIsQFlags(rety) {
+			this.cp.APf("body", "    return int(rv)")
+		} else if is_qt_class(rety.CanonicalType()) {
+			this.cp.APf("body", "    rv2 := %sNew%sFromPointer(unsafe.Pointer(uintptr(rv))) //555",
+				pkgSuff, get_bare_type(rety.CanonicalType()).Spelling())
+			this.cp.APf("body", "    return rv2")
+		} else if TypeIsFuncPointer(rety.CanonicalType()) {
+			this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+		} else {
+			this.cp.APf("body", "    return %s(rv) // 222", this.tyconver.toDest(rety, cursor))
+		}
+	case clang.Type_Record:
+		if is_qt_class(rety) {
+			barety := get_bare_type(rety)
+			this.cp.APf("body", "    rv2 := %sNew%sFromPointer(unsafe.Pointer(uintptr(rv))) // 333",
+				pkgSuff, barety.Spelling())
+			this.cp.APf("body", "    return rv2")
+		} else {
+			this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+		}
+
+	case clang.Type_LValueReference:
+		if is_qt_class(rety) {
+			barety := get_bare_type(rety)
+			this.cp.APf("body", "    rv2 := %sNew%sFromPointer(unsafe.Pointer(uintptr(rv))) // 4441",
+				pkgSuff, barety.Spelling())
+			this.cp.APf("body", "    return rv2")
+		} else if TypeIsCharPtr(rety) {
+			this.cp.APf("body", "    return qtrt.GoStringI(rv)")
+		} else if rety.PointeeType().CanonicalType().Kind() == clang.Type_UChar {
+			this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv)) /*222*/")
+		} else if rety.PointeeType().CanonicalType().Kind() == clang.Type_UShort {
+			this.cp.APf("body", "    return uint16(rv)")
+		} else if isPrimitiveType(rety.PointeeType()) {
+			this.cp.APf("body", "    return %s(rv) // 3331", this.tyconver.toDest(rety.PointeeType(), cursor))
+		} else {
+			this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+		}
+	case clang.Type_Pointer:
+		if is_qt_class(rety) {
+			if usemod == "core" && refmod == "widgets" {
+				this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+			} else if usemod == "gui" && refmod == "widgets" {
+				this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+			} else {
+				barety := get_bare_type(rety)
+				this.cp.APf("body", "    rv2 := %sNew%sFromPointer(unsafe.Pointer(uintptr(rv))) // 444",
+					pkgSuff, barety.Spelling())
+				this.cp.APf("body", "    return rv2")
+			}
+		} else if TypeIsCharPtr(rety) {
+			this.cp.APf("body", "    return qtrt.GoStringI(rv)")
+		} else if rety.PointeeType().CanonicalType().Kind() == clang.Type_UChar {
+			this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+		} else if rety.PointeeType().CanonicalType().Kind() == clang.Type_UShort {
+			this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+		} else if isPrimitiveType(rety.PointeeType()) {
+			this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+			// this.cp.APf("body", "    return %s(rv) // 333", this.tyconver.toDest(rety.PointeeType(), cursor))
+		} else {
+			this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+		}
+	case clang.Type_RValueReference:
+		this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv)) //777")
+	case clang.Type_Bool:
+		this.cp.APf("body", "    return rv!=0")
+	case clang.Type_Enum:
+		this.cp.APf("body", "    return int(rv)")
+	case clang.Type_Elaborated:
+		this.cp.APf("body", "    return int(rv)")
+	default:
+		this.cp.APf("body", "    return rv")
 	}
 }
 

@@ -25,8 +25,11 @@ type GenFilterBase struct {
 
 func (this *GenFilterBase) skipClass(cursor, parent clang.Cursor) bool {
 	skip := this.skipClassImpl(cursor, parent)
-	if strings.Contains(cursor.Spelling(), "QAbstractState") && skip > 0 {
-		// log.Fatalln("skipped:", skip)
+	if strings.Contains(cursor.Spelling(), "QWidgetList") {
+		// log.Fatalln(cursor.Spelling())
+	}
+	if strings.Contains(cursor.Spelling(), "QWidgetList") && skip > 0 {
+		// log.Fatalln("skipped class:", skip)
 	}
 	return skip > 0
 }
@@ -42,7 +45,7 @@ func (this *GenFilterBase) skipClassImpl(cursor, parent clang.Cursor) int {
 		"QAbstractOpenGLFunctionsPrivate",
 		"QOpenGLFunctionsPrivate",
 		"QOpenGLExtraFunctionsPrivate",
-		"QAnimationGroup",
+		"QAnimationGroup-",
 		"QMetaType",
 	}
 
@@ -146,7 +149,7 @@ func (this *GenFilterBase) skipMethodImpl(cursor, parent clang.Cursor) int {
 		}
 	}
 
-	for _, mm := range []string{"tr", "trUtf8", "data_ptr"} {
+	for _, mm := range []string{"tr", "trUtf8", "data_ptr", "d_func"} {
 		if cname == mm {
 			return 3
 		}
@@ -178,6 +181,10 @@ func (this *GenFilterBase) skipMethodImpl(cursor, parent clang.Cursor) int {
 		if this.skipArg(cursor.Argument(uint32(idx)), cursor) {
 			return 9
 		}
+	}
+
+	if this.skipReturn(cursor.ResultType(), cursor) {
+		return 10
 	}
 
 	return 0
@@ -244,6 +251,63 @@ func (this *GenFilterBase) skipArgImpl(cursor, parent clang.Cursor) int {
 		return 10
 	}
 
+	return 0
+}
+
+func (this *GenFilterBase) skipReturn(ty clang.Type, cursor clang.Cursor) bool {
+	skip := this.skipReturnImpl(ty, cursor)
+	if skip > 0 {
+		// log.Println(skip)
+	}
+	return skip > 0
+}
+
+func (this *GenFilterBase) skipReturnImpl(ty clang.Type, cursor clang.Cursor) int {
+	log.Println(ty.Spelling(), cursor.Spelling(), ty.CanonicalType().Spelling())
+	skips := []string{"QTimeZone::OffsetDataList", "QVariantAnimation::KeyValues",
+		"QDebug", "QNoDebug", "QXmlStreamNamespaceDeclarations", "QXmlStreamNotationDeclarations",
+		"QXmlStreamEntityDeclarations", "QGradientStops", "QOpenGLContext",
+		"QAccessibleActionInterface", "QPlatformBackingStore", "QPlatformNativeInterface",
+		"QPlatformOffscreenSurface", "QMatrix3x3", "QPagedPaintDevicePrivate",
+		"QPlatformPixmap", "QPlatformScreen", "QPlatformSurface", "QTextDocumentPrivate",
+		"QTextEngine", "QPlatformWindow", "QVulkanInstance", "QGraphicsEffectSource",
+		"QGraphicsObject", "QPlatformMenu", "QPlatformMenuBar"}
+	for _, tn := range skips {
+		log.Println(ty.Spelling(), cursor.Spelling(), ty.CanonicalType().Spelling(), ty.PointeeType().CanonicalType().Spelling(), ty.PointeeType().Declaration().Type().Spelling())
+		if ty.Spelling() == tn || ty.PointeeType().Spelling() == tn ||
+			ty.PointeeType().CanonicalType().Spelling() == tn ||
+			ty.PointeeType().Declaration().Type().Spelling() == tn {
+			return 1
+		}
+	}
+
+	barety := get_bare_type(ty)
+	if this.skipClass(barety.Declaration(), barety.Declaration().SemanticParent()) {
+		// return 4
+	}
+
+	bareSpell := strings.Replace(ty.Spelling(), "const", "", -1)
+	bareSpell = strings.Replace(bareSpell, "&", "", -1)
+	bareSpell = strings.TrimSpace(bareSpell)
+
+	if strings.HasPrefix(bareSpell, "Q") {
+		if strings.HasSuffix(bareSpell, "List") ||
+			strings.HasSuffix(bareSpell, "Map") ||
+			strings.HasSuffix(bareSpell, "Hash") {
+			return 2
+		}
+	}
+
+	switch ty.Kind() {
+	case clang.Type_Unexposed:
+		return 3
+	//case clang.Type_Pointer:
+	case clang.Type_Void:
+	default:
+		if !isPrimitiveType(ty) {
+			log.Println(ty.Kind().String(), ty.Spelling(), cursor.Spelling())
+		}
+	}
 	return 0
 }
 
