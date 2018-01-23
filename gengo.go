@@ -21,6 +21,8 @@ type GenerateGo struct {
 	maxClassSize int64 // 暂存一下类的大小的最大值
 
 	methods     []clang.Cursor
+	enums       []clang.Cursor
+	funcs       []clang.Cursor
 	cp          *CodePager
 	argDesc     []string // origin c/c++ language syntax
 	paramDesc   []string
@@ -58,6 +60,7 @@ func (this *GenerateGo) genClass(cursor, parent clang.Cursor) {
 	this.genImports(cursor, parent)
 	this.genClassDef(cursor, parent)
 	this.genMethods(cursor, parent)
+	this.genEnums(cursor, parent)
 	this.final(cursor, parent)
 	if cursor.Spelling() == "QMimeType" {
 
@@ -78,7 +81,14 @@ func (this *GenerateGo) saveCode(cursor, parent clang.Cursor) {
 		log.Printf("%s:%d:%d @%s\n", file.Name(), line, col, file.Time().String())
 	}
 	modname := strings.ToLower(filepath.Base(filepath.Dir(file.Name())))[2:]
-	savefile := fmt.Sprintf("src/%s/%s.go", modname, strings.ToLower(cursor.Spelling()))
+	// savefile := fmt.Sprintf("src/%s/%s.go", modname, strings.ToLower(cursor.Spelling()))
+
+	this.saveCodeToFile(modname, strings.ToLower(cursor.Spelling()))
+}
+
+func (this *GenerateGo) saveCodeToFile(modname, file string) {
+	// qtx{yyy}, only yyy
+	savefile := fmt.Sprintf("src/%s/%s.go", modname, file)
 
 	// TODO gofmt the code
 	// log.Println(this.cp.AllPoints())
@@ -114,6 +124,7 @@ func (this *GenerateGo) genHeader(cursor, parent clang.Cursor) {
 func (this *GenerateGo) walkClass(cursor, parent clang.Cursor) {
 
 	methods := make([]clang.Cursor, 0)
+	enums := make([]clang.Cursor, 0)
 
 	// pcursor := cursor
 	cursor.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
@@ -134,6 +145,8 @@ func (this *GenerateGo) walkClass(cursor, parent clang.Cursor) {
 			if false {
 				log.Println(file.Name(), line, col, file.Time())
 			}
+		case clang.Cursor_EnumDecl:
+			enums = append(enums, cursor)
 		default:
 			if false {
 				log.Println(cursor.Spelling(), cursor.Kind().String(), cursor.DisplayName())
@@ -143,6 +156,7 @@ func (this *GenerateGo) walkClass(cursor, parent clang.Cursor) {
 	})
 
 	this.methods = methods
+	this.enums = enums
 }
 
 func (this *GenerateGo) genExterns(cursor, parent clang.Cursor) {
@@ -217,7 +231,9 @@ func (this *GenerateGo) genClassDef(cursor, parent clang.Cursor) {
 	this.cp.APf("body", "}")
 
 	this.genGetCthis(cursor, cursor, 0) // 只要定义了结构体，就有GetCthis方法
+	this.genSetCthis(cursor, cursor, 0) // 只要定义了结构体，就有GetCthis方法
 	this.genCtorFromPointer(cursor, cursor, 0)
+	this.genYaCtorFromPointer(cursor, cursor, 0)
 }
 
 func (this *GenerateGo) filter_base_classes(bcs []clang.Cursor) []clang.Cursor {
@@ -509,6 +525,17 @@ func (this *GenerateGo) genCtorFromPointer(cursor, parent clang.Cursor, midx int
 	this.cp.APf("body", "}")
 }
 
+func (this *GenerateGo) genYaCtorFromPointer(cursor, parent clang.Cursor, midx int) {
+	if midx > 0 { // 忽略更多重载
+		return
+	}
+	// can use ((*Qxxx)nil).NewFromPointer
+	this.cp.APf("body", "func (*%s) NewFromPointer(cthis unsafe.Pointer) *%s {",
+		cursor.Spelling(), cursor.Spelling())
+	this.cp.APf("body", "    return New%sFromPointer(cthis)", cursor.Spelling())
+	this.cp.APf("body", "}")
+}
+
 func (this *GenerateGo) genGetCthis(cursor, parent clang.Cursor, midx int) {
 	if midx > 0 { // 忽略更多重载
 		return
@@ -523,6 +550,28 @@ func (this *GenerateGo) genGetCthis(cursor, parent clang.Cursor, midx int) {
 		for _, bc := range bcs {
 			this.cp.APf("body", "    if this == nil {return nil} else {return this.%s.GetCthis() }", bc.Spelling())
 			break
+		}
+	}
+	this.cp.APf("body", "}")
+}
+
+// 用于动态生成实例，new(Qxxx).SetCthis(cthis)
+// 像NewQxxxFromPointer，但是可以先创建空实例，再初始化
+func (this *GenerateGo) genSetCthis(cursor, parent clang.Cursor, midx int) {
+	if midx > 0 { // 忽略更多重载
+		return
+	}
+	bcs := find_base_classes(parent)
+	bcs = this.filter_base_classes(bcs)
+
+	this.cp.APf("body", "func (this *%s) SetCthis(cthis unsafe.Pointer) {", parent.Spelling())
+	if len(bcs) == 0 {
+		this.cp.APf("body", "    this.CObject = &qtrt.CObject{cthis}")
+	} else {
+		for _, bc := range bcs {
+			pkgSuff := calc_package_suffix(cursor, bc)
+			this.cp.APf("body", "    this.%s = %sNew%sFromPointer(cthis)", bc.Spelling(), pkgSuff, bc.Spelling())
+			// break
 		}
 	}
 	this.cp.APf("body", "}")
@@ -568,12 +617,21 @@ func (this *GenerateGo) genNonStaticMethod(cursor, parent clang.Cursor, midx int
 		this.cp.APf("body", "      // %s", cursor.DisplayName())
 	*/
 
+	retype := cursor.ResultType() // move like sementic, compiler auto behaiver
+	mvexpr := ""                  // move expr
+	if retype.Kind() == clang.Type_Record {
+		this.cp.APf("body", "    mv := qtrt.Calloc(1, 256)")
+		mvexpr = ", mv"
+	}
 	this.genArgsConvFFI(cursor, parent, midx)
-	this.cp.APf("body", "    rv, err := ffiqt.InvokeQtFunc6(\"%s\", ffiqt.FFI_TYPE_POINTER, this.GetCthis(), %s)",
-		this.mangler.origin(cursor), paramStr)
+	this.cp.APf("body", "    rv, err := ffiqt.InvokeQtFunc6(\"%s\", ffiqt.FFI_TYPE_POINTER %s, this.GetCthis(), %s)",
+		this.mangler.origin(cursor), mvexpr, paramStr)
 	this.cp.APf("body", "    gopp.ErrPrint(err, rv)")
 	if cursor.ResultType().Kind() != clang.Type_Void {
 		this.cp.APf("body", "   //  return rv")
+	}
+	if retype.Kind() == clang.Type_Record {
+		this.cp.APf("body", "   rv = uint64(uintptr(mv))")
 	}
 	this.genRetFFI(cursor, parent, midx)
 	this.genMethodFooterFFI(cursor, parent, midx)
@@ -736,6 +794,7 @@ func (this *GenerateGo) genArgConv(cursor, parent clang.Cursor, midx, aidx int) 
 
 // midx method index
 func (this *GenerateGo) genArgsConvFFI(cursor, parent clang.Cursor, midx int) {
+	log.Println("gggggggggg", cursor.Spelling(), cursor.ResultType().Kind(), cursor.ResultType().Spelling(), parent.Spelling())
 	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
 		argc := cursor.Argument(uint32(idx))
 		this.genArgConvFFI(argc, cursor, midx, idx)
@@ -824,9 +883,11 @@ func (this *GenerateGo) genParamFFI(cursor, parent clang.Cursor, idx int) {
 		if is_go_keyword(argName) {
 			argName = argName + "_"
 		}
-		andop := gopp.IfElseStr(isPrimitiveType(argty) ||
-			(argty.Kind() == clang.Type_LValueReference &&
-				isPrimitiveType(argty.PointeeType())), "&", "")
+		useand := argty.Kind() == clang.Type_LValueReference &&
+			isPrimitiveType(argty.PointeeType())
+		useand = useand || (argty.Kind() == clang.Type_Pointer &&
+			isPrimitiveType(argty.PointeeType()))
+		andop := gopp.IfElseStr(useand, "&", "")
 		this.paramDesc = append(this.paramDesc,
 			andop+gopp.IfElseStr(cursor.Spelling() == "",
 				fmt.Sprintf("arg%d", idx), fmt.Sprintf("%s", argName)))
@@ -922,9 +983,52 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 	}
 }
 
-func (this *GenerateGo) genEnums() {
+func (this *GenerateGo) genEnums(cursor, parent clang.Cursor) {
+	// log.Println("yyyyyyyy", cursor.DisplayName(), parent.DisplayName())
+	for _, enum := range this.enums {
+		this.cp.APf("body", "")
+		this.cp.APf("body", "type %s__%s int", cursor.DisplayName(), enum.DisplayName())
+		enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
+			switch c1.Kind() {
+			case clang.Cursor_EnumConstantDecl:
+				log.Println("yyyyyyyyy", c1.EnumConstantDeclUnsignedValue(), c1.DisplayName(), p1.DisplayName(), cursor.DisplayName())
+				this.cp.APf("body", "const %s__%s %s__%s = %d",
+					cursor.DisplayName(), c1.DisplayName(),
+					cursor.DisplayName(), p1.DisplayName(),
+					c1.EnumConstantDeclUnsignedValue())
+			}
 
+			return clang.ChildVisit_Continue
+		})
+	}
 }
+
+func (this *GenerateGo) genEnumsGlobal(cursor, parent clang.Cursor) {
+	// log.Println("yyyyyyyy", cursor.DisplayName(), parent.DisplayName())
+	for _, enum := range this.enums {
+		if enum.DisplayName() == "" || enum.DisplayName() == "Uninitialized" ||
+			enum.DisplayName() == "timeout" || enum.DisplayName() == "deferred" ||
+			enum.DisplayName() == "GuardValues" || enum.DisplayName() == "cv_status" ||
+			enum.DisplayName() == "future_statu" || enum.DisplayName() == "launch" {
+			continue
+		}
+		this.cp.APf("body", "")
+		this.cp.APUf("body", "type %s__%s int", "Qt", enum.DisplayName())
+		enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
+			switch c1.Kind() {
+			case clang.Cursor_EnumConstantDecl:
+				log.Println("yyyyyyyyy", c1.EnumConstantDeclUnsignedValue(), c1.DisplayName(), p1.DisplayName(), cursor.DisplayName())
+				this.cp.APUf("body", "const %s__%s %s__%s = %d",
+					"Qt", c1.DisplayName(),
+					"Qt", p1.DisplayName(),
+					c1.EnumConstantDeclUnsignedValue())
+			}
+
+			return clang.ChildVisit_Continue
+		})
+	}
+}
+
 func (this *GenerateGo) genEnum() {
 
 }

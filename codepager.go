@@ -75,8 +75,8 @@ func (this *CodePager) AppendUnique(name, code string) {
 
 	exist := false
 	gopp.Domap(this.insert_points, func(i interface{}) interface{} {
-		kv := i.(gopp.Pair)
-		if kv.Val.(string) == code {
+		kv := i.(string)
+		if kv == code {
 			exist = true
 		}
 		return nil

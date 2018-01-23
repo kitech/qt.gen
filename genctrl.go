@@ -38,8 +38,10 @@ type GenCtrl struct {
 	args     []string
 	save_ast bool
 
-	filter GenFilter
-	genor  Generator
+	filter    GenFilter
+	genor     Generator
+	qtenumgen Generator // for generate global enums
+	qtfuncgen Generator // for generate global functions
 }
 
 func NewGenCtrl() *GenCtrl {
@@ -63,6 +65,8 @@ func (this *GenCtrl) setupLang() {
 	if true {
 		this.filter = &GenFilterGo{}
 		this.genor = NewGenerateGo()
+		this.qtenumgen = NewGenerateGo()
+		this.qtfuncgen = NewGenerateGo()
 	}
 }
 
@@ -160,6 +164,8 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		// cursor.Visit(this.visfn)
 	case clang.Cursor_FunctionDecl:
 		clts.FunctionCount += 1
+		log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName(), parent.Spelling(), cursor.Mangling())
+		this.qtfuncgen.(*GenerateGo).funcs = append(this.qtfuncgen.(*GenerateGo).funcs, cursor)
 	case clang.Cursor_StructDecl:
 		if !this.filter.skipClass(cursor, parent) {
 			this.genor.genClass(cursor, parent)
@@ -209,10 +215,13 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 	case clang.Cursor_VarDecl:
 	case clang.Cursor_EnumDecl:
 		clts.EnumCount += 1
-		// log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName())
+		this.qtenumgen.(*GenerateGo).enums = append(this.qtenumgen.(*GenerateGo).enums, cursor)
+		log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName())
+	case clang.Cursor_EnumConstantDecl:
+		log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName())
 	case clang.Cursor_UnionDecl:
 	case clang.Cursor_Namespace:
-		// cursor.Visit(this.visfn)
+		cursor.Visit(this.visfn)
 	case clang.Cursor_UsingDeclaration:
 	case clang.Cursor_StaticAssert:
 	case clang.Cursor_UnexposedDecl:
@@ -246,6 +255,11 @@ func (this *GenCtrl) collectClasses() {
 	})
 
 	cursor.Visit(this.visfn)
+
+	var gg *GenerateGo = this.qtenumgen.(*GenerateGo)
+	gg.cp.APf("header", "package qtcore")
+	gg.genEnumsGlobal(cursor, cursor.SemanticParent())
+	gg.saveCodeToFile("core", "qnamespace")
 
 	log.Printf("%+v\n", clts)
 }
