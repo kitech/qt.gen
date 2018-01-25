@@ -20,13 +20,15 @@ type GenerateGo struct {
 
 	maxClassSize int64 // 暂存一下类的大小的最大值
 
-	methods     []clang.Cursor
-	enums       []clang.Cursor
-	funcs       []clang.Cursor
-	cp          *CodePager
-	argDesc     []string // origin c/c++ language syntax
-	paramDesc   []string
-	destArgDesc []string // dest language syntax
+	methods      []clang.Cursor
+	enums        []clang.Cursor
+	funcs        []clang.Cursor
+	tmplclses    []clang.Cursor
+	tmplclsspecs []clang.Cursor
+	cp           *CodePager
+	argDesc      []string // origin c/c++ language syntax
+	paramDesc    []string
+	destArgDesc  []string // dest language syntax
 }
 
 func NewGenerateGo() *GenerateGo {
@@ -987,7 +989,7 @@ func (this *GenerateGo) genEnums(cursor, parent clang.Cursor) {
 	// log.Println("yyyyyyyy", cursor.DisplayName(), parent.DisplayName())
 	for _, enum := range this.enums {
 		this.cp.APf("body", "")
-		this.cp.APf("body", "type %s__%s int", cursor.DisplayName(), enum.DisplayName())
+		this.cp.APf("body", "type %s__%s = int", cursor.DisplayName(), enum.DisplayName())
 		enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
 			switch c1.Kind() {
 			case clang.Cursor_EnumConstantDecl:
@@ -1013,7 +1015,7 @@ func (this *GenerateGo) genEnumsGlobal(cursor, parent clang.Cursor) {
 			continue
 		}
 		this.cp.APf("body", "")
-		this.cp.APUf("body", "type %s__%s int", "Qt", enum.DisplayName())
+		this.cp.APUf("body", "type %s__%s = int", "Qt", enum.DisplayName())
 		enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
 			switch c1.Kind() {
 			case clang.Cursor_EnumConstantDecl:

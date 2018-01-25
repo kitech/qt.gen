@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"log"
+	"regexp"
 	"strings"
 
 	"github.com/go-clang/v3.9/clang"
@@ -124,8 +125,8 @@ func (this *GenFilterBase) skipMethod(cursor, parent clang.Cursor) bool {
 	if cursor.Spelling() == "QApplication" {
 
 	}
-	if cursor.Spelling() == "QApplication" && skip > 0 {
-		// log.Println(cursor.Spelling(), parent.Spelling(), cursor.DisplayName(), skip)
+	if cursor.Spelling() == "QWidget" && skip > 0 {
+		log.Println(cursor.Spelling(), parent.Spelling(), cursor.DisplayName(), skip)
 		// os.Exit(0)
 	}
 	return skip > 0
@@ -193,7 +194,7 @@ func (this *GenFilterBase) skipMethodImpl(cursor, parent clang.Cursor) int {
 func (this *GenFilterBase) skipArg(cursor, parent clang.Cursor) bool {
 	skip := this.skipArgImpl(cursor, parent)
 	if skip > 0 {
-		// log.Println(skip)
+		log.Println(skip, cursor.Spelling(), parent.DisplayName())
 	}
 	return skip > 0
 }
@@ -219,7 +220,12 @@ func (this *GenFilterBase) skipArgImpl(cursor, parent clang.Cursor) int {
 	}
 	if _, ok := skipClasses[argTyBare.Spelling()]; !ok {
 		if argTyBare.Kind() != clang.Type_Invalid && !isPrimitiveType(argTyBare) {
-			return 6
+			// like Qt::WindowFlags form
+			reg := regexp.MustCompile(`^Q.+::.*Flags$`)
+			if !reg.MatchString(argTyBare.Spelling()) {
+				log.Println(argTyBare.Spelling(), "skiped by skiped class")
+				return 6
+			}
 		}
 	}
 
@@ -293,6 +299,7 @@ func (this *GenFilterBase) skipReturnImpl(ty clang.Type, cursor clang.Cursor) in
 	if strings.HasPrefix(bareSpell, "Q") {
 		if strings.HasSuffix(bareSpell, "List") ||
 			strings.HasSuffix(bareSpell, "Map") ||
+			strings.HasSuffix(bareSpell, "Set") ||
 			strings.HasSuffix(bareSpell, "Hash") {
 			return 2
 		}
@@ -314,7 +321,7 @@ func (this *GenFilterBase) skipReturnImpl(ty clang.Type, cursor clang.Cursor) in
 func (this *GenFilterBase) skipType(ty clang.Type, cursor clang.Cursor) bool {
 	skip := this.skipTypeImpl(ty, cursor)
 	if skip > 0 {
-		// log.Println(skip)
+		log.Println(skip, ty.Kind().Spelling(), ty.Spelling(), cursor.Spelling())
 	}
 	return skip > 0
 }

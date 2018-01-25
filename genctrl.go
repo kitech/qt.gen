@@ -42,6 +42,7 @@ type GenCtrl struct {
 	genor     Generator
 	qtenumgen Generator // for generate global enums
 	qtfuncgen Generator // for generate global functions
+	qttmplgen Generator // for generate template
 }
 
 func NewGenCtrl() *GenCtrl {
@@ -67,6 +68,7 @@ func (this *GenCtrl) setupLang() {
 		this.genor = NewGenerateGo()
 		this.qtenumgen = NewGenerateGo()
 		this.qtfuncgen = NewGenerateGo()
+		this.qttmplgen = NewGenerateGo()
 	}
 }
 
@@ -183,14 +185,19 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		if is_qt_class(cursor.Type()) {
 			log.Println("got", cursor.Spelling(), ",", cursor.Type().Spelling(), ",", cursor.Type().Kind(), cursor.Type().ClassType().Spelling(), ",", cursor.Type().ClassType().Kind(), ",", cursor.Type().CanonicalType().Spelling(), ",", cursor.Type().CanonicalType().Kind(), ",", cursor.Type().CanonicalType().Declaration().Kind(), ",", cursor.Type().CanonicalType().Declaration().Spelling(), ",", cursor.Type().CanonicalType().Declaration().Definition().Kind().String())
 			log.Println(cursor.Type().CanonicalType().Declaration().Kind().String(), cursor.Type().CanonicalType().Declaration().Spelling(), cursor.Type().CanonicalType().Declaration().IsCursorDefinition(), cursor.Spelling())
+			this.qttmplgen.(*GenerateGo).tmplclsspecs = append(this.qttmplgen.(*GenerateGo).tmplclsspecs, cursor)
+
+			tplc := cursor.Type().Declaration()
+			log.Println(tplc.Spelling(), "============", cursor.CanonicalCursor().Kind(), tplc.NumTemplateArguments())
 			/*
-				cursor.Type().CanonicalType().Declaration().Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
-					log.Println(c1.Kind().String(), c1.Spelling(), p1.Spelling(), cursor.Spelling())
+				tplc.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
+					log.Println(c1.Kind().String(), c1.Spelling(), p1.Spelling(), cursor.Spelling(), c1.NumTemplateArguments())
 					return clang.ChildVisit_Recurse
 					// return clang.ChildVisit_Continue
 				})
 			*/
-			if cursor.Spelling() == "QWidgetList" {
+
+			if cursor.Spelling() == "QWidgetList" || cursor.Spelling() == "QByteArrayList" {
 				// os.Exit(0)
 			}
 			// cursor.Visit(this.visfn)
@@ -202,7 +209,22 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		log.Println(cursor.Definition().Kind(), cursor.Definition().Spelling())
 		log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName())
 	case clang.Cursor_ClassTemplate:
+		if !cursor.IsCursorDefinition() {
+			break
+		}
+		this.qttmplgen.(*GenerateGo).tmplclses = append(this.qttmplgen.(*GenerateGo).tmplclses, cursor)
 		log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName())
+		log.Println(cursor.IsCursorDefinition(), cursor.NumTemplateArguments())
+		/*
+			cursor.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
+				log.Println(c1.Kind().String(), c1.Spelling(), p1.Spelling(), cursor.Spelling(), ",", cursor.Mangling())
+				// return clang.ChildVisit_Recurse
+				return clang.ChildVisit_Continue
+			})
+		*/
+		if cursor.Spelling() == "QList" {
+			// os.Exit(0)
+		}
 	case clang.Cursor_ClassTemplatePartialSpecialization:
 		log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName())
 	case clang.Cursor_FunctionTemplate:
@@ -260,6 +282,8 @@ func (this *GenCtrl) collectClasses() {
 	gg.cp.APf("header", "package qtcore")
 	gg.genEnumsGlobal(cursor, cursor.SemanticParent())
 	gg.saveCodeToFile("core", "qnamespace")
+
+	this.qttmplgen.(*GenerateGo).genTemplateSpecializedClasses()
 
 	log.Printf("%+v\n", clts)
 }

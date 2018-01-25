@@ -132,3 +132,29 @@ func TypeIsQFlags(ty clang.Type) bool {
 func TypeIsFuncPointer(ty clang.Type) bool {
 	return strings.Contains(ty.Spelling(), " (*)(")
 }
+
+func rewriteOperatorMethodName(name string) string {
+	replaces := []string{
+		"&=", "_and_equal",
+		"^=", "_jian_equal",
+		"|=", "_or_equal",
+		"+=", "_add_equal",
+		"-=", "_minus_equal",
+		"==", "_equal_equal",
+		"!=", "_not_equal",
+		"!", "_not", "=", "_equal",
+		"<<", "_left_shift",
+		">>", "_right_shift",
+		"[]", "_get_index",
+		"()", "_fncall",
+		"->", "_pointer_selector",
+		"<", "_less_than", ">", "_greater_than",
+		"&", "_and", "^", "_jian", "|", "_or", "~", "_pozhehao",
+		"/", "_div", "*", "_mul", "-", "_minus", "+", "_add",
+		" ", "_"}
+	valiname := name
+	for i := 0; i < len(replaces)/2; i += 1 {
+		valiname = strings.Replace(valiname, replaces[i*2], replaces[i*2+1], -1)
+	}
+	return valiname
+}
