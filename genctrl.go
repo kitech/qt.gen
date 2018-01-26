@@ -16,11 +16,22 @@ var ast_file = "./qthdrsrc.ast"
 var hdr_file = "./headers/qthdrsrc.h"
 
 // module depend table
+// 也许可以用ldd自动推导出来
 var modDeps = map[string][]string{
-	"core":    []string{},
-	"gui":     []string{"core"},
-	"widgets": []string{"core", "gui"},
-	"network": []string{"core"},
+	"core":              []string{},
+	"gui":               []string{"core"},
+	"widgets":           []string{"core", "gui"},
+	"network":           []string{"core"},
+	"qml":               []string{"core", "network"},
+	"quick":             []string{"core", "gui", "network", "qml"},
+	"quicktemplate2":    []string{"core", "gui", "network", "qml", "quick"},
+	"quickcontrols2":    []string{"core", "gui", "network", "qml", "quick", "qiucktemplate2"},
+	"quickwidgets":      []string{"core", "gui", "network", "qml", "quick", "widgets"},
+	"multimedia":        []string{"core", "gui", "network"},
+	"multimediawidgets": []string{"core", "gui", "network", "widgets", "multimedia", "opengl"},
+	"opengl":            []string{"core", "gui", "widgets"},
+	"sql":               []string{"core"},
+	"svg":               []string{"core", "gui", "widgets"},
 }
 var skipClasses = make(map[string]int) // 全局过滤掉的class
 
@@ -77,7 +88,7 @@ func (this *GenCtrl) setupEnv() {
 	// defer cidx.Dispose()
 
 	modules := []string{
-		"QtCore", "QtGui", "QtWidgets",
+		"QtCore", "QtGui", "QtWidgets", "QtNetwork", "QtQml",
 	}
 
 	cmdlines := []string{
@@ -154,7 +165,6 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		log.Println(cursor.Spelling(), cursor.Kind().String(), cursor.DisplayName())
 		if !this.filter.skipClass(cursor, parent) {
 			this.genor.genClass(cursor, parent)
-			// return clang.ChildVisit_Break
 		} else {
 			clts.SkippedClassCount += 1
 		}
@@ -166,7 +176,8 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		// cursor.Visit(this.visfn)
 	case clang.Cursor_FunctionDecl:
 		clts.FunctionCount += 1
-		log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName(), parent.Spelling(), cursor.Mangling())
+		clts.funcParents[parent.Spelling()] = 1
+		log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName(), parent.Spelling(), cursor.Mangling(), len(clts.funcParents), cursor.IsCursorDefinition(), cursor.Definition().Spelling())
 		this.qtfuncgen.(*GenerateGo).funcs = append(this.qtfuncgen.(*GenerateGo).funcs, cursor)
 	case clang.Cursor_StructDecl:
 		if !this.filter.skipClass(cursor, parent) {
@@ -278,6 +289,9 @@ func (this *GenCtrl) collectClasses() {
 
 	cursor.Visit(this.visfn)
 
+	var gf *GenerateGo = this.qtfuncgen.(*GenerateGo)
+	gf.genFunctions(cursor, cursor.SemanticParent())
+
 	var gg *GenerateGo = this.qtenumgen.(*GenerateGo)
 	gg.cp.APf("header", "package qtcore")
 	gg.genEnumsGlobal(cursor, cursor.SemanticParent())
@@ -308,9 +322,11 @@ type collects struct {
 	SkippedClassCount  int
 	SkippedMethodCount int
 	PrivateMethodCount int
+
+	funcParents map[string]int // got 11 elements
 }
 
-var clts = &collects{}
+var clts = &collects{funcParents: map[string]int{}}
 
 func init() { clts.ClassSizeMap = map[int64]int{} }
 func (this *collects) addClassSize(sz int64) {

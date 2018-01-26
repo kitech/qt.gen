@@ -125,7 +125,7 @@ func (this *GenFilterBase) skipMethod(cursor, parent clang.Cursor) bool {
 	if cursor.Spelling() == "QApplication" {
 
 	}
-	if cursor.Spelling() == "QWidget" && skip > 0 {
+	if skip > 0 {
 		log.Println(cursor.Spelling(), parent.Spelling(), cursor.DisplayName(), skip)
 		// os.Exit(0)
 	}
@@ -163,6 +163,12 @@ func (this *GenFilterBase) skipMethodImpl(cursor, parent clang.Cursor) int {
 	for _, mm := range []string{"rend", "append", "insert", "rbegin", "prepend", "crend", "crbegin"} {
 		if cname == mm {
 			return 5
+		}
+	}
+
+	for _, mm := range []string{"rawHeaderPairs"} { // TODO return template container
+		if cname == mm {
+			return 55
 		}
 	}
 

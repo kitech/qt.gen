@@ -5,11 +5,13 @@
 #include <QtCore>
 #include <QtGui>
 #include <QtWidgets>
-// #include <QtNetwork>
-// #include <QtQml>
+#include <QtNetwork>
+#include <QtQml>
 // #include <QtQuick>
 
 // template class QFlags<int>;
 // #include <explicit_instantiate_templates.h>
+
+#include <QtCore/extra_export.h>
 
 #endif

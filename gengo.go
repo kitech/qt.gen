@@ -5,8 +5,10 @@ import (
 	"gopp"
 	"io/ioutil"
 	"log"
+	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/go-clang/v3.9/clang"
@@ -320,7 +322,8 @@ func (this *GenerateGo) groupMethods() [][]clang.Cursor {
 
 func (this *GenerateGo) genMethodHeader(cursor, parent clang.Cursor, midx int) {
 	file, lineno, _, _ := cursor.Location().FileLocation()
-	this.cp.APf("body", "// %s:%d", file.Name(), lineno)
+	fileName := strings.Replace(file.Name(), os.Getenv("HOME"), "/home/me", -1)
+	this.cp.APf("body", "// %s:%d", fileName, lineno)
 	this.cp.APf("body", "// index:%d", midx)
 
 	qualities := make([]string, 0)
@@ -606,10 +609,9 @@ func (this *GenerateGo) genNonStaticMethod(cursor, parent clang.Cursor, midx int
 		argStr = ", " + argStr
 	}
 
+	_, _ = argStr, paramStr
 	this.genMethodHeader(cursor, parent, midx)
 	this.genMethodSignature(cursor, parent, midx)
-
-	_, _ = argStr, paramStr
 
 	/*
 		this.cp.APf("body", "    // %d: (%s), (%s)", midx, argStr, paramStr)
@@ -644,11 +646,11 @@ func (this *GenerateGo) genStaticMethod(cursor, parent clang.Cursor, midx int) {
 	argStr := strings.Join(this.argDesc, ", ")
 	this.genParams(cursor, parent)
 	paramStr := strings.Join(this.paramDesc, ", ")
+	_, _ = argStr, paramStr
 
 	this.genMethodHeader(cursor, parent, midx)
 	this.genMethodSignature(cursor, parent, midx)
 
-	_, _ = argStr, paramStr
 	/*
 		this.cp.APf("body", "    // %d: (%s), (%s)", midx, argStr, paramStr)
 		this.cp.APf("body", "    case %d: // (%s), (%s)", midx, argStr, paramStr)
@@ -888,7 +890,8 @@ func (this *GenerateGo) genParamFFI(cursor, parent clang.Cursor, idx int) {
 		useand := argty.Kind() == clang.Type_LValueReference &&
 			isPrimitiveType(argty.PointeeType())
 		useand = useand || (argty.Kind() == clang.Type_Pointer &&
-			isPrimitiveType(argty.PointeeType()))
+			isPrimitiveType(argty.PointeeType()) &&
+			argty.PointeeType().Kind() != clang.Type_UChar) // UChar, SChar是字符串或者字节串
 		andop := gopp.IfElseStr(useand, "&", "")
 		this.paramDesc = append(this.paramDesc,
 			andop+gopp.IfElseStr(cursor.Spelling() == "",
@@ -950,7 +953,9 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 		}
 	case clang.Type_Pointer:
 		if is_qt_class(rety) {
-			if usemod == "core" && refmod == "widgets" {
+			if _, ok := privClasses[rety.PointeeType().Spelling()]; ok {
+				this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+			} else if usemod == "core" && refmod == "widgets" {
 				this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
 			} else if usemod == "gui" && refmod == "widgets" {
 				this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
@@ -1033,4 +1038,136 @@ func (this *GenerateGo) genEnumsGlobal(cursor, parent clang.Cursor) {
 
 func (this *GenerateGo) genEnum() {
 
+}
+
+//////
+func (this *GenerateGo) groupFunctionsByModule() map[string][]clang.Cursor {
+	rets := map[string][]clang.Cursor{}
+
+	for _, fc := range this.funcs {
+		qtmod := get_decl_mod(fc)
+		if _, ok := modDeps[qtmod]; !ok {
+			log.Println("wtf mod:", qtmod, fc.Spelling())
+		} else {
+			if _, ok := rets[qtmod]; !ok {
+				rets[qtmod] = []clang.Cursor{}
+			}
+			rets[qtmod] = append(rets[qtmod], fc)
+		}
+	}
+
+	return rets
+}
+
+var funcMangles = map[string]int{}
+
+func (this *GenerateGo) genFunctions(cursor clang.Cursor, parent clang.Cursor) {
+	// this.genHeader(cursor, parent)
+	skipKeys := []string{"QKeySequence", "QVector2D", "QPointingDeviceUniqueId", "QFont", "QMatrix",
+		"QTransform", "QPixelFormat", "QRawFont", "QVector3D", "QVector4D",
+		"QOpenGLVersionStatus", "QOpenGLVersionProfile"}
+	hasSkipKey := func(c clang.Cursor) bool {
+		for _, k := range skipKeys {
+			if strings.Contains(c.DisplayName(), k) {
+				return true
+			}
+		}
+		return false
+	}
+
+	reg := regexp.MustCompile(`q[A-Z].+`)
+	grfuncs := this.groupFunctionsByModule()
+
+	for qtmod, funcs := range grfuncs {
+		log.Println(qtmod, len(funcs))
+		this.cp = NewCodePager()
+		// write code
+		this.cp.APf("header", "package qt%s", qtmod)
+		this.cp.APf("header", "import \"unsafe\"")
+		this.cp.APf("header", "import \"mkuse/cffiqt\"")
+		this.cp.APf("header", "import \"qtrt\"")
+		this.cp.APf("header", "import \"gopp\"")
+		for _, mod := range modDeps[qtmod] {
+			this.cp.APf("header", "import \"qt%s\"", mod)
+		}
+		this.cp.APf("header", "func init(){")
+		this.cp.APf("header", "  if false{_=unsafe.Pointer(uintptr(0))}")
+		this.cp.APf("header", "  if false{qtrt.KeepMe()}")
+		for _, dep := range modDeps[qtmod] {
+			this.cp.APf("header", "if false {qt%s.KeepMe()}", dep)
+		}
+		this.cp.APf("header", "}")
+
+		for _, fc := range funcs {
+			if !reg.MatchString(fc.Spelling()) {
+				continue
+			}
+
+			log.Println(fc.Spelling(), fc.Mangling(), fc.DisplayName(), fc.IsCursorDefinition())
+			if strings.ContainsAny(fc.DisplayName(), "<>") {
+				continue
+			}
+			if strings.Contains(fc.DisplayName(), "Rgba64") {
+				continue
+			}
+			if strings.Contains(fc.ResultType().Spelling(), "Rgba64") {
+				continue
+			}
+			if hasSkipKey(fc) {
+				continue
+			}
+
+			if _, ok := funcMangles[fc.Spelling()]; ok {
+				funcMangles[fc.Spelling()] += 1
+			} else {
+				funcMangles[fc.Spelling()] = 0
+			}
+			olidx := funcMangles[fc.Spelling()]
+			this.genFunction(fc, olidx)
+		}
+
+		this.saveCodeToFile(qtmod, "qfunctions")
+	}
+}
+
+func (this *GenerateGo) genFunction(cursor clang.Cursor, olidx int) {
+	this.genParamsFFI(cursor, cursor.SemanticParent())
+	paramStr := strings.Join(this.paramDesc, ", ")
+	_ = paramStr
+
+	this.genMethodHeader(cursor, cursor.SemanticParent(), olidx)
+	this.genBareFunctionSignature(cursor, cursor.SemanticParent(), olidx)
+
+	this.genArgsConvFFI(cursor, cursor.SemanticParent(), olidx)
+	this.cp.APf("body", "  rv, err := ffiqt.InvokeQtFunc6(\"%s\", ffiqt.FFI_TYPE_POINTER, %s)",
+		cursor.Mangling(), paramStr)
+	this.cp.APf("body", "  gopp.ErrPrint(err, rv)")
+
+	if cursor.ResultType().Kind() != clang.Type_Void {
+		this.cp.APf("body", "    // return rv")
+	}
+	this.genRetFFI(cursor, cursor.SemanticParent(), olidx)
+	this.genMethodFooterFFI(cursor, cursor.SemanticParent(), olidx)
+	this.cp.APf("body", "")
+}
+
+// only for static member
+func (this *GenerateGo) genBareFunctionSignature(cursor, parent clang.Cursor, midx int) {
+	this.genArgsDest(cursor, parent)
+	argStr := strings.Join(this.destArgDesc, ", ")
+
+	overloadSuffix := gopp.IfElseStr(midx == 0, "", fmt.Sprintf("_%d", midx))
+	switch cursor.Kind() {
+	case clang.Cursor_Constructor:
+	case clang.Cursor_Destructor:
+	default:
+		retPlace := "interface{}"
+		retPlace = this.tyconver.toDest(cursor.ResultType(), cursor)
+		if cursor.ResultType().Kind() == clang.Type_Void {
+			retPlace = ""
+		}
+		this.cp.APf("body", "func %s%s(%s) %s {",
+			strings.Title(cursor.Spelling()),
+			overloadSuffix, argStr, retPlace)
+	}
 }

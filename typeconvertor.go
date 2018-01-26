@@ -44,6 +44,8 @@ func NewTypeConvertGo() *TypeConvertGo {
 	return this
 }
 
+var privClasses = map[string]int{"QV8Engine": 1, "QQmlComponentAttached": 1}
+
 // 把C/C++类型转换为Go的类型表示法
 func (this *TypeConvertGo) toDest(ty clang.Type, cursor clang.Cursor) string {
 	if strings.Contains(ty.Spelling(), "::Flags") {
@@ -65,6 +67,8 @@ func (this *TypeConvertGo) toDest(ty clang.Type, cursor clang.Cursor) string {
 	case clang.Type_UChar:
 		return "byte"
 	case clang.Type_Char_S:
+		return "byte"
+	case clang.Type_SChar:
 		return "byte"
 	case clang.Type_Long:
 		return "int"
@@ -107,11 +111,12 @@ func (this *TypeConvertGo) toDest(ty clang.Type, cursor clang.Cursor) string {
 				pkgSuff = fmt.Sprintf("qt%s.", refmod)
 				// log.Println(ty.Spelling(), usemod, refmod)
 			}
-			if usemod == "core" && refmod == "widgets" {
+			if _, ok := privClasses[ty.PointeeType().Spelling()]; ok {
+			} else if usemod == "core" && refmod == "widgets" {
 			} else if usemod == "gui" && refmod == "widgets" {
 			} else {
 				return "*" + pkgSuff + get_bare_type(ty).Spelling() +
-					fmt.Sprintf("/*444 %s*/", ty.Spelling())
+					fmt.Sprintf("/*777 %s*/", ty.Spelling())
 			}
 		}
 		return "unsafe.Pointer /*666*/"
@@ -138,6 +143,8 @@ func (this *TypeConvertGo) toDest(ty clang.Type, cursor clang.Cursor) string {
 	case clang.Type_Bool:
 		return "bool"
 	case clang.Type_Double:
+		return "float64"
+	case clang.Type_LongDouble:
 		return "float64"
 	case clang.Type_Float:
 		return "float32"

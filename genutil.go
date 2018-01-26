@@ -15,6 +15,9 @@ func get_decl_mod(cursor clang.Cursor) string {
 	file, _, _, _ := loc.FileLocation()
 	// log.Println(file.Name())
 	if !strings.HasPrefix(file.Name(), "/usr/include/qt") {
+		if strings.Contains(file.Name(), "headers/QtCore/") { // fix qRegisterResourceData
+			return "core"
+		}
 		return "stdglobal"
 	}
 	segs := strings.Split(file.Name(), "/")
