@@ -823,7 +823,8 @@ func (this *GenerateGo) genArgConvFFI(cursor, parent clang.Cursor, midx, aidx in
 		refmod := get_decl_mod(argty.PointeeType().Declaration())
 		usemod := get_decl_mod(cursor)
 		log.Println("kkkkk", refmod, usemod, parent.Spelling())
-		if usemod == "core" && refmod == "widgets" {
+		if _, ok := privClasses[argty.PointeeType().Spelling()]; ok {
+		} else if usemod == "core" && refmod == "widgets" {
 		} else if usemod == "gui" && refmod == "widgets" {
 		} else {
 			this.cp.APf("body", "    var convArg%d = %s.GetCthis()", aidx,
@@ -875,7 +876,8 @@ func (this *GenerateGo) genParamFFI(cursor, parent clang.Cursor, idx int) {
 	} else if is_qt_class(argty) && !isPrimitiveType(argty.CanonicalType()) {
 		usemod := get_decl_mod(cursor)
 		refmod := get_decl_mod(argty.PointeeType().Declaration())
-		if usemod == "core" && refmod == "widgets" {
+		if _, ok := privClasses[argty.PointeeType().Spelling()]; ok {
+		} else if usemod == "core" && refmod == "widgets" {
 			this.paramDesc = append(this.paramDesc, cursor.Spelling())
 		} else if usemod == "gui" && refmod == "widgets" {
 			this.paramDesc = append(this.paramDesc, cursor.Spelling())
@@ -965,6 +967,8 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 					pkgSuff, barety.Spelling())
 				this.cp.APf("body", "    return rv2")
 			}
+		} else if TypeIsCharPtrPtr(rety) {
+			this.cp.APf("body", "    return qtrt.CCharPPToStringSlice(unsafe.Pointer(uintptr(rv)))")
 		} else if TypeIsCharPtr(rety) {
 			this.cp.APf("body", "    return qtrt.GoStringI(rv)")
 		} else if rety.PointeeType().CanonicalType().Kind() == clang.Type_UChar {
@@ -1093,6 +1097,8 @@ func (this *GenerateGo) genFunctions(cursor clang.Cursor, parent clang.Cursor) {
 		this.cp.APf("header", "func init(){")
 		this.cp.APf("header", "  if false{_=unsafe.Pointer(uintptr(0))}")
 		this.cp.APf("header", "  if false{qtrt.KeepMe()}")
+		this.cp.APf("header", "  if false{ffiqt.KeepMe()}")
+		this.cp.APf("header", "  if false{gopp.KeepMe()}")
 		for _, dep := range modDeps[qtmod] {
 			this.cp.APf("header", "if false {qt%s.KeepMe()}", dep)
 		}

@@ -88,7 +88,8 @@ func (this *GenCtrl) setupEnv() {
 	// defer cidx.Dispose()
 
 	modules := []string{
-		"QtCore", "QtGui", "QtWidgets", "QtNetwork", "QtQml",
+		"QtCore", "QtGui", "QtWidgets",
+		"QtNetwork", "QtQml", "QtQuick",
 	}
 
 	cmdlines := []string{

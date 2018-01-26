@@ -103,7 +103,9 @@ func find_base_classes(cursor clang.Cursor) []clang.Cursor {
 	bcs := make([]clang.Cursor, 0)
 	cursor.Visit(func(c, p clang.Cursor) clang.ChildVisitResult {
 		if c.Kind() == clang.Cursor_CXXBaseSpecifier {
-			bcs = append(bcs, c.Definition())
+			if _, ok := privClasses[c.Definition().Spelling()]; !ok {
+				bcs = append(bcs, c.Definition())
+			}
 		}
 		if c.Kind() == clang.Cursor_CXXMethod {
 			return clang.ChildVisit_Break

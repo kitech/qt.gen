@@ -44,7 +44,8 @@ func NewTypeConvertGo() *TypeConvertGo {
 	return this
 }
 
-var privClasses = map[string]int{"QV8Engine": 1, "QQmlComponentAttached": 1}
+var privClasses = map[string]int{"QV8Engine": 1, "QQmlComponentAttached": 1,
+	"QQmlImageProviderBase": 1}
 
 // 把C/C++类型转换为Go的类型表示法
 func (this *TypeConvertGo) toDest(ty clang.Type, cursor clang.Cursor) string {

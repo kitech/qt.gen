@@ -283,7 +283,8 @@ func (this *GenFilterBase) skipReturnImpl(ty clang.Type, cursor clang.Cursor) in
 		"QPlatformOffscreenSurface", "QMatrix3x3", "QPagedPaintDevicePrivate",
 		"QPlatformPixmap", "QPlatformScreen", "QPlatformSurface", "QTextDocumentPrivate",
 		"QTextEngine", "QPlatformWindow", "QVulkanInstance", "QGraphicsEffectSource",
-		"QGraphicsObject", "QPlatformMenu", "QPlatformMenuBar"}
+		"QGraphicsObject", "QPlatformMenu", "QPlatformMenuBar",
+		"QOpenGLFramebufferObject", "QOpenGLShaderProgram"}
 	for _, tn := range skips {
 		log.Println(ty.Spelling(), cursor.Spelling(), ty.CanonicalType().Spelling(), ty.PointeeType().CanonicalType().Spelling(), ty.PointeeType().Declaration().Type().Spelling())
 		if ty.Spelling() == tn || ty.PointeeType().Spelling() == tn ||
