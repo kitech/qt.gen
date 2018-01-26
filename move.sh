@@ -18,16 +18,16 @@ function help()
 
 function mvgosrc()
 {
-    mkdir -p ../qt.go/src/{qt5,qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}
-    rm -f ../qt.go/src/{qt5,qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}/q*.go
+    mkdir -p ~/oss/src/qt.go/{qt5,qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}
+    rm -f ~/oss/src/qt.go/{qt5,qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}/q*.go
 
     # cp -a src/qtrt/*.go qt.go/src/qtrt/
-    cp -a src/core/*.go ../qt.go/src/qtcore/
-    cp -a src/gui/*.go ../qt.go/src/qtgui/
-    cp -a src/widgets/*.go ../qt.go/src/qtwidgets/
-    # cp -a src/network/*.go qt.go/src/qt5/
-    # cp -a src/qml/*.go qt.go/src/qt5/
-    # cp -a src/quick/*.go qt.go/src/qt5/
+    cp -a src/core/*.go ~/oss/src/qt.go/qtcore/
+    cp -a src/gui/*.go ~/oss/src/qt.go/qtgui/
+    cp -a src/widgets/*.go ~/oss/src/qt.go/qtwidgets/
+    cp -a src/network/*.go ~/oss/src/qt.go/qtnetwork/
+    cp -a src/qml/*.go ~/oss/src/qt.go/qtqml/
+    cp -a src/quick/*.go ~/oss/src/qt.go/qtquick/
 }
 
 function mvqil()

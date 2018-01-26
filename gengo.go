@@ -197,11 +197,11 @@ func (this *GenerateGo) genImports(cursor, parent clang.Cursor) {
 	this.cp.APf("ext", "import \"unsafe\"")
 	this.cp.APf("ext", "import \"reflect\"")
 	this.cp.APf("ext", "import \"fmt\"")
-	this.cp.APf("ext", "import \"qtrt\"")
 	this.cp.APf("ext", "import \"mkuse/cffiqt\"")
 	this.cp.APf("ext", "import \"gopp\"")
+	this.cp.APf("ext", "import \"qt.go/qtrt\"")
 	for _, dep := range modDeps[modname] {
-		this.cp.APf("ext", "import \"qt%s\"", dep)
+		this.cp.APf("ext", "import \"qt.go/qt%s\"", dep)
 	}
 
 	this.cp.APf("ext", "")
@@ -1089,10 +1089,10 @@ func (this *GenerateGo) genFunctions(cursor clang.Cursor, parent clang.Cursor) {
 		this.cp.APf("header", "package qt%s", qtmod)
 		this.cp.APf("header", "import \"unsafe\"")
 		this.cp.APf("header", "import \"mkuse/cffiqt\"")
-		this.cp.APf("header", "import \"qtrt\"")
 		this.cp.APf("header", "import \"gopp\"")
+		this.cp.APf("header", "import \"qt.go/qtrt\"")
 		for _, mod := range modDeps[qtmod] {
-			this.cp.APf("header", "import \"qt%s\"", mod)
+			this.cp.APf("header", "import \"qt.go/qt%s\"", mod)
 		}
 		this.cp.APf("header", "func init(){")
 		this.cp.APf("header", "  if false{_=unsafe.Pointer(uintptr(0))}")
