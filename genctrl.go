@@ -24,8 +24,8 @@ var modDeps = map[string][]string{
 	"network":           []string{"core"},
 	"qml":               []string{"core", "network"},
 	"quick":             []string{"core", "gui", "network", "qml"},
-	"quicktemplate2":    []string{"core", "gui", "network", "qml", "quick"},
-	"quickcontrols2":    []string{"core", "gui", "network", "qml", "quick", "qiucktemplate2"},
+	"quicktemplates2":   []string{"core", "gui", "network", "qml", "quick"},
+	"quickcontrols2":    []string{"core", "gui", "network", "qml", "quick", "quicktemplates2"},
 	"quickwidgets":      []string{"core", "gui", "network", "qml", "quick", "widgets"},
 	"multimedia":        []string{"core", "gui", "network"},
 	"multimediawidgets": []string{"core", "gui", "network", "widgets", "multimedia", "opengl"},
@@ -87,9 +87,11 @@ func (this *GenCtrl) setupEnv() {
 	cidx := clang.NewIndex(0, 1)
 	// defer cidx.Dispose()
 
+	// 这是要生成的模块表
 	modules := []string{
 		"QtCore", "QtGui", "QtWidgets",
 		"QtNetwork", "QtQml", "QtQuick",
+		"QtQuickTemplates2", "QtQuickControls2", "QtQuickWidgets",
 	}
 
 	cmdlines := []string{
@@ -103,6 +105,7 @@ func (this *GenCtrl) setupEnv() {
 	})
 	gopp.Domap(modules, func(e interface{}) interface{} {
 		args = append(args, fmt.Sprintf("-DQT_%s_LIB", strings.ToUpper(e.(string)[2:])))
+		args = append(args, fmt.Sprintf("-DGEN_GO_QT_%s_LIB", strings.ToUpper(e.(string)[2:])))
 		args = append(args, fmt.Sprintf("-I/usr/include/qt/%s", e.(string)))
 		return nil
 	})
@@ -116,6 +119,7 @@ func (this *GenCtrl) setupEnv() {
 	gopp.ErrPrint(err)
 	args = append(args, fmt.Sprintf("-I/usr/include/c++/%s", strings.TrimSpace(string(out))))
 	log.Println(args)
+	// os.Exit(0)
 
 	this.cidx = cidx
 	this.args = args
@@ -135,7 +139,7 @@ func (this *GenCtrl) createTU() {
 		tu = cidx.ParseTranslationUnit(hdr_file, args, nil, 0)
 	}
 	if !tu.IsValid() {
-		log.Panicln("wtf")
+		log.Panicln("wtf", "maybe cached qthdrsrc.ast file expired, delete and retry please.")
 	}
 	cursor := tu.TranslationUnitCursor()
 	if false {

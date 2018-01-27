@@ -93,6 +93,7 @@ func (this *GenerateGo) saveCode(cursor, parent clang.Cursor) {
 func (this *GenerateGo) saveCodeToFile(modname, file string) {
 	// qtx{yyy}, only yyy
 	savefile := fmt.Sprintf("src/%s/%s.go", modname, file)
+	log.Println(savefile)
 
 	// TODO gofmt the code
 	// log.Println(this.cp.AllPoints())
@@ -197,8 +198,8 @@ func (this *GenerateGo) genImports(cursor, parent clang.Cursor) {
 	this.cp.APf("ext", "import \"unsafe\"")
 	this.cp.APf("ext", "import \"reflect\"")
 	this.cp.APf("ext", "import \"fmt\"")
-	this.cp.APf("ext", "import \"mkuse/cffiqt\"")
 	this.cp.APf("ext", "import \"gopp\"")
+	this.cp.APf("ext", "import \"qt.go/cffiqt\"")
 	this.cp.APf("ext", "import \"qt.go/qtrt\"")
 	for _, dep := range modDeps[modname] {
 		this.cp.APf("ext", "import \"qt.go/qt%s\"", dep)
@@ -1088,8 +1089,8 @@ func (this *GenerateGo) genFunctions(cursor clang.Cursor, parent clang.Cursor) {
 		// write code
 		this.cp.APf("header", "package qt%s", qtmod)
 		this.cp.APf("header", "import \"unsafe\"")
-		this.cp.APf("header", "import \"mkuse/cffiqt\"")
 		this.cp.APf("header", "import \"gopp\"")
+		this.cp.APf("header", "import \"qt.go/cffiqt\"")
 		this.cp.APf("header", "import \"qt.go/qtrt\"")
 		for _, mod := range modDeps[qtmod] {
 			this.cp.APf("header", "import \"qt.go/qt%s\"", mod)

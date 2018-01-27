@@ -28,6 +28,8 @@ function mvgosrc()
     cp -a src/network/*.go ~/oss/src/qt.go/qtnetwork/
     cp -a src/qml/*.go ~/oss/src/qt.go/qtqml/
     cp -a src/quick/*.go ~/oss/src/qt.go/qtquick/
+    cp -a src/quickcontrols2/*.go ~/oss/src/qt.go/qtquickcontrols2/
+    cp -a src/quickwidgets/*.go ~/oss/src/qt.go/qtquickwidgets/
 }
 
 function mvqil()
