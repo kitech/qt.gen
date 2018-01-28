@@ -336,18 +336,19 @@ func (this *GenerateGo) genMethodHeader(cursor, parent clang.Cursor, midx int) {
 		qualities = append(qualities, "inline")
 	}
 	if cursor.CXXMethod_IsPureVirtual() {
-		qualities = append(qualities, "pure")
+		qualities = append(qualities, "purevirtual")
 	}
 	if cursor.CXXMethod_IsVirtual() {
 		qualities = append(qualities, "virtual")
 	}
-
+	qualities = append(qualities, cursor.Visibility().String())
+	qualities = append(qualities, cursor.Availability().String())
 	if len(qualities) > 0 {
 		this.cp.APf("body", "// %s", strings.Join(qualities, " "))
 	}
 
-	this.cp.APf("body", "// %s %s", cursor.ResultType().Spelling(),
-		strings.Replace(cursor.DisplayName(), "class ", "", -1))
+	this.cp.APf("body", "// [%d] %s %s", cursor.ResultType().SizeOf(),
+		cursor.ResultType().Spelling(), strings.Replace(cursor.DisplayName(), "class ", "", -1))
 }
 
 func (this *GenerateGo) genMethodInit(cursor, parent clang.Cursor) {

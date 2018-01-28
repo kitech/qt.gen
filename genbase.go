@@ -20,6 +20,8 @@ func init() {
 
 type GenBase struct {
 	tu *clang.TranslationUnit
+
+	pureVirtual bool
 }
 
 // TODO is what?

@@ -87,12 +87,21 @@ func is_go_keyword(s string) bool {
 }
 
 // 包含1个以上的纯虚方法
+// TODO 父类也有纯虚方法，并且当前类没有实现该方法
 func is_pure_virtual_class(cursor clang.Cursor) bool {
 	// pure virtual class check
 	pure_virtual_class := false
+	extraPureClses := map[string]int{"QAnimationGroup": 1}
+	if _, ok := extraPureClses[cursor.Spelling()]; ok {
+		return true
+	}
+	if strings.HasPrefix(cursor.Spelling(), "QAbstract") {
+		return true
+	}
 	cursor.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		if cursor.CXXMethod_IsPureVirtual() {
 			pure_virtual_class = true
+			return clang.ChildVisit_Break
 		}
 		return clang.ChildVisit_Continue
 	})
@@ -115,8 +124,66 @@ func find_base_classes(cursor clang.Cursor) []clang.Cursor {
 	return bcs
 }
 
+func has_copy_ctor(cursor clang.Cursor) bool {
+	has := false
+	cursor.Visit(func(c, p clang.Cursor) clang.ChildVisitResult {
+		switch c.Kind() {
+		case clang.Cursor_Constructor:
+			if c.AccessSpecifier() == clang.AccessSpecifier_Public &&
+				(c.CXXConstructor_IsCopyConstructor() ||
+					c.CXXConstructor_IsMoveConstructor()) {
+				has = true
+				return clang.ChildVisit_Break
+			}
+		case clang.Cursor_CXXMethod:
+
+		}
+		return clang.ChildVisit_Continue
+	})
+	return has
+}
+
+// has default ctor, no virtual method, no virtual base class
+func is_trivial_class(cursor clang.Cursor) bool {
+	hasDefaultCtor := false
+	hasVirtMethod := false
+	hasVirtBaseCls := false
+	cursor.Visit(func(c, p clang.Cursor) clang.ChildVisitResult {
+		switch c.Kind() {
+		case clang.Cursor_Constructor:
+			if c.AccessSpecifier() == clang.AccessSpecifier_Public &&
+				c.CXXConstructor_IsDefaultConstructor() {
+				hasDefaultCtor = true
+			}
+		case clang.Cursor_CXXMethod:
+			hasVirtMethod = hasVirtMethod || c.CXXMethod_IsVirtual()
+		case clang.Cursor_CXXBaseSpecifier:
+			hasVirtBaseCls = hasVirtBaseCls || c.IsVirtualBase()
+		}
+		return clang.ChildVisit_Recurse
+	})
+	return hasDefaultCtor && !hasVirtMethod && !hasVirtBaseCls
+}
+
+func is_deleted_class(cursor clang.Cursor) bool {
+	deleted := false
+	arr := map[string]int{"QClipboard": 1, "QInputMethod": 1, "QSessionManager": 1,
+		"QPaintDevice": 1, "QPagedPaintDevice": 1, "QScroller": 1}
+	if _, ok := arr[cursor.Spelling()]; ok {
+		return true
+	}
+	cursor.Visit(func(c, p clang.Cursor) clang.ChildVisitResult {
+		switch c.Kind() {
+		case clang.Cursor_Destructor:
+		}
+		return clang.ChildVisit_Recurse
+	})
+	return deleted
+}
+
 func TypeIsCharPtrPtr(ty clang.Type) bool {
-	return isPrimitivePPType(ty) && ty.PointeeType().PointeeType().Kind() == clang.Type_Char_S
+	return (isPrimitivePPType(ty) && ty.PointeeType().PointeeType().Kind() == clang.Type_Char_S) ||
+		(ty.Kind() == clang.Type_IncompleteArray && TypeIsCharPtr(ty.ElementType()))
 }
 
 func TypeIsCharPtr(ty clang.Type) bool {
@@ -136,6 +203,10 @@ func TypeIsQFlags(ty clang.Type) bool {
 
 func TypeIsFuncPointer(ty clang.Type) bool {
 	return strings.Contains(ty.Spelling(), " (*)(")
+}
+
+func TypeIsConsted(ty clang.Type) bool {
+	return ty.IsConstQualifiedType() || strings.HasPrefix(ty.Spelling(), "const ")
 }
 
 func rewriteOperatorMethodName(name string) string {

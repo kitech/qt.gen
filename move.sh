@@ -32,14 +32,51 @@ function mvgosrc()
     cp -a src/quickwidgets/*.go ~/oss/src/qt.go/qtquickwidgets/
 }
 
+function mvbymd5()
+{
+    extstr=$1
+    srcdir=$2
+    dstdir=$3
+    if [ -z "$srcdir" ] || [ -z "$dstdir" ]; then
+        echo "$srcdir => $dstdir"
+        echo "empty dir"
+        exit
+    fi
+
+    files=$(ls $srcdir/*.$extstr)
+    for file in $files ; do
+        # echo "123, $file"
+        bname=$(basename $file)
+        dfpath="$dstdir/$bname"
+        needcp="yes"
+        if [ -f "$dfpath" ]; then
+            srcmd5=$(md5sum $file|awk '{print $1}')
+            dstmd5=$(md5sum $dfpath|awk '{print $1}')
+            if [ "$srcmd5" == "$dstmd5" ]; then
+                needcp="no"
+            fi
+        fi
+        if [ "$needcp" == "yes" ]; then
+            true
+            echo "install -m 0644 $file $dstdir/$bname"
+            install -m 0644 "$file" "$dstdir/$bname"
+        fi
+    done
+}
+
 function mvqil()
 {
     mkdir -p ~/oss/qt.inline/src/{qt5,core,gui,widgets,network,qml,quick}
-    rm -f ~/oss/qt.inline/src/{qt5,core,gui,widgets,network,qml,quick}/q*.cxx
+    # rm -f ~/oss/qt.inline/src/{qt5,core,gui,widgets,network,qml,quick}/q*.cxx
 
-    cp -a src/core/*.cxx ~/oss/qt.inline/src/core/
-    cp -a src/gui/*.cxx ~/oss/qt.inline/src/gui/
-    cp -a src/widgets/*.cxx ~/oss/qt.inline/src/widgets/
+    set +x
+    mvbymd5 cxx src/core ~/oss/qt.inline/src/core
+    mvbymd5 cxx src/gui ~/oss/qt.inline/src/gui
+    mvbymd5 cxx src/widgets ~/oss/qt.inline/src/widgets
+
+    #cp -a src/core/*.cxx ~/oss/qt.inline/src/core/
+    #cp -a src/gui/*.cxx ~/oss/qt.inline/src/gui/
+    #cp -a src/widgets/*.cxx ~/oss/qt.inline/src/widgets/
     # cp -a src/network/*.cxx ~/oss/qt.inline/src/network/
     # cp -a src/qml/*.cxx ~/oss/qt.inline/src/qml/
     # cp -a src/quick/*.cxx ~/oss/qt.inline/src/quick/
@@ -66,13 +103,13 @@ cmd=$1
 set -x
 case $cmd in
     qil)
-        mvqil;
+        time mvqil;
         ;;
     gosrc)
-        mvgosrc;
+        time mvgosrc;
         ;;
     rssrc)
-        mvrssrc;
+        time mvrssrc;
         ;;
     *)
         set +x
