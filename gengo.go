@@ -346,7 +346,8 @@ func (this *GenerateGo) genMethodHeader(cursor, parent clang.Cursor, midx int) {
 		this.cp.APf("body", "// %s", strings.Join(qualities, " "))
 	}
 
-	this.cp.APf("body", "// %s %s", cursor.ResultType().Spelling(), cursor.DisplayName())
+	this.cp.APf("body", "// %s %s", cursor.ResultType().Spelling(),
+		strings.Replace(cursor.DisplayName(), "class ", "", -1))
 }
 
 func (this *GenerateGo) genMethodInit(cursor, parent clang.Cursor) {
@@ -587,13 +588,6 @@ func (this *GenerateGo) genDtor(cursor, parent clang.Cursor, midx int) {
 	this.genMethodHeader(cursor, parent, midx)
 	this.genMethodSignature(cursor, parent, midx)
 
-	/*
-		this.cp.APf("body", "	 case %d:", midx)
-		this.cp.APf("body", "	   var cthis unsafe.Pointer = this.cthis")
-		this.cp.APf("body", "	   // ffi not need this C.%s(cthis)", this.mangler.convTo(cursor))
-		this.cp.APf("body", "      // %s", cursor.DisplayName())
-		this.cp.APf("body", "	   this.cthis = nil")
-	*/
 	this.cp.APf("body", "    rv, err := ffiqt.InvokeQtFunc6(\"%s\", ffiqt.FFI_TYPE_VOID)",
 		this.mangler.origin(cursor))
 	this.cp.APf("body", "    gopp.ErrPrint(err, rv)")
@@ -614,13 +608,7 @@ func (this *GenerateGo) genNonStaticMethod(cursor, parent clang.Cursor, midx int
 	this.genMethodHeader(cursor, parent, midx)
 	this.genMethodSignature(cursor, parent, midx)
 
-	/*
-		this.cp.APf("body", "    // %d: (%s), (%s)", midx, argStr, paramStr)
-		this.cp.APf("body", "    case %d: // (%s), (%s)", midx, argStr, paramStr)
-		this.genArgsConv(cursor, parent, midx)
-		this.cp.APf("body", "      // ffi not need this C.%s(%s)", this.mangler.convTo(cursor), paramStr)
-		this.cp.APf("body", "      // %s", cursor.DisplayName())
-	*/
+	this.genArgsConvFFI(cursor, parent, midx)
 
 	retype := cursor.ResultType() // move like sementic, compiler auto behaiver
 	mvexpr := ""                  // move expr
@@ -628,9 +616,20 @@ func (this *GenerateGo) genNonStaticMethod(cursor, parent clang.Cursor, midx int
 		this.cp.APf("body", "    mv := qtrt.Calloc(1, 256)")
 		mvexpr = ", mv"
 	}
-	this.genArgsConvFFI(cursor, parent, midx)
-	this.cp.APf("body", "    rv, err := ffiqt.InvokeQtFunc6(\"%s\", ffiqt.FFI_TYPE_POINTER %s, this.GetCthis(), %s)",
-		this.mangler.origin(cursor), mvexpr, paramStr)
+
+	ffirety := "ffiqt.FFI_TYPE_POINTER"
+	if retype.CanonicalType().Kind() == clang.Type_Float ||
+		retype.CanonicalType().Kind() == clang.Type_Double {
+		ffirety = "ffiqt.FFI_TYPE_DOUBLE"
+	}
+	if retype.Kind() == clang.Type_Record &&
+		(retype.Spelling() == "QSize" || retype.Spelling() == "QSizeF") {
+		this.cp.APf("body", "    rv, err := ffiqt.InvokeQtFunc7(\"%s\", %s %s, this.GetCthis(), %s)",
+			this.mangler.origin(cursor), ffirety, mvexpr, paramStr)
+	} else {
+		this.cp.APf("body", "    rv, err := ffiqt.InvokeQtFunc6(\"%s\", %s %s, this.GetCthis(), %s)",
+			this.mangler.origin(cursor), ffirety, mvexpr, paramStr)
+	}
 	this.cp.APf("body", "    gopp.ErrPrint(err, rv)")
 	if cursor.ResultType().Kind() != clang.Type_Void {
 		this.cp.APf("body", "   //  return rv")
@@ -645,20 +644,13 @@ func (this *GenerateGo) genNonStaticMethod(cursor, parent clang.Cursor, midx int
 func (this *GenerateGo) genStaticMethod(cursor, parent clang.Cursor, midx int) {
 	this.genArgs(cursor, parent)
 	argStr := strings.Join(this.argDesc, ", ")
-	this.genParams(cursor, parent)
+	this.genParamsFFI(cursor, parent)
 	paramStr := strings.Join(this.paramDesc, ", ")
 	_, _ = argStr, paramStr
 
 	this.genMethodHeader(cursor, parent, midx)
 	this.genMethodSignature(cursor, parent, midx)
-
-	/*
-		this.cp.APf("body", "    // %d: (%s), (%s)", midx, argStr, paramStr)
-		this.cp.APf("body", "    case %d: // (%s), (%s)", midx, argStr, paramStr)
-		this.genArgsConv(cursor, parent, midx)
-		this.cp.APf("body", "      // ffi not need this C.%s(%s)", this.mangler.convTo(cursor), paramStr)
-		this.cp.APf("body", "      // %s", cursor.DisplayName())
-	*/
+	this.genArgsConvFFI(cursor, parent, midx)
 
 	this.cp.APf("body", "    rv, err := ffiqt.InvokeQtFunc6(\"%s\", ffiqt.FFI_TYPE_POINTER, %s)",
 		this.mangler.origin(cursor), paramStr)
@@ -914,7 +906,9 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 	case clang.Type_Int, clang.Type_UInt, clang.Type_Long, clang.Type_ULong,
 		clang.Type_Short, clang.Type_UShort, clang.Type_Char_S, clang.Type_Char_U,
 		clang.Type_Float, clang.Type_Double, clang.Type_UChar:
-		this.cp.APf("body", "    return %s(rv) // 111", this.tyconver.toDest(rety, cursor))
+		this.cp.APf("body", "    return qtrt.Cretval2go(\"%s\", rv).(%s) // 1111",
+			this.tyconver.toDest(rety, cursor), this.tyconver.toDest(rety, cursor))
+		// this.cp.APf("body", "    return %s(rv) // 111", this.tyconver.toDest(rety, cursor))
 	case clang.Type_Typedef:
 		if TypeIsQFlags(rety) {
 			this.cp.APf("body", "    return int(rv)")
@@ -924,6 +918,9 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 			this.cp.APf("body", "    return rv2")
 		} else if TypeIsFuncPointer(rety.CanonicalType()) {
 			this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+		} else if rety.Spelling() == "qreal" {
+			this.cp.APf("body", "    return qtrt.Cretval2go(\"%s\", rv).(%s) // 1111",
+				this.tyconver.toDest(rety, cursor), this.tyconver.toDest(rety, cursor))
 		} else {
 			this.cp.APf("body", "    return %s(rv) // 222", this.tyconver.toDest(rety, cursor))
 		}
@@ -950,7 +947,11 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 		} else if rety.PointeeType().CanonicalType().Kind() == clang.Type_UShort {
 			this.cp.APf("body", "    return uint16(rv)")
 		} else if isPrimitiveType(rety.PointeeType()) {
-			this.cp.APf("body", "    return %s(rv) // 3331", this.tyconver.toDest(rety.PointeeType(), cursor))
+			// int(*(*C.int)(unsafe.Pointer(uintptr(rv))))
+			this.cp.APf("body", "    return qtrt.Cpretval2go(\"%s\", rv).(%s) // 3331",
+				this.tyconver.toDest(rety.PointeeType(), cursor),
+				this.tyconver.toDest(rety.PointeeType(), cursor))
+			// this.cp.APf("body", "    return %s(rv) // 3331", this.tyconver.toDest(rety.PointeeType(), cursor))
 		} else {
 			this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
 		}
