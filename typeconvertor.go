@@ -22,6 +22,15 @@ type TypeConvertor interface {
 	toBind(clang.Type, clang.Cursor) string // binding type
 	// 调用对应C函数时的类型
 	toCall(clang.Type, clang.Cursor) string // call C.xxx type
+
+	// toArgC
+	// toRetC
+	// toArgCpp
+	// toRetCpp
+	// toArgGo
+	// toRetGo
+	// toArgConvC
+	// toRetConvC
 }
 
 // ???
@@ -151,6 +160,9 @@ func (this *TypeConvertGo) toDest(ty clang.Type, cursor clang.Cursor) string {
 		return "float32"
 	case clang.Type_IncompleteArray:
 		// TODO xpm const char *const []
+		if TypeIsCharPtr(ty.ElementType()) {
+			return "[]string"
+		}
 		return "[]interface{}"
 	case clang.Type_Char16:
 		return "int16"

@@ -25,7 +25,7 @@ func (this *IncMangler) convTo(cursor clang.Cursor) string {
 		// C1/C2/C3 for case
 		fmt.Println("what's the manglings:", cursor.Manglings().Strings())
 	}
-	return fmt.Sprintf("C%s", cursor.Mangling())
+	return fmt.Sprintf("C%s", this.origin(cursor))
 }
 
 func (this *IncMangler) origin(cursor clang.Cursor) string {
@@ -52,7 +52,7 @@ func (this *GoMangler) convTo(cursor clang.Cursor) string {
 		// C1/C2/C3 for case
 		fmt.Println("what's the manglings:", cursor.Manglings().Strings())
 	}
-	return fmt.Sprintf("C%s", cursor.Mangling())
+	return fmt.Sprintf("C%s", this.origin(cursor))
 }
 
 func (this *GoMangler) origin(cursor clang.Cursor) string {

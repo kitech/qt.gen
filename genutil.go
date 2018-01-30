@@ -168,7 +168,7 @@ func is_trivial_class(cursor clang.Cursor) bool {
 func is_deleted_class(cursor clang.Cursor) bool {
 	deleted := false
 	arr := map[string]int{"QClipboard": 1, "QInputMethod": 1, "QSessionManager": 1,
-		"QPaintDevice": 1, "QPagedPaintDevice": 1, "QScroller": 1}
+		"QPaintDevice": 1, "QPagedPaintDevice": 1, "QScroller": 1, "QStandardPaths": 1}
 	if _, ok := arr[cursor.Spelling()]; ok {
 		return true
 	}
