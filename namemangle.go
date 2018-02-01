@@ -33,7 +33,8 @@ func (this *IncMangler) origin(cursor clang.Cursor) string {
 		// C1/C2/C3 for case
 		fmt.Println("what's the manglings:", cursor.Manglings().Strings())
 	}
-	if cursor.Manglings().Count() > 1 {
+
+	if cursor.Manglings() != nil && cursor.Manglings().Count() > 1 {
 		return cursor.Manglings().Strings()[0].String()
 	}
 	return cursor.Mangling()
@@ -60,7 +61,7 @@ func (this *GoMangler) origin(cursor clang.Cursor) string {
 		// C1/C2/C3 for case
 		fmt.Println("what's the manglings:", cursor.Manglings().Strings())
 	}
-	if cursor.Manglings().Count() > 1 {
+	if cursor.Manglings() != nil && cursor.Manglings().Count() > 1 {
 		return cursor.Manglings().Strings()[0].String()
 	}
 	return cursor.Mangling()

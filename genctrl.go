@@ -85,6 +85,9 @@ func (this *GenCtrl) setupLang() {
 	case "c":
 		this.filter = &GenFilterInc{}
 		this.genor = NewGenerateInline()
+		this.qtenumgen = NewGenerateInline()
+		this.qtfuncgen = NewGenerateInline()
+		this.qttmplgen = NewGenerateInline()
 	case "go":
 		this.filter = &GenFilterGo{}
 		this.genor = NewGenerateGo()
@@ -198,9 +201,7 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		clts.FunctionCount += 1
 		clts.funcParents[parent.Spelling()] = 1
 		log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName(), parent.Spelling(), cursor.Mangling(), len(clts.funcParents), cursor.IsCursorDefinition(), cursor.Definition().Spelling())
-		if genLang == "go" {
-			this.qtfuncgen.(*GenerateGo).funcs = append(this.qtfuncgen.(*GenerateGo).funcs, cursor)
-		}
+		this.qtfuncgen.putFunc(cursor)
 	case clang.Cursor_StructDecl:
 		if !this.filter.skipClass(cursor, parent) {
 			this.genor.genClass(cursor, parent)
@@ -218,9 +219,7 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		if is_qt_class(cursor.Type()) {
 			log.Println("got", cursor.Spelling(), ",", cursor.Type().Spelling(), ",", cursor.Type().Kind(), cursor.Type().ClassType().Spelling(), ",", cursor.Type().ClassType().Kind(), ",", cursor.Type().CanonicalType().Spelling(), ",", cursor.Type().CanonicalType().Kind(), ",", cursor.Type().CanonicalType().Declaration().Kind(), ",", cursor.Type().CanonicalType().Declaration().Spelling(), ",", cursor.Type().CanonicalType().Declaration().Definition().Kind().String())
 			log.Println(cursor.Type().CanonicalType().Declaration().Kind().String(), cursor.Type().CanonicalType().Declaration().Spelling(), cursor.Type().CanonicalType().Declaration().IsCursorDefinition(), cursor.Spelling())
-			if genLang == "go" {
-				this.qttmplgen.(*GenerateGo).tmplclsspecs = append(this.qttmplgen.(*GenerateGo).tmplclsspecs, cursor)
-			}
+			this.qttmplgen.putTmplSpec(cursor)
 
 			tplc := cursor.Type().Declaration()
 			log.Println(tplc.Spelling(), "============", cursor.CanonicalCursor().Kind(), tplc.NumTemplateArguments())
@@ -247,9 +246,7 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		if !cursor.IsCursorDefinition() {
 			break
 		}
-		if genLang == "go" {
-			this.qttmplgen.(*GenerateGo).tmplclses = append(this.qttmplgen.(*GenerateGo).tmplclses, cursor)
-		}
+		this.qttmplgen.putTmplCls(cursor)
 		log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName())
 		log.Println(cursor.IsCursorDefinition(), cursor.NumTemplateArguments())
 		/*
@@ -274,9 +271,7 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 	case clang.Cursor_VarDecl:
 	case clang.Cursor_EnumDecl:
 		clts.EnumCount += 1
-		if genLang == "go" {
-			this.qtenumgen.(*GenerateGo).enums = append(this.qtenumgen.(*GenerateGo).enums, cursor)
-		}
+		this.qtenumgen.putEnum(cursor)
 		log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName())
 	case clang.Cursor_EnumConstantDecl:
 		log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName())
@@ -317,17 +312,14 @@ func (this *GenCtrl) collectClasses() {
 
 	cursor.Visit(this.visfn)
 
+	this.qtfuncgen.genFunctions(cursor, cursor.SemanticParent())
 	if genLang == "go" {
-		var gf *GenerateGo = this.qtfuncgen.(*GenerateGo)
-		gf.genFunctions(cursor, cursor.SemanticParent())
-
 		var gg *GenerateGo = this.qtenumgen.(*GenerateGo)
 		gg.cp.APf("header", "package qtcore")
 		gg.genEnumsGlobal(cursor, cursor.SemanticParent())
 		gg.saveCodeToFile("core", "qnamespace")
-
-		this.qttmplgen.(*GenerateGo).genTemplateSpecializedClasses()
 	}
+	this.qttmplgen.genTemplateSpecializedClasses()
 
 	log.Printf("%+v\n", clts)
 }

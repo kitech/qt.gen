@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"log"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/go-clang/v3.9/clang"
@@ -22,8 +24,7 @@ type GenerateInline struct {
 	argDesc   []string
 	paramDesc []string
 
-	pureVirtual         bool
-	hasVirtualProjected bool
+	GenBase
 }
 
 func NewGenerateInline() *GenerateInline {
@@ -31,6 +32,8 @@ func NewGenerateInline() *GenerateInline {
 	this.filter = &GenFilterInc{}
 	this.mangler = NewIncMangler()
 	this.tyconver = NewTypeConvertGo()
+
+	this.GenBase.funcMangles = map[string]int{}
 
 	this.cp = NewCodePager()
 	blocks := []string{"header", "main", "use", "ext", "body"}
@@ -50,7 +53,7 @@ func (this *GenerateInline) genClass(cursor, parent clang.Cursor) {
 		log.Printf("%s:%d:%d @%s\n", file.Name(), line, col, file.Time().String())
 	}
 
-	this.pureVirtual = false
+	this.isPureVirtualClass = false
 	this.genHeader(cursor, parent)
 	this.walkClass(cursor, parent)
 	this.genProtectedCallbacks(cursor, parent)
@@ -75,6 +78,20 @@ func (this *GenerateInline) saveCode(cursor, parent clang.Cursor) {
 	savefile := fmt.Sprintf("src/%s/%s.cxx", modname, strings.ToLower(cursor.Spelling()))
 
 	ioutil.WriteFile(savefile, []byte(this.cp.ExportAll()), 0644)
+}
+
+func (this *GenerateInline) saveCodeToFile(modname, file string) {
+	// qtx{yyy}, only yyy
+	savefile := fmt.Sprintf("src/%s/%s.cxx", modname, file)
+	log.Println(savefile)
+
+	// log.Println(this.cp.AllPoints())
+	bcc := this.cp.ExportAll()
+	if strings.HasPrefix(bcc, "//") {
+		bcc = bcc[strings.Index(bcc, "\n"):]
+	}
+	ioutil.WriteFile(savefile, []byte(bcc), 0644)
+
 }
 
 func (this *GenerateInline) genHeader(cursor, parent clang.Cursor) {
@@ -127,9 +144,9 @@ func (this *GenerateInline) walkClass(cursor, parent clang.Cursor) {
 		return clang.ChildVisit_Continue
 	})
 
-	this.pureVirtual = pureVirt
+	this.isPureVirtualClass = pureVirt
 	if !pureVirt {
-		this.pureVirtual = is_pure_virtual_class(cursor)
+		this.isPureVirtualClass = is_pure_virtual_class(cursor)
 	}
 	this.cp.APf("header", "// %s is pure virtual: %v", cursor.Spelling(), pureVirt)
 	this.methods = methods
@@ -150,7 +167,7 @@ func (this *GenerateInline) genProtectedCallbacks(cursor, parent clang.Cursor) {
 }
 
 func (this *GenerateInline) genProxyClass(cursor, parent clang.Cursor) {
-	this.hasVirtualProjected = false
+	this.hasVirtualProtected = false
 	if is_deleted_class(cursor) {
 		return
 	}
@@ -192,7 +209,7 @@ func (this *GenerateInline) genProxyClass(cursor, parent clang.Cursor) {
 			// argStr = ", " + argStr
 		}
 
-		this.hasVirtualProjected = true
+		this.hasVirtualProtected = true
 		this.cp.APf("main", "  virtual %s %s(%s) {", mcs.ResultType().Spelling(), mcs.Spelling(), argStr)
 		this.cp.APf("main", "    if (callback%s != 0) {", mcs.Mangling())
 		this.cp.APf("main", "      // callback%s(%s);", mcs.Mangling(), paramStr)
@@ -211,7 +228,7 @@ func (this *GenerateInline) genProxyClass(cursor, parent clang.Cursor) {
 }
 
 func (this *GenerateInline) genMethods(cursor, parent clang.Cursor) {
-	this.cp.APf("header", "// %s has virtual projected: %v", cursor.Spelling(), this.hasVirtualProjected)
+	this.cp.APf("header", "// %s has virtual projected: %v", cursor.Spelling(), this.hasVirtualProtected)
 	log.Println("process class:", len(this.methods), cursor.Spelling())
 
 	for _, cursor := range this.methods {
@@ -278,11 +295,11 @@ func (this *GenerateInline) genCtor(cursor, parent clang.Cursor) {
 		cursor.SemanticParent().DisplayName(), cursor.LexicalParent().DisplayName(),
 		pparent.Spelling(), parent.CanonicalCursor().DisplayName())
 
-	pureVirtRetstr := gopp.IfElseStr(this.pureVirtual, "0; //", "")
+	pureVirtRetstr := gopp.IfElseStr(this.isPureVirtualClass, "0; //", "")
 
 	this.cp.APf("main", "void* %s(%s) {", this.mangler.convTo(cursor), argStr)
 	pxyclsp := ""
-	if !is_deleted_class(parent) && this.hasVirtualProjected {
+	if !is_deleted_class(parent) && this.hasVirtualProtected {
 		this.cp.APf("main", "  auto _nilp = (My%s*)(0);", parent.Spelling())
 		pxyclsp = "My"
 	}
@@ -619,9 +636,138 @@ func (this *GenerateInline) genCSignature(cursor, parent clang.Cursor, idx int) 
 
 }
 
-func (this *GenerateInline) genEnums() {
+func (this *GenerateInline) genEnumsGlobal(cursor, parent clang.Cursor) {
 
 }
 func (this *GenerateInline) genEnum() {
+
+}
+
+func (this *GenerateInline) genFunctions(cursor, parent clang.Cursor) {
+	// this.genHeader(cursor, parent)
+	skipKeys := []string{"QKeySequence", "QVector2D", "QPointingDeviceUniqueId", "QFont", "QMatrix",
+		"QTransform", "QPixelFormat", "QRawFont", "QVector3D", "QVector4D",
+		"QOpenGLVersionStatus", "QOpenGLVersionProfile"}
+	hasSkipKey := func(c clang.Cursor) bool {
+		for _, k := range skipKeys {
+			if strings.Contains(c.DisplayName(), k) {
+				return true
+			}
+		}
+		return false
+	}
+
+	reg := regexp.MustCompile(`q[A-Z].+`)
+	grfuncs := this.groupFunctionsByModule()
+	qtmods := []string{}
+	for qtmod, _ := range grfuncs {
+		qtmods = append(qtmods, qtmod)
+	}
+	sort.Strings(qtmods)
+
+	for _, qtmod := range qtmods {
+		funcs := grfuncs[qtmod]
+		log.Println(qtmod, len(funcs))
+		this.cp = NewCodePager()
+		// write code
+		for _, mod := range modDeps[qtmod] {
+			this.cp.APf("header", "#include <Qt%s>", strings.Title(mod))
+		}
+		this.cp.APf("header", "#include <Qt%s>", strings.Title(qtmod))
+		this.cp.APf("header", "#include \"hidden_symbols.h\"")
+
+		sort.Slice(funcs, func(i int, j int) bool {
+			return funcs[i].Mangling() > funcs[j].Mangling()
+		})
+		for _, fc := range funcs {
+			log.Println(fc.Spelling(), fc.Mangling(), fc.DisplayName(), fc.IsCursorDefinition())
+			if !reg.MatchString(fc.Spelling()) {
+				continue
+			}
+
+			if strings.ContainsAny(fc.DisplayName(), "<>") {
+				continue
+			}
+			if strings.Contains(fc.DisplayName(), "Rgba64") {
+				continue
+			}
+			if strings.Contains(fc.ResultType().Spelling(), "Rgba64") {
+				continue
+			}
+			if hasSkipKey(fc) {
+				continue
+			}
+
+			if _, ok := this.funcMangles[fc.Spelling()]; ok {
+				this.funcMangles[fc.Spelling()] += 1
+			} else {
+				this.funcMangles[fc.Spelling()] = 0
+			}
+			olidx := this.funcMangles[fc.Spelling()]
+			this.genFunction(fc, olidx)
+		}
+
+		this.saveCodeToFile(qtmod, "qfunctions")
+	}
+}
+
+func (this *GenerateInline) genFunction(cursor clang.Cursor, olidx int) {
+	log.Println(cursor.DisplayName(), len(this.funcs))
+	this.genArgs(cursor, cursor.SemanticParent())
+	argStr := strings.Join(this.argDesc, ", ")
+	this.genParams(cursor, cursor.SemanticParent())
+	paramStr := strings.Join(this.paramDesc, ", ")
+
+	retstr := "void"
+	retset := false
+	rety := cursor.ResultType()
+	cancpobj := has_copy_ctor(rety.Declaration()) || is_trivial_class(rety.Declaration())
+	if isPrimitiveType(rety) {
+		retstr = rety.Spelling()
+		retset = true
+	} else if rety.Kind() == clang.Type_Pointer {
+		retstr = "void*"
+		retset = true
+	} else {
+		if cancpobj {
+			retstr = "void*"
+		} else if rety.Kind() == clang.Type_LValueReference && TypeIsConsted(rety) {
+			retstr = "void*"
+		} else if rety.Kind() == clang.Type_LValueReference && !TypeIsConsted(rety) {
+			retstr = "void*"
+		}
+	}
+
+	overloadSuffix := gopp.IfElseStr(olidx == 0, "", fmt.Sprintf("_%d", olidx))
+	this.genMethodHeader(cursor, cursor.SemanticParent())
+	this.cp.APf("main", "%s %s%s(%s) {", retstr,
+		this.mangler.convTo(cursor), overloadSuffix, argStr)
+	if rety.Kind() == clang.Type_Void {
+		this.cp.APf("main", "  %s(%s);", cursor.Spelling(), paramStr)
+	} else {
+		if retset {
+			this.cp.APf("main", "  return (%s)%s(%s);", retstr, cursor.Spelling(), paramStr)
+		} else {
+			autoand := gopp.IfElseStr(rety.Kind() == clang.Type_LValueReference, "auto&", "auto")
+			this.cp.APf("main", "  %s rv = %s(%s);", autoand, cursor.Spelling(), paramStr)
+
+			if cancpobj {
+				unconstystr := strings.Replace(rety.Spelling(), "const ", "", 1)
+				this.cp.APf("main", "return new %s(rv);", unconstystr)
+			} else if rety.Kind() == clang.Type_LValueReference && TypeIsConsted(rety) {
+				unconstystr := strings.Replace(rety.PointeeType().Spelling(), "const ", "", 1)
+				this.cp.APf("main", "return new %s(rv);", unconstystr)
+			} else if rety.Kind() == clang.Type_LValueReference && !TypeIsConsted(rety) {
+				this.cp.APf("main", "return &rv;")
+			} else {
+				this.cp.APf("main", "/*return rv;*/")
+			}
+		}
+	}
+	this.cp.APf("main", "}")
+	this.cp.APf("main", "")
+}
+
+func (this *GenerateInline) genTemplateSpecializedClasses() {
 
 }

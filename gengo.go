@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/go-clang/v3.9/clang"
@@ -22,15 +23,12 @@ type GenerateGo struct {
 
 	maxClassSize int64 // 暂存一下类的大小的最大值
 
-	methods      []clang.Cursor
-	enums        []clang.Cursor
-	funcs        []clang.Cursor
-	tmplclses    []clang.Cursor
-	tmplclsspecs []clang.Cursor
-	cp           *CodePager
-	argDesc      []string // origin c/c++ language syntax
-	paramDesc    []string
-	destArgDesc  []string // dest language syntax
+	cp          *CodePager
+	argDesc     []string // origin c/c++ language syntax
+	paramDesc   []string
+	destArgDesc []string // dest language syntax
+
+	GenBase
 }
 
 func NewGenerateGo() *GenerateGo {
@@ -38,6 +36,8 @@ func NewGenerateGo() *GenerateGo {
 	this.filter = &GenFilterGo{}
 	this.mangler = NewGoMangler()
 	this.tyconver = NewTypeConvertGo()
+
+	this.GenBase.funcMangles = map[string]int{}
 
 	this.cp = NewCodePager()
 	blocks := []string{"header", "main", "use", "ext", "body"}
@@ -192,6 +192,7 @@ func (this *GenerateGo) genImports(cursor, parent clang.Cursor) {
 	this.cp.APf("ext", "// import \"C\"") // 直接import "C"导致编译速度下降n倍
 
 	file, _, _, _ := cursor.Location().FileLocation()
+	log.Println(file.Name(), cursor.Spelling(), parent.Spelling())
 	modname := strings.ToLower(filepath.Base(filepath.Dir(file.Name())))[2:]
 
 	this.cp.APf("ext", "import \"unsafe\"")
@@ -1045,27 +1046,6 @@ func (this *GenerateGo) genEnum() {
 
 }
 
-//////
-func (this *GenerateGo) groupFunctionsByModule() map[string][]clang.Cursor {
-	rets := map[string][]clang.Cursor{}
-
-	for _, fc := range this.funcs {
-		qtmod := get_decl_mod(fc)
-		if _, ok := modDeps[qtmod]; !ok {
-			log.Println("wtf mod:", qtmod, fc.Spelling())
-		} else {
-			if _, ok := rets[qtmod]; !ok {
-				rets[qtmod] = []clang.Cursor{}
-			}
-			rets[qtmod] = append(rets[qtmod], fc)
-		}
-	}
-
-	return rets
-}
-
-var funcMangles = map[string]int{}
-
 func (this *GenerateGo) genFunctions(cursor clang.Cursor, parent clang.Cursor) {
 	// this.genHeader(cursor, parent)
 	skipKeys := []string{"QKeySequence", "QVector2D", "QPointingDeviceUniqueId", "QFont", "QMatrix",
@@ -1082,8 +1062,14 @@ func (this *GenerateGo) genFunctions(cursor clang.Cursor, parent clang.Cursor) {
 
 	reg := regexp.MustCompile(`q[A-Z].+`)
 	grfuncs := this.groupFunctionsByModule()
-	// TODO 排序以便固定编号
-	for qtmod, funcs := range grfuncs {
+	qtmods := []string{}
+	for qtmod, _ := range grfuncs {
+		qtmods = append(qtmods, qtmod)
+	}
+	sort.Strings(qtmods)
+
+	for _, qtmod := range qtmods {
+		funcs := grfuncs[qtmod]
 		log.Println(qtmod, len(funcs))
 		this.cp = NewCodePager()
 		// write code
@@ -1105,6 +1091,10 @@ func (this *GenerateGo) genFunctions(cursor clang.Cursor, parent clang.Cursor) {
 		}
 		this.cp.APf("header", "}")
 
+		sort.Slice(funcs, func(i int, j int) bool {
+			return funcs[i].Mangling() > funcs[j].Mangling()
+
+		})
 		for _, fc := range funcs {
 			if !reg.MatchString(fc.Spelling()) {
 				continue
@@ -1124,12 +1114,12 @@ func (this *GenerateGo) genFunctions(cursor clang.Cursor, parent clang.Cursor) {
 				continue
 			}
 
-			if _, ok := funcMangles[fc.Spelling()]; ok {
-				funcMangles[fc.Spelling()] += 1
+			if _, ok := this.funcMangles[fc.Spelling()]; ok {
+				this.funcMangles[fc.Spelling()] += 1
 			} else {
-				funcMangles[fc.Spelling()] = 0
+				this.funcMangles[fc.Spelling()] = 0
 			}
-			olidx := funcMangles[fc.Spelling()]
+			olidx := this.funcMangles[fc.Spelling()]
 			this.genFunction(fc, olidx)
 		}
 
