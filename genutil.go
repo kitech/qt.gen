@@ -194,6 +194,17 @@ func is_deleted_class(cursor clang.Cursor) bool {
 	return deleted
 }
 
+// TODO
+func is_qt_private_class(cursor clang.Cursor) bool {
+	loc := cursor.Type().Declaration().Definition().Location()
+	file, _, _, _ := loc.FileLocation()
+	// log.Println(file.Name(), cursor.Spelling(), cursor.IsCursorDefinition(), cursor.Definition().IsCursorDefinition())
+	if strings.Contains(file.Name(), "/private/") && strings.HasSuffix(file.Name(), "_p.h") {
+		return true
+	}
+	return false
+}
+
 func is_projected_dtor_class(cursor clang.Cursor) bool {
 	protectedDtors := map[string]int{
 		"QTextCodec": 1, "QAccessibleInterface": 1, "QTextBlockGroup": 1,

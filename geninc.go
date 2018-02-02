@@ -109,6 +109,7 @@ func (this *GenerateInline) genHeader(cursor, parent clang.Cursor) {
 	}
 	fullModname := filepath.Base(filepath.Dir(file.Name()))
 	this.cp.APf("header", "#include <%s>", fullModname)
+	this.cp.APf("header", "#include \"callback_inherit.h\"")
 	this.cp.APf("header", "")
 }
 
@@ -194,11 +195,14 @@ func (this *GenerateInline) genProxyClass(cursor, parent clang.Cursor) {
 		if mcs.AccessSpecifier() != clang.AccessSpecifier_Protected {
 			continue
 		}
+		if !mcs.CXXMethod_IsVirtual() { // 是否只override virtual方法呢？
+			// continue
+		}
 		this.cp.APf("main", "// %s %s", mcs.ResultType().Spelling(), mcs.DisplayName())
 		if mcs.Kind() == clang.Cursor_Destructor {
 			continue
 		}
-		if mcs.Spelling() == "drawItems" { // temporary skip this
+		if mcs.Spelling() == "drawItems" || mcs.Spelling() == "getPaintContext" { // temporary skip this
 			continue
 		}
 
@@ -227,19 +231,70 @@ func (this *GenerateInline) genProxyClass(cursor, parent clang.Cursor) {
 		paramStr3 := strings.Join(this.paramDesc, ", ")
 		paramStr3 = gopp.IfElseStr(len(paramStr3) > 0, ", "+paramStr3, paramStr3)
 
+		prms := []string{}
+		prms = append(prms, fmt.Sprintf("%d", mcs.NumArguments()))
+		for i := int32(0); i < mcs.NumArguments(); i++ {
+			arg := mcs.Argument(uint32(i))
+			argty := arg.Type()
+			prmname := gopp.IfElseStr(arg.Spelling() == "", fmt.Sprintf("arg%d", i), arg.Spelling())
+			switch argty.Kind() {
+			case clang.Type_Record:
+				prms = append(prms, "(uint64_t)&"+prmname)
+			case clang.Type_LValueReference:
+				prms = append(prms, "(uint64_t)&"+prmname)
+			case clang.Type_Double, clang.Type_Float:
+				prms = append(prms, "(uint64_t)&"+prmname)
+			case clang.Type_Typedef:
+				switch argty.Spelling() {
+				case "qreal":
+					prms = append(prms, "(uint64_t)&"+prmname)
+				default:
+					prms = append(prms, "(uint64_t)"+prmname)
+				}
+			default:
+				prms = append(prms, "(uint64_t)"+prmname)
+			}
+		}
+		for i := mcs.NumArguments(); i < 10; i++ {
+			prms = append(prms, "0")
+		}
+		prmStr4 := strings.Join(prms, ", ")
+
 		rety := mcs.ResultType()
 		this.hasVirtualProtected = true
 		this.cp.APf("main", "  virtual %s %s(%s) {", mcs.ResultType().Spelling(), mcs.Spelling(), argStr)
-		this.cp.APf("main", "    auto fnptr = ((%s (*)(void* %s))(callback%s_fnptr));", rety.Spelling(), argtyStr3, mcs.Mangling())
+		this.cp.APf("main", "    int handled = 0;")
+		this.cp.APf("main", "    auto irv = callbackAllInherits_fnptr(this, (char*)\"%s\", &handled, %s);",
+			mcs.Spelling(), prmStr4)
+		this.cp.APf("main", "    if (handled) {")
+		switch rety.Kind() {
+		case clang.Type_Void:
+		case clang.Type_Record:
+			this.cp.APf("main", "    return *(%s*)(irv);", rety.Spelling())
+		case clang.Type_Elaborated, clang.Type_Enum:
+			this.cp.APf("main", "    return (%s)(int)(irv);", rety.Spelling())
+		case clang.Type_Typedef:
+			if TypeIsQFlags(rety) {
+				this.cp.APf("main", "    return (%s)(int)(irv);", rety.Spelling())
+			} else {
+				this.cp.APf("main", "    return (%s)(irv);", rety.Spelling())
+			}
+		default:
+			this.cp.APf("main", "    return (%s)(irv);", rety.Spelling())
+		}
+		this.cp.APf("main", "      // %s", rety.Kind().String()+rety.CanonicalType().Kind().String()+rety.CanonicalType().Spelling())
+		this.cp.APf("main", "    } else {")
+		this.cp.APf("main", "    // auto fnptr = ((%s (*)(void* %s))(callback%s_fnptr));", rety.Spelling(), argtyStr3, mcs.Mangling())
 		// TODO check return and convert return if needed
-		this.cp.APf("main", "    if (fnptr != 0) {")
-		this.cp.APf("main", "      fnptr(this %s);", paramStr3)
-		this.cp.APf("main", "    }")
+		this.cp.APf("main", "    // if (fnptr != 0) {")
+		this.cp.APf("main", "    //   fnptr(this %s);", paramStr3)
+		this.cp.APf("main", "    // }")
 		if mcs.ResultType().Kind() == clang.Type_Void {
 			this.cp.APf("main", "    %s::%s(%s);", cursor.Spelling(), mcs.Spelling(), paramStr)
 		} else {
 			this.cp.APf("main", "    return %s::%s(%s);", cursor.Spelling(), mcs.Spelling(), paramStr)
 		}
+		this.cp.APf("main", "  }")
 		this.cp.APf("main", "  }")
 	}
 
@@ -493,10 +548,10 @@ func (this *GenerateInline) genStaticMethod(cursor, parent clang.Cursor) {
 }
 
 func (this *GenerateInline) genProtectedCallback(cursor, parent clang.Cursor) {
-	this.genMethodHeader(cursor, parent)
-	this.cp.APf("main", "void* callback%s_fnptr = 0;", cursor.Mangling())
-	this.cp.APf("main", "extern \"C\" void set_callback%s(void*cbfn)", cursor.Mangling())
-	this.cp.APf("main", "{ callback%s_fnptr = cbfn; }", cursor.Mangling())
+	// this.genMethodHeader(cursor, parent)
+	this.cp.APf("main", "// void* callback%s_fnptr = 0;", cursor.Mangling())
+	this.cp.APf("main", "// extern \"C\" void set_callback%s(void*cbfn)", cursor.Mangling())
+	this.cp.APf("main", "// { callback%s_fnptr = cbfn; }", cursor.Mangling())
 }
 
 func (this *GenerateInline) genArgsPxy(cursor, parent clang.Cursor) {

@@ -159,7 +159,7 @@ func (this *GenerateGo) walkClass(cursor, parent clang.Cursor) {
 			if !this.filter.skipMethod(cursor, parent) {
 				methods = append(methods, cursor)
 			} else {
-				// log.Println("filtered:", cursor.Spelling())
+				log.Println("filtered:", cursor.DisplayName(), parent.Spelling())
 			}
 		case clang.Cursor_UnexposedDecl:
 			// log.Println(cursor.Spelling(), cursor.Kind().String(), cursor.DisplayName())

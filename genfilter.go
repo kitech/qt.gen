@@ -200,15 +200,15 @@ func (this *GenFilterBase) skipMethodImpl(cursor, parent clang.Cursor) int {
 func (this *GenFilterBase) skipArg(cursor, parent clang.Cursor) bool {
 	skip := this.skipArgImpl(cursor, parent)
 	if skip > 0 {
-		log.Println(skip, cursor.Spelling(), parent.DisplayName())
+		log.Println(skip, cursor.Type().Spelling(), cursor.Type().Kind().String(), cursor.Spelling(), parent.DisplayName())
 	}
 	return skip > 0
 }
 
 func (this *GenFilterBase) skipArgImpl(cursor, parent clang.Cursor) int {
 	// C_ZN16QCoreApplication11aboutToQuitENS_14QPrivateSignalE(void *this_, QCoreApplication::QPrivateSignal a0)
-	// log.Println(cursor.DisplayName(), cursor.DisplayName(), cursor.Type().Spelling())
 	argTyBare := get_bare_type(cursor.Type())
+	// log.Println(cursor.DisplayName(), cursor.DisplayName(), cursor.Type().Spelling(), is_qt_private_class(argTyBare.Declaration()), argTyBare.Spelling())
 	if strings.Contains(argTyBare.Spelling(), "QPrivate") {
 		return 1
 	}
@@ -228,8 +228,10 @@ func (this *GenFilterBase) skipArgImpl(cursor, parent clang.Cursor) int {
 		if argTyBare.Kind() != clang.Type_Invalid && !isPrimitiveType(argTyBare) {
 			// like Qt::WindowFlags form
 			reg := regexp.MustCompile(`^Q.+::.*Flags$`)
-			if !reg.MatchString(argTyBare.Spelling()) {
-				log.Println(argTyBare.Spelling(), "skiped by skiped class")
+			if reg.MatchString(argTyBare.Spelling()) {
+			} else if argTyBare.Kind() == clang.Type_Typedef && strings.HasPrefix(argTyBare.CanonicalType().Spelling(), "QFlags<") {
+			} else {
+				log.Println(argTyBare.Spelling(), argTyBare.Kind().String(), argTyBare.CanonicalType().Spelling(), "skiped by skiped class")
 				return 6
 			}
 		}
