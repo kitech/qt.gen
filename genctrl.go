@@ -318,6 +318,10 @@ func (this *GenCtrl) collectClasses() {
 		gg.cp.APf("header", "package qtcore")
 		gg.genEnumsGlobal(cursor, cursor.SemanticParent())
 		gg.saveCodeToFile("core", "qnamespace")
+		gg = this.genor.(*GenerateGo)
+		for mod, cp := range gg.cpcs {
+			gg.saveCodeToFileWithCode(mod, "qcallbacks", cp.ExportAll())
+		}
 	}
 	this.qttmplgen.genTemplateSpecializedClasses()
 

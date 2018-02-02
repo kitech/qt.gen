@@ -124,6 +124,19 @@ func find_base_classes(cursor clang.Cursor) []clang.Cursor {
 	return bcs
 }
 
+func has_qobject_base_class(cursor clang.Cursor) bool {
+	bcs := find_base_classes(cursor)
+	for _, bc := range bcs {
+		if bc.Spelling() == "QObject" {
+			return true
+		}
+		if has_qobject_base_class(bc) {
+			return true
+		}
+	}
+	return false
+}
+
 func has_copy_ctor(cursor clang.Cursor) bool {
 	has := false
 	cursor.Visit(func(c, p clang.Cursor) clang.ChildVisitResult {
@@ -179,6 +192,15 @@ func is_deleted_class(cursor clang.Cursor) bool {
 		return clang.ChildVisit_Recurse
 	})
 	return deleted
+}
+
+func is_projected_dtor_class(cursor clang.Cursor) bool {
+	protectedDtors := map[string]int{
+		"QTextCodec": 1, "QAccessibleInterface": 1, "QTextBlockGroup": 1,
+		"QTextObject": 1, "QAccessibleWidget": 1,
+	}
+	_, ok := protectedDtors[cursor.Spelling()]
+	return ok
 }
 
 func TypeIsCharPtrPtr(ty clang.Type) bool {

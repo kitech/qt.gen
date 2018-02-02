@@ -24,6 +24,7 @@ type GenerateGo struct {
 	maxClassSize int64 // 暂存一下类的大小的最大值
 
 	cp          *CodePager
+	cpcs        map[string]*CodePager
 	argDesc     []string // origin c/c++ language syntax
 	paramDesc   []string
 	destArgDesc []string // dest language syntax
@@ -40,9 +41,11 @@ func NewGenerateGo() *GenerateGo {
 	this.GenBase.funcMangles = map[string]int{}
 
 	this.cp = NewCodePager()
+	this.cpcs = make(map[string]*CodePager)
 	blocks := []string{"header", "main", "use", "ext", "body"}
 	for _, block := range blocks {
 		this.cp.AddPointer(block)
+		// this.cp.AddPointer(block)
 		// this.cp.APf(block, "// block begin--- %s", block)
 	}
 
@@ -62,6 +65,7 @@ func (this *GenerateGo) genClass(cursor, parent clang.Cursor) {
 	this.walkClass(cursor, parent)
 	// this.genExterns(cursor, parent)
 	this.genImports(cursor, parent)
+	this.genProtectedCallbacks(cursor, parent)
 	this.genClassDef(cursor, parent)
 	this.genMethods(cursor, parent)
 	this.genEnums(cursor, parent)
@@ -100,6 +104,20 @@ func (this *GenerateGo) saveCodeToFile(modname, file string) {
 	if strings.HasPrefix(bcc, "//") {
 		bcc = bcc[strings.Index(bcc, "\n"):]
 	}
+	ioutil.WriteFile(savefile, []byte(bcc), 0644)
+
+	// gofmt the code
+	cmd := exec.Command("/usr/bin/gofmt", []string{"-w", savefile}...)
+	err := cmd.Run()
+	gopp.ErrPrint(err, cmd)
+}
+
+func (this *GenerateGo) saveCodeToFileWithCode(modname, file string, bcc string) {
+	// qtx{yyy}, only yyy
+	savefile := fmt.Sprintf("src/%s/%s.go", modname, file)
+	log.Println(savefile)
+
+	// log.Println(this.cp.AllPoints())
 	ioutil.WriteFile(savefile, []byte(bcc), 0644)
 
 	// gofmt the code
@@ -256,6 +274,7 @@ func (this *GenerateGo) genMethods(cursor, parent clang.Cursor) {
 	grpMethods := this.groupMethods()
 	// log.Println(len(grpMethods))
 
+	seeDtor := false
 	for _, cursors := range grpMethods {
 		// this.genMethodHeader(cursors[0], cursors[0].SemanticParent())
 		// this.genMethodInit(cursors[0], cursors[0].SemanticParent())
@@ -279,6 +298,7 @@ func (this *GenerateGo) genMethods(cursor, parent clang.Cursor) {
 				// this.genCtorFromPointer(cursor, parent, idx)
 				// this.genGetCthis(cursor, parent, idx)
 			case clang.Cursor_Destructor:
+				seeDtor = true
 				this.genDtor(cursor, parent, idx)
 			default:
 				if cursor.CXXMethod_IsStatic() {
@@ -292,9 +312,12 @@ func (this *GenerateGo) genMethods(cursor, parent clang.Cursor) {
 
 		// this.genMethodFooter(cursors[0], cursors[0].SemanticParent())
 	}
+	if !seeDtor {
+		this.genDtorNotsee(cursor, parent, 0)
+	}
 }
 
-// 按名字分组
+// 按名字/重载overload分组
 func (this *GenerateGo) groupMethods() [][]clang.Cursor {
 	methods2 := make(map[string]int, 0)
 	idx := 0
@@ -389,7 +412,7 @@ func (this *GenerateGo) genMethodSignature(cursor, parent clang.Cursor, midx int
 			strings.Title(cursor.Spelling()),
 			overloadSuffix, argStr, parent.Spelling())
 	case clang.Cursor_Destructor:
-		this.cp.APf("body", "func Delete%s%s(*%s) {",
+		this.cp.APf("body", "func Delete%s%s(this *%s) {",
 			strings.Title(cursor.Spelling()[1:]),
 			overloadSuffix, parent.Spelling())
 	default:
@@ -502,6 +525,9 @@ func (this *GenerateGo) genCtor(cursor, parent clang.Cursor, midx int) {
 		this.mangler.origin(cursor), paramStr)
 	this.cp.APf("body", "    gopp.ErrPrint(err, rv)")
 	this.cp.APf("body", "    gothis := New%sFromPointer(unsafe.Pointer(uintptr(rv)))", parent.Spelling())
+	if !has_qobject_base_class(parent) {
+		this.cp.APf("body", "    qtrt.SetFinalizer(gothis, Delete%s)", parent.Spelling())
+	}
 	this.cp.APf("body", "    return gothis")
 
 	this.genMethodFooterFFI(cursor, parent, midx)
@@ -573,7 +599,11 @@ func (this *GenerateGo) genSetCthis(cursor, parent clang.Cursor, midx int) {
 
 	this.cp.APf("body", "func (this *%s) SetCthis(cthis unsafe.Pointer) {", parent.Spelling())
 	if len(bcs) == 0 {
-		this.cp.APf("body", "    this.CObject = &qtrt.CObject{cthis}")
+		this.cp.APf("body", "    if this.CObject == nil {")
+		this.cp.APf("body", "        this.CObject = &qtrt.CObject{cthis}")
+		this.cp.APf("body", "    }else{")
+		this.cp.APf("body", "        this.CObject.Cthis = cthis")
+		this.cp.APf("body", "    }")
 	} else {
 		for _, bc := range bcs {
 			pkgSuff := calc_package_suffix(cursor, bc)
@@ -588,9 +618,24 @@ func (this *GenerateGo) genDtor(cursor, parent clang.Cursor, midx int) {
 	this.genMethodHeader(cursor, parent, midx)
 	this.genMethodSignature(cursor, parent, midx)
 
-	this.cp.APf("body", "    rv, err := ffiqt.InvokeQtFunc6(\"%s\", ffiqt.FFI_TYPE_VOID)",
+	this.cp.APf("body", "    rv, err := ffiqt.InvokeQtFunc6(\"%s\", ffiqt.FFI_TYPE_VOID, this.GetCthis())",
 		this.mangler.origin(cursor))
 	this.cp.APf("body", "    gopp.ErrPrint(err, rv)")
+	this.cp.APf("body", "    this.SetCthis(nil)")
+
+	this.genMethodFooterFFI(cursor, parent, midx)
+}
+
+func (this *GenerateGo) genDtorNotsee(cursor, parent clang.Cursor, midx int) {
+	// this.genMethodHeader(cursor, parent, midx)
+	// this.genMethodSignature(cursor, parent, midx)
+
+	this.cp.APf("body", "")
+	this.cp.APf("body", "func Delete%s(this *%s) {", cursor.Spelling(), cursor.Spelling())
+	this.cp.APf("body", "    rv, err := ffiqt.InvokeQtFunc6(\"_ZN%d%sD2Ev\", ffiqt.FFI_TYPE_VOID, this.GetCthis())",
+		len(cursor.Spelling()), cursor.Spelling())
+	this.cp.APf("body", "    gopp.ErrPrint(err, rv)")
+	this.cp.APf("body", "    this.SetCthis(nil)")
 
 	this.genMethodFooterFFI(cursor, parent, midx)
 }
@@ -692,6 +737,90 @@ func (this *GenerateGo) genNonVirtualMethod(cursor, parent clang.Cursor, midx in
 
 }
 
+func (this *GenerateGo) genProtectedCallbacks(cursor, parent clang.Cursor) {
+	log.Println("process class:", len(this.methods), cursor.Spelling())
+	mod := get_decl_mod(cursor)
+	if _, ok := this.cpcs[mod]; !ok {
+		cp := NewCodePager()
+		cp.AddPointer("package")
+		cp.AddPointer("extern")
+		cp.AddPointer("header")
+		cp.AddPointer("body")
+		cp.APf("package", "package qt%s", mod)
+		cp.APf("package", "/*")
+		cp.APf("package", "#include <stdint.h>")
+		cp.APf("package", "#include <stdbool.h>")
+		cp.APf("header", "*/")
+		cp.APf("header", "import \"C\"")
+		cp.APf("header", "import \"unsafe\"")
+		cp.APf("header", "import \"qt.go/cffiqt\"")
+		cp.APf("header", "import \"gopp\"")
+		cp.APf("header", "// import \"log\"")
+		this.cpcs[mod] = cp
+	}
+	for midx, cursor := range this.methods {
+		parent := cursor.SemanticParent()
+		// log.Println(cursor.Kind().String(), cursor.DisplayName())
+
+		if cursor.AccessSpecifier() == clang.AccessSpecifier_Protected {
+			this.genProtectedCallback(cursor, parent, midx)
+		}
+	}
+
+	this.cp.APf("body", "")
+}
+
+var inheritMethods = map[string]int{}
+
+func (this *GenerateGo) genProtectedCallback(cursor, parent clang.Cursor, midx int) {
+	// this.genMethodHeader(cursor, parent, 0)
+	mod := get_decl_mod(cursor)
+	cp, _ := this.cpcs[mod]
+
+	this.genArgsCGO(cursor, parent)
+	argStr := strings.Join(this.argDesc, ", ")
+	argStr = gopp.IfElseStr(len(argStr) > 0, ", "+argStr, argStr)
+
+	this.genArgsCGOSign(cursor, parent)
+	argStrSign := strings.Join(this.argDesc, ", ")
+	argStrSign = gopp.IfElseStr(len(argStrSign) > 0, ", "+argStrSign, argStrSign)
+
+	this.genParams(cursor, parent)
+	prmStr := strings.Join(this.paramDesc, ", ")
+	prmStr = gopp.IfElseStr(len(prmStr) > 0, ", "+prmStr, prmStr)
+
+	// cp.APf("extern", "extern void set_callback%s(void* fnptr);", cursor.Mangling())
+	cp.APf("extern", "extern void callback%s(void* fnptr %s);", cursor.Mangling(), argStrSign)
+	cp.APf("body", "// %s %s", getTyDesc(cursor.ResultType(), ArgTyDesc_CPP_SIGNAUTE), cursor.DisplayName())
+	cp.APf("body", "//export callback%s", cursor.Mangling())
+	cp.APf("body", "func callback%s(cthis unsafe.Pointer %s) {", cursor.Mangling(), argStr)
+	cp.APf("body", "  // log.Println(cthis, \"%s.%s\")", parent.Spelling(), cursor.Spelling())
+	cp.APf("body", "  rvx := ffiqt.CallbackAllInherits(cthis, \"%s\" %s)", cursor.Spelling(), prmStr)
+	cp.APf("body", "  gopp.ErrPrint(nil, rvx)")
+	cp.APf("body", "}")
+	cp.APf("body", "func init(){ ffiqt.SetInheritCallback2c(\"%s\", C.callback%s /*nil*/) }", cursor.Mangling(), cursor.Mangling())
+	cp.APf("body", "")
+
+	// inherit impl
+	if cursor.Kind() != clang.Cursor_Constructor && cursor.Kind() != clang.Cursor_Destructor {
+		key := fmt.Sprintf("%s::%s", parent.Spelling(), cursor.Spelling())
+		if _, ok := inheritMethods[key]; !ok {
+			inheritMethods[key] = 1
+
+			this.genArgsDest(cursor, parent)
+			argStr := strings.Join(this.destArgDesc, ", ")
+			retStr := getTyDesc(cursor.ResultType(), RTY_GO)
+
+			this.cp.APf("body", "// %s %s", getTyDesc(cursor.ResultType(), ArgTyDesc_CPP_SIGNAUTE), cursor.DisplayName())
+			this.cp.APf("body", "func (this *%s) Inherit%s(f func(%s) %s) {",
+				parent.Spelling(), strings.Title(cursor.Spelling()), argStr, retStr)
+			this.cp.APf("body", "  ffiqt.SetAllInheritCallback(this, \"%s\", f)", cursor.Spelling())
+			this.cp.APf("body", "}")
+			this.cp.APf("body", "")
+		}
+	}
+}
+
 func (this *GenerateGo) genArgs(cursor, parent clang.Cursor) {
 	this.argDesc = make([]string, 0)
 	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
@@ -742,10 +871,8 @@ func (this *GenerateGo) genArgsDest(cursor, parent clang.Cursor) {
 func (this *GenerateGo) genArgDest(cursor, parent clang.Cursor, idx int) {
 	// log.Println(cursor.DisplayName(), cursor.Type().Spelling(), cursor.Type().Kind() == clang.Type_LValueReference, this.mangler.origin(parent))
 
-	argName := cursor.Spelling()
-	if is_go_keyword(argName) {
-		argName = argName + "_"
-	}
+	argName := gopp.IfElseStr(cursor.Spelling() == "", fmt.Sprintf("arg%d", idx), cursor.Spelling())
+	argName = gopp.IfElseStr(is_go_keyword(argName), argName+"_", argName)
 
 	destTy := this.tyconver.toDest(cursor.Type(), cursor)
 	if len(cursor.Spelling()) == 0 {
@@ -899,7 +1026,7 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 	refmod := get_decl_mod(get_bare_type(rety.CanonicalType()).Declaration())
 	usemod := get_decl_mod(cursor)
 	log.Println("hhhhh use ==? ref", refmod, usemod, rety.Spelling(), cursor.DisplayName(), parent.Spelling())
-	pkgSuff := gopp.IfElseStr(refmod == usemod, "/*==*/", fmt.Sprintf("qt%s.", refmod))
+	pkgPrefix := gopp.IfElseStr(refmod == usemod, "/*==*/", fmt.Sprintf("qt%s.", refmod))
 
 	switch rety.Kind() {
 	case clang.Type_Void:
@@ -914,7 +1041,7 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 			this.cp.APf("body", "    return int(rv)")
 		} else if is_qt_class(rety.CanonicalType()) {
 			this.cp.APf("body", "    rv2 := %sNew%sFromPointer(unsafe.Pointer(uintptr(rv))) //555",
-				pkgSuff, get_bare_type(rety.CanonicalType()).Spelling())
+				pkgPrefix, get_bare_type(rety.CanonicalType()).Spelling())
 			this.cp.APf("body", "    return rv2")
 		} else if TypeIsFuncPointer(rety.CanonicalType()) {
 			this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
@@ -928,7 +1055,8 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 		if is_qt_class(rety) {
 			barety := get_bare_type(rety)
 			this.cp.APf("body", "    rv2 := %sNew%sFromPointer(unsafe.Pointer(uintptr(rv))) // 333",
-				pkgSuff, barety.Spelling())
+				pkgPrefix, barety.Spelling())
+			this.cp.APf("body", "    qtrt.SetFinalizer(rv2, %sDelete%s)", pkgPrefix, barety.Spelling())
 			this.cp.APf("body", "    return rv2")
 		} else {
 			this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
@@ -938,7 +1066,8 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 		if is_qt_class(rety) {
 			barety := get_bare_type(rety)
 			this.cp.APf("body", "    rv2 := %sNew%sFromPointer(unsafe.Pointer(uintptr(rv))) // 4441",
-				pkgSuff, barety.Spelling())
+				pkgPrefix, barety.Spelling())
+			this.cp.APf("body", "    qtrt.SetFinalizer(rv2, %sDelete%s)", pkgPrefix, barety.Spelling())
 			this.cp.APf("body", "    return rv2")
 		} else if TypeIsCharPtr(rety) {
 			this.cp.APf("body", "    return qtrt.GoStringI(rv)")
@@ -966,7 +1095,7 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 			} else {
 				barety := get_bare_type(rety)
 				this.cp.APf("body", "    rv2 := %sNew%sFromPointer(unsafe.Pointer(uintptr(rv))) // 444",
-					pkgSuff, barety.Spelling())
+					pkgPrefix, barety.Spelling())
 				this.cp.APf("body", "    return rv2")
 			}
 		} else if TypeIsCharPtrPtr(rety) {
@@ -994,6 +1123,42 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 	default:
 		this.cp.APf("body", "    return rv")
 	}
+}
+
+func (this *GenerateGo) genArgsCGO(cursor, parent clang.Cursor) {
+	this.argDesc = make([]string, 0)
+	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
+		argc := cursor.Argument(uint32(idx))
+		this.genArgCGO(argc, cursor, idx)
+	}
+	// log.Println(strings.Join(this.argDesc, ", "), this.mangler.origin(cursor))
+}
+
+func (this *GenerateGo) genArgCGO(cursor, parent clang.Cursor, idx int) {
+	argty := cursor.Type()
+	argName := gopp.IfElseStr(cursor.Spelling() == "", fmt.Sprintf("arg%d", idx), cursor.Spelling())
+	argName = gopp.IfElseStr(is_go_keyword(argName), argName+"_", argName)
+
+	dstr := getTyDesc(argty, ArgTyDesc_CGO_SIGNATURE)
+	this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s", argName, dstr))
+}
+
+func (this *GenerateGo) genArgsCGOSign(cursor, parent clang.Cursor) {
+	this.argDesc = make([]string, 0)
+	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
+		argc := cursor.Argument(uint32(idx))
+		this.genArgCGOSign(argc, cursor, idx)
+	}
+	// log.Println(strings.Join(this.argDesc, ", "), this.mangler.origin(cursor))
+}
+
+func (this *GenerateGo) genArgCGOSign(cursor, parent clang.Cursor, idx int) {
+	argty := cursor.Type()
+	argName := gopp.IfElseStr(cursor.Spelling() == "", fmt.Sprintf("arg%d", idx), cursor.Spelling())
+	argName = gopp.IfElseStr(is_go_keyword(argName), argName+"_", argName)
+
+	dstr := getTyDesc(argty, ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN)
+	this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s", dstr, argName))
 }
 
 func (this *GenerateGo) genEnums(cursor, parent clang.Cursor) {

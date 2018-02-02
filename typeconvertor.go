@@ -15,6 +15,234 @@ func init() {
 	}
 }
 
+// 需要考虑的目标类型转换，还是挺多的
+// 转换的源类型为CPP类型
+const (
+	// 在go源代码中使用的类型转换
+	ArgDesc_GO_SIGNATURE = iota + 8
+	ArgTyDesc_GO_SIGNATURE
+	ArgTyDesc_GO_INVOKE_GO
+	RTY_GO
+	PrmTyDesc_GO_INVOKE_GO // 有时需要做*或者&操作或者强制类型转换
+	PrmTyDesc_GO_INVOKE_CGO
+	ATY_GO
+
+	// 在cgo源代码中使用的类型转换
+	ArgDesc_CGO_SIGNATURE
+	PrmTyDesc_CGO_INVOKE_CGO
+	ArgTyDesc_CGO_SIGNATURE
+	ArgTyDesc_CGO_INVOKE_CGO
+	ArgTyDesc_CGO_INVOKE_GO
+	RetTyDesc_CGO
+	PrmTyDesc_CGO_INVOKE_GO
+
+	// 在cpp源代码中使用的类型转换
+	ArgDesc_CPP_SIGNATURE
+	PrmTyDesc_CPP_INVOKE_CPP
+	ArgTyDesc_CPP_SIGNAUTE
+	ArgTyDesc_CPP_INVOKE_CPP
+	RetTyDesc_CPP
+	PrmTyDesc_CPP_INVOKE_C
+
+	// 在c源代码中使用的类型转换
+	ArgDesc_C_SIGNATURE
+	PrmTyDesc_C_INVOKE_C
+	ArgTyDesc_C_SIGNATURE
+	ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN
+	ArgTyDesc_C_INVOKE_C
+	RetTyDesc_C
+	PrmTyDesc_C_INVOKE_CPP
+
+	// 在ffi源代码中使用的类型转换
+	ArgDesc_FFI_SIGNATURE
+	PrmTyDesc_FFI_INVOKE_FFI
+	ArgTyDesc_FFI_SIGNATURE
+	ArgTyDesc_FFI_INVOKE_FFI
+	RetTyDesc_FFI
+	PrmTyDesc_FFI_INVOKE_C
+)
+
+// 参数与返回值中的类型转换暂存
+// 1 key clang.Type表示的是? 可以是
+// 2 key int 表示的是转换的方式标识
+// 最终的值为转换的结果的字符串描述
+var tycvCache = map[clang.Type]map[int]string{}
+var argcvCache = map[string]string{}
+
+func getTyDesc(ty clang.Type, usecat int) string {
+	che, ok := tycvCache[ty]
+	if !ok {
+		che = map[int]string{}
+		tycvCache[ty] = che
+	}
+	// 存在的话从暂存里拿
+	if dstr, ok := che[usecat]; ok {
+		return dstr
+	}
+
+	// 重新计算
+	switch ty.Kind() {
+	case clang.Type_Int:
+		che[ArgTyDesc_CGO_SIGNATURE] = "C.int"
+		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "int"
+		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[RTY_GO] = "int"
+	case clang.Type_UInt:
+		che[ArgTyDesc_CGO_SIGNATURE] = "C.uint"
+		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "unsigned int"
+		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[RTY_GO] = "uint"
+	case clang.Type_LongLong:
+		che[ArgTyDesc_CGO_SIGNATURE] = "C.int64_t"
+		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "int64_t"
+		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[RTY_GO] = "int64"
+	case clang.Type_ULongLong:
+		che[ArgTyDesc_CGO_SIGNATURE] = "C.uint64_t"
+		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "uint64_t"
+		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[RTY_GO] = "uint64"
+	case clang.Type_Short:
+		che[ArgTyDesc_CGO_SIGNATURE] = "C.int16_t"
+		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "int16_t"
+		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[RTY_GO] = "int16"
+	case clang.Type_UShort:
+		che[ArgTyDesc_CGO_SIGNATURE] = "C.uint16_t"
+		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "uint16_t"
+		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[RTY_GO] = "uint16"
+	case clang.Type_UChar:
+		che[ArgTyDesc_CGO_SIGNATURE] = "C.uint8_t"
+		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "uint8_t"
+		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[RTY_GO] = "byte"
+	case clang.Type_Char_S:
+		che[ArgTyDesc_CGO_SIGNATURE] = "C.int8_t"
+		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "int8_t"
+		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[RTY_GO] = "byte"
+	case clang.Type_SChar:
+		che[ArgTyDesc_CGO_SIGNATURE] = "C.char"
+		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "char"
+		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[RTY_GO] = "byte"
+	case clang.Type_Long:
+		che[ArgTyDesc_CGO_SIGNATURE] = "C.long"
+		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "long"
+		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[RTY_GO] = "int64"
+	case clang.Type_ULong:
+		che[ArgTyDesc_CGO_SIGNATURE] = "C.ulong"
+		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "ulong"
+		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[RTY_GO] = "uint64"
+	case clang.Type_Typedef:
+		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		if TypeIsQFlags(ty) {
+			che[ArgTyDesc_CGO_SIGNATURE] = "C.int"
+			che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "int"
+			che[RTY_GO] = "int"
+			break
+		} else if strings.HasPrefix(ty.CanonicalType().Spelling(), "Q") &&
+			strings.ContainsAny(ty.CanonicalType().Spelling(), "<>") {
+			log.Println(ty.Spelling(), ty.CanonicalType().Spelling())
+		}
+		return getTyDesc(ty.CanonicalType(), usecat)
+	case clang.Type_Record:
+		if is_qt_class(ty) {
+		}
+		che[ArgTyDesc_CGO_SIGNATURE] = "unsafe.Pointer  /*444*/"
+		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "void*"
+		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[RTY_GO] = "unsafe.Pointer"
+	case clang.Type_Pointer:
+		if isPrimitivePPType(ty) && ty.PointeeType().PointeeType().Kind() == clang.Type_Char_S {
+			// return "[]string"
+		} else if ty.PointeeType().Kind() == clang.Type_Char_S {
+			// return "string"
+		} else if is_qt_class(ty.PointeeType()) {
+		}
+		che[ArgTyDesc_CGO_SIGNATURE] = "unsafe.Pointer  /*666*/"
+		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "void*"
+		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[RTY_GO] = "unsafe.Pointer/*666*/"
+	case clang.Type_LValueReference:
+		if isPrimitiveType(ty.PointeeType()) {
+			// return this.toDest(ty.PointeeType(), cursor)
+		} else if is_qt_class(ty.PointeeType()) {
+		}
+		che[ArgTyDesc_CGO_SIGNATURE] = "unsafe.Pointer  /*555*/"
+		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "void*"
+		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[RTY_GO] = "unsafe.Pointer/*555*/"
+	case clang.Type_RValueReference:
+		che[ArgTyDesc_CGO_SIGNATURE] = "unsafe.Pointer  /*333*/"
+		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "void*"
+		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[RTY_GO] = "unsafe.Pointer/*333*/"
+	case clang.Type_Elaborated:
+		che[ArgTyDesc_CGO_SIGNATURE] = "C.int"
+		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "int"
+		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[RTY_GO] = "int"
+	case clang.Type_Enum:
+		che[ArgTyDesc_CGO_SIGNATURE] = "C.int"
+		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "int"
+		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[RTY_GO] = "int"
+	case clang.Type_Bool:
+		che[ArgTyDesc_CGO_SIGNATURE] = "C.bool"
+		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "bool"
+		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[RTY_GO] = "bool"
+	case clang.Type_Double:
+		che[ArgTyDesc_CGO_SIGNATURE] = "C.double"
+		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "double"
+		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[RTY_GO] = "float64"
+	case clang.Type_LongDouble: // TODO?
+		che[ArgTyDesc_CGO_SIGNATURE] = "C.double"
+		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "double"
+		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[RTY_GO] = "float64"
+	case clang.Type_Float:
+		che[ArgTyDesc_CGO_SIGNATURE] = "C.float"
+		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "float"
+		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[RTY_GO] = "float32"
+	case clang.Type_IncompleteArray:
+		// TODO xpm const char *const []
+		if TypeIsCharPtr(ty.ElementType()) {
+			// return "[]string"
+		}
+		che[ArgTyDesc_CGO_SIGNATURE] = "unsafe.Pointer  /*222*/"
+		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "void*"
+		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[RTY_GO] = "unsafe.Pointer/*222*/"
+	case clang.Type_Char16:
+		che[ArgTyDesc_CGO_SIGNATURE] = "C.int16_t"
+		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "int16_t"
+		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[RTY_GO] = "int16"
+	case clang.Type_Void:
+		che[ArgTyDesc_CGO_SIGNATURE] = "wtf"
+		che[RetTyDesc_CGO] = ""
+		che[RetTyDesc_C] = "void"
+		che[RetTyDesc_CPP] = "void"
+		che[ArgTyDesc_CPP_SIGNAUTE] = "void"
+		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "void"
+		che[RTY_GO] = ""
+	default:
+		log.Fatalln(ty.Spelling(), ty.Kind().Spelling())
+	}
+	// 从经过一次计算的缓存中拿
+	if dstr, ok := che[usecat]; ok {
+		return dstr
+	}
+	return fmt.Sprintf("Unknown_%s_%s", ty.Spelling(), ty.Kind().String())
+}
+
 type TypeConvertor interface {
 	// 目标语言传递参数进来时的类型
 	toDest(clang.Type, clang.Cursor) string // dest language
@@ -23,14 +251,6 @@ type TypeConvertor interface {
 	// 调用对应C函数时的类型
 	toCall(clang.Type, clang.Cursor) string // call C.xxx type
 
-	// toArgC
-	// toRetC
-	// toArgCpp
-	// toRetCpp
-	// toArgGo
-	// toRetGo
-	// toArgConvC
-	// toRetConvC
 }
 
 // ???

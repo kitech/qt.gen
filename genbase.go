@@ -40,8 +40,24 @@ type GenBase struct {
 	isPureVirtualClass  bool
 	hasVirtualProtected bool
 	isQObjectClass      bool
+	isDeletedClass      bool
+	hasProjectedDtor    bool
+	hasExplictDtor      bool
 
 	funcMangles map[string]int
+
+	_argDesc1   []string
+	_paramDesc1 []string
+	_argtyDesc1 []string
+	_argDesc2   []string
+	_paramDesc2 []string
+	_argtyDesc2 []string
+	_argDesc3   []string
+	_paramDesc3 []string
+	_argtyDesc3 []string
+	_argDesc4   []string
+	_paramDesc4 []string
+	_argtyDesc4 []string
 }
 
 // TODO is what?
