@@ -620,6 +620,7 @@ func (this *GenerateGo) genDtor(cursor, parent clang.Cursor, midx int) {
 
 	this.cp.APf("body", "    rv, err := ffiqt.InvokeQtFunc6(\"%s\", ffiqt.FFI_TYPE_VOID, this.GetCthis())",
 		this.mangler.origin(cursor))
+	this.cp.APf("body", "    qtrt.Cmemset(this.GetCthis(), 9, %d)", parent.Type().SizeOf())
 	this.cp.APf("body", "    gopp.ErrPrint(err, rv)")
 	this.cp.APf("body", "    this.SetCthis(nil)")
 

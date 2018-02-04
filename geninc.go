@@ -284,11 +284,7 @@ func (this *GenerateInline) genProxyClass(cursor, parent clang.Cursor) {
 		}
 		this.cp.APf("main", "      // %s", rety.Kind().String()+rety.CanonicalType().Kind().String()+rety.CanonicalType().Spelling())
 		this.cp.APf("main", "    } else {")
-		this.cp.APf("main", "    // auto fnptr = ((%s (*)(void* %s))(callback%s_fnptr));", rety.Spelling(), argtyStr3, mcs.Mangling())
 		// TODO check return and convert return if needed
-		this.cp.APf("main", "    // if (fnptr != 0) {")
-		this.cp.APf("main", "    //   fnptr(this %s);", paramStr3)
-		this.cp.APf("main", "    // }")
 		if mcs.ResultType().Kind() == clang.Type_Void {
 			this.cp.APf("main", "    %s::%s(%s);", cursor.Spelling(), mcs.Spelling(), paramStr)
 		} else {
@@ -383,6 +379,7 @@ func (this *GenerateInline) genCtor(cursor, parent clang.Cursor) {
 	if !is_deleted_class(parent) && this.hasVirtualProtected {
 		this.cp.APf("main", "  auto _nilp = (My%s*)(0);", parent.Spelling())
 		pxyclsp = "My"
+		// pxyclsp = "" // TODO
 	}
 	if strings.HasPrefix(pparent.Spelling(), "Qt") {
 		if pxyclsp == "" {
@@ -549,9 +546,6 @@ func (this *GenerateInline) genStaticMethod(cursor, parent clang.Cursor) {
 
 func (this *GenerateInline) genProtectedCallback(cursor, parent clang.Cursor) {
 	// this.genMethodHeader(cursor, parent)
-	this.cp.APf("main", "// void* callback%s_fnptr = 0;", cursor.Mangling())
-	this.cp.APf("main", "// extern \"C\" void set_callback%s(void*cbfn)", cursor.Mangling())
-	this.cp.APf("main", "// { callback%s_fnptr = cbfn; }", cursor.Mangling())
 }
 
 func (this *GenerateInline) genArgsPxy(cursor, parent clang.Cursor) {
