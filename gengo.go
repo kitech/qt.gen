@@ -217,7 +217,6 @@ func (this *GenerateGo) genImports(cursor, parent clang.Cursor) {
 	this.cp.APf("ext", "import \"reflect\"")
 	this.cp.APf("ext", "import \"fmt\"")
 	this.cp.APf("ext", "import \"gopp\"")
-	this.cp.APf("ext", "import \"qt.go/cffiqt\"")
 	this.cp.APf("ext", "import \"qt.go/qtrt\"")
 	for _, dep := range modDeps[modname] {
 		this.cp.APf("ext", "import \"qt.go/qt%s\"", dep)
@@ -229,7 +228,6 @@ func (this *GenerateGo) genImports(cursor, parent clang.Cursor) {
 	this.cp.APf("ext", "  if false {reflect.TypeOf(unsafe.Sizeof(0))}")
 	this.cp.APf("ext", "  if false {fmt.Println(123)}")
 	this.cp.APf("ext", "  if false {qtrt.KeepMe()}")
-	this.cp.APf("ext", "  if false {ffiqt.KeepMe()}")
 	this.cp.APf("ext", "  if false {gopp.KeepMe()}")
 	for _, dep := range modDeps[modname] {
 		this.cp.APf("ext", "if false {qt%s.KeepMe()}", dep)
@@ -521,7 +519,7 @@ func (this *GenerateGo) genCtor(cursor, parent clang.Cursor, midx int) {
 	}
 	// this.cp.APf("body", "    cthis := qtrt.Calloc(1, 256) // %d", parent.Type().SizeOf())
 	this.genArgsConvFFI(cursor, parent, midx)
-	this.cp.APf("body", "    rv, err := ffiqt.InvokeQtFunc6(\"%s\", ffiqt.FFI_TYPE_POINTER, %s)",
+	this.cp.APf("body", "    rv, err := qtrt.InvokeQtFunc6(\"%s\", qtrt.FFI_TYPE_POINTER, %s)",
 		this.mangler.origin(cursor), paramStr)
 	this.cp.APf("body", "    gopp.ErrPrint(err, rv)")
 	this.cp.APf("body", "    gothis := New%sFromPointer(unsafe.Pointer(uintptr(rv)))", parent.Spelling())
@@ -618,7 +616,7 @@ func (this *GenerateGo) genDtor(cursor, parent clang.Cursor, midx int) {
 	this.genMethodHeader(cursor, parent, midx)
 	this.genMethodSignature(cursor, parent, midx)
 
-	this.cp.APf("body", "    rv, err := ffiqt.InvokeQtFunc6(\"%s\", ffiqt.FFI_TYPE_VOID, this.GetCthis())",
+	this.cp.APf("body", "    rv, err := qtrt.InvokeQtFunc6(\"%s\", qtrt.FFI_TYPE_VOID, this.GetCthis())",
 		this.mangler.origin(cursor))
 	this.cp.APf("body", "    qtrt.Cmemset(this.GetCthis(), 9, %d)", parent.Type().SizeOf())
 	this.cp.APf("body", "    gopp.ErrPrint(err, rv)")
@@ -633,7 +631,7 @@ func (this *GenerateGo) genDtorNotsee(cursor, parent clang.Cursor, midx int) {
 
 	this.cp.APf("body", "")
 	this.cp.APf("body", "func Delete%s(this *%s) {", cursor.Spelling(), cursor.Spelling())
-	this.cp.APf("body", "    rv, err := ffiqt.InvokeQtFunc6(\"_ZN%d%sD2Ev\", ffiqt.FFI_TYPE_VOID, this.GetCthis())",
+	this.cp.APf("body", "    rv, err := qtrt.InvokeQtFunc6(\"_ZN%d%sD2Ev\", qtrt.FFI_TYPE_VOID, this.GetCthis())",
 		len(cursor.Spelling()), cursor.Spelling())
 	this.cp.APf("body", "    gopp.ErrPrint(err, rv)")
 	this.cp.APf("body", "    this.SetCthis(nil)")
@@ -663,17 +661,17 @@ func (this *GenerateGo) genNonStaticMethod(cursor, parent clang.Cursor, midx int
 		// mvexpr = ", mv"
 	}
 
-	ffirety := "ffiqt.FFI_TYPE_POINTER"
+	ffirety := "qtrt.FFI_TYPE_POINTER"
 	if retype.CanonicalType().Kind() == clang.Type_Float ||
 		retype.CanonicalType().Kind() == clang.Type_Double {
-		ffirety = "ffiqt.FFI_TYPE_DOUBLE"
+		ffirety = "qtrt.FFI_TYPE_DOUBLE"
 	}
 	if retype.Kind() == clang.Type_Record &&
 		(retype.Spelling() == "QSize" || retype.Spelling() == "QSizeF") {
-		this.cp.APf("body", "    rv, err := ffiqt.InvokeQtFunc6(\"%s\", %s %s, this.GetCthis(), %s)",
+		this.cp.APf("body", "    rv, err := qtrt.InvokeQtFunc6(\"%s\", %s %s, this.GetCthis(), %s)",
 			this.mangler.origin(cursor), ffirety, mvexpr, paramStr)
 	} else {
-		this.cp.APf("body", "    rv, err := ffiqt.InvokeQtFunc6(\"%s\", %s %s, this.GetCthis(), %s)",
+		this.cp.APf("body", "    rv, err := qtrt.InvokeQtFunc6(\"%s\", %s %s, this.GetCthis(), %s)",
 			this.mangler.origin(cursor), ffirety, mvexpr, paramStr)
 	}
 	this.cp.APf("body", "    gopp.ErrPrint(err, rv)")
@@ -698,7 +696,7 @@ func (this *GenerateGo) genStaticMethod(cursor, parent clang.Cursor, midx int) {
 	this.genMethodSignature(cursor, parent, midx)
 	this.genArgsConvFFI(cursor, parent, midx)
 
-	this.cp.APf("body", "    rv, err := ffiqt.InvokeQtFunc6(\"%s\", ffiqt.FFI_TYPE_POINTER, %s)",
+	this.cp.APf("body", "    rv, err := qtrt.InvokeQtFunc6(\"%s\", qtrt.FFI_TYPE_POINTER, %s)",
 		this.mangler.origin(cursor), paramStr)
 	this.cp.APf("body", "    gopp.ErrPrint(err, rv)")
 	if cursor.ResultType().Kind() != clang.Type_Void {
@@ -754,7 +752,6 @@ func (this *GenerateGo) genProtectedCallbacks(cursor, parent clang.Cursor) {
 		cp.APf("header", "*/")
 		cp.APf("header", "import \"C\"")
 		cp.APf("header", "import \"unsafe\"")
-		cp.APf("header", "import \"qt.go/cffiqt\"")
 		cp.APf("header", "import \"gopp\"")
 		cp.APf("header", "// import \"log\"")
 		this.cpcs[mod] = cp
@@ -796,10 +793,10 @@ func (this *GenerateGo) genProtectedCallback(cursor, parent clang.Cursor, midx i
 	cp.APf("body", "//export callback%s", cursor.Mangling())
 	cp.APf("body", "func callback%s(cthis unsafe.Pointer %s) {", cursor.Mangling(), argStr)
 	cp.APf("body", "  // log.Println(cthis, \"%s.%s\")", parent.Spelling(), cursor.Spelling())
-	cp.APf("body", "  rvx := ffiqt.CallbackAllInherits(cthis, \"%s\" %s)", cursor.Spelling(), prmStr)
+	cp.APf("body", "  rvx := qtrt.CallbackAllInherits(cthis, \"%s\" %s)", cursor.Spelling(), prmStr)
 	cp.APf("body", "  gopp.ErrPrint(nil, rvx)")
 	cp.APf("body", "}")
-	cp.APf("body", "func init(){ ffiqt.SetInheritCallback2c(\"%s\", C.callback%s /*nil*/) }", cursor.Mangling(), cursor.Mangling())
+	cp.APf("body", "func init(){ qtrt.SetInheritCallback2c(\"%s\", C.callback%s /*nil*/) }", cursor.Mangling(), cursor.Mangling())
 	cp.APf("body", "")
 
 	// inherit impl
@@ -815,7 +812,7 @@ func (this *GenerateGo) genProtectedCallback(cursor, parent clang.Cursor, midx i
 			this.cp.APf("body", "// %s %s", getTyDesc(cursor.ResultType(), ArgTyDesc_CPP_SIGNAUTE), cursor.DisplayName())
 			this.cp.APf("body", "func (this *%s) Inherit%s(f func(%s) %s) {",
 				parent.Spelling(), strings.Title(cursor.Spelling()), argStr, retStr)
-			this.cp.APf("body", "  ffiqt.SetAllInheritCallback(this, \"%s\", f)", cursor.Spelling())
+			this.cp.APf("body", "  qtrt.SetAllInheritCallback(this, \"%s\", f)", cursor.Spelling())
 			this.cp.APf("body", "}")
 			this.cp.APf("body", "")
 		}
@@ -1166,15 +1163,16 @@ func (this *GenerateGo) genEnums(cursor, parent clang.Cursor) {
 	// log.Println("yyyyyyyy", cursor.DisplayName(), parent.DisplayName())
 	for _, enum := range this.enums {
 		this.cp.APf("body", "")
+		// must use uint, because on android
 		this.cp.APf("body", "type %s__%s = int", cursor.DisplayName(), enum.DisplayName())
 		enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
 			switch c1.Kind() {
 			case clang.Cursor_EnumConstantDecl:
-				log.Println("yyyyyyyyy", c1.EnumConstantDeclUnsignedValue(), c1.DisplayName(), p1.DisplayName(), cursor.DisplayName())
+				log.Println("yyyyyyyyy", c1.EnumConstantDeclValue(), c1.DisplayName(), p1.DisplayName(), cursor.DisplayName())
 				this.cp.APf("body", "const %s__%s %s__%s = %d",
 					cursor.DisplayName(), c1.DisplayName(),
 					cursor.DisplayName(), p1.DisplayName(),
-					c1.EnumConstantDeclUnsignedValue())
+					c1.EnumConstantDeclValue())
 			}
 
 			return clang.ChildVisit_Continue
@@ -1196,11 +1194,11 @@ func (this *GenerateGo) genEnumsGlobal(cursor, parent clang.Cursor) {
 		enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
 			switch c1.Kind() {
 			case clang.Cursor_EnumConstantDecl:
-				log.Println("yyyyyyyyy", c1.EnumConstantDeclUnsignedValue(), c1.DisplayName(), p1.DisplayName(), cursor.DisplayName())
+				log.Println("yyyyyyyyy", c1.EnumConstantDeclValue(), c1.DisplayName(), p1.DisplayName(), cursor.DisplayName())
 				this.cp.APUf("body", "const %s__%s %s__%s = %d",
 					"Qt", c1.DisplayName(),
 					"Qt", p1.DisplayName(),
-					c1.EnumConstantDeclUnsignedValue())
+					c1.EnumConstantDeclValue())
 			}
 
 			return clang.ChildVisit_Continue
@@ -1242,7 +1240,6 @@ func (this *GenerateGo) genFunctions(cursor clang.Cursor, parent clang.Cursor) {
 		this.cp.APf("header", "package qt%s", qtmod)
 		this.cp.APf("header", "import \"unsafe\"")
 		this.cp.APf("header", "import \"gopp\"")
-		this.cp.APf("header", "import \"qt.go/cffiqt\"")
 		this.cp.APf("header", "import \"qt.go/qtrt\"")
 		for _, mod := range modDeps[qtmod] {
 			this.cp.APf("header", "import \"qt.go/qt%s\"", mod)
@@ -1250,7 +1247,7 @@ func (this *GenerateGo) genFunctions(cursor clang.Cursor, parent clang.Cursor) {
 		this.cp.APf("header", "func init(){")
 		this.cp.APf("header", "  if false{_=unsafe.Pointer(uintptr(0))}")
 		this.cp.APf("header", "  if false{qtrt.KeepMe()}")
-		this.cp.APf("header", "  if false{ffiqt.KeepMe()}")
+		this.cp.APf("header", "  if false{qtrt.KeepMe()}")
 		this.cp.APf("header", "  if false{gopp.KeepMe()}")
 		for _, dep := range modDeps[qtmod] {
 			this.cp.APf("header", "if false {qt%s.KeepMe()}", dep)
@@ -1302,7 +1299,7 @@ func (this *GenerateGo) genFunction(cursor clang.Cursor, olidx int) {
 	this.genBareFunctionSignature(cursor, cursor.SemanticParent(), olidx)
 
 	this.genArgsConvFFI(cursor, cursor.SemanticParent(), olidx)
-	this.cp.APf("body", "  rv, err := ffiqt.InvokeQtFunc6(\"%s\", ffiqt.FFI_TYPE_POINTER, %s)",
+	this.cp.APf("body", "  rv, err := qtrt.InvokeQtFunc6(\"%s\", qtrt.FFI_TYPE_POINTER, %s)",
 		cursor.Mangling(), paramStr)
 	this.cp.APf("body", "  gopp.ErrPrint(err, rv)")
 

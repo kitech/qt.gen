@@ -544,7 +544,7 @@ func (this *TypeConvertGo) toDestMetaType(ty clang.Type, cursor clang.Cursor) st
 			case clang.Type_FunctionProto:
 				return "qtrt.VoidpTy()"
 			case clang.Type_Enum:
-				return "qtrt.UInt32Ty(true)"
+				return "qtrt.Int32Ty(true)"
 			case clang.Type_Record:
 				return "qtrt.VoidpTy()"
 			default:
