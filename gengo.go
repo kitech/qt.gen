@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -807,7 +806,7 @@ func (this *GenerateGo) genProtectedCallback(cursor, parent clang.Cursor, midx i
 
 			this.genArgsDest(cursor, parent)
 			argStr := strings.Join(this.destArgDesc, ", ")
-			retStr := getTyDesc(cursor.ResultType(), RTY_GO)
+			retStr := getTyDesc(cursor.ResultType(), AsGoReturn)
 
 			this.cp.APf("body", "// %s %s", getTyDesc(cursor.ResultType(), ArgTyDesc_CPP_SIGNAUTE), cursor.DisplayName())
 			this.cp.APf("body", "func (this *%s) Inherit%s(f func(%s) %s) {",
@@ -961,18 +960,14 @@ func (this *GenerateGo) genParams(cursor, parent clang.Cursor) {
 
 func (this *GenerateGo) genParam(cursor, parent clang.Cursor, aidx int) {
 	argName := cursor.Spelling()
-	if is_go_keyword(argName) {
-		argName = argName + "_"
-	}
+	argName = gopp.IfElseStr(is_go_keyword(argName), argName+"_", argName)
 	this.paramDesc = append(this.paramDesc,
 		gopp.IfElseStr(cursor.Spelling() == "", fmt.Sprintf("arg%d", aidx), argName))
 }
 
 func (this *GenerateGo) genParamRet(cursor, parent clang.Cursor, aidx int) string {
 	argName := cursor.Spelling()
-	if is_go_keyword(argName) {
-		argName = argName + "_"
-	}
+	argName = gopp.IfElseStr(is_go_keyword(argName), argName+"_", argName)
 
 	return gopp.IfElseStr(cursor.Spelling() == "", fmt.Sprintf("arg%d", aidx), argName)
 }
@@ -1004,9 +999,8 @@ func (this *GenerateGo) genParamFFI(cursor, parent clang.Cursor, idx int) {
 		}
 	} else {
 		argName := cursor.Spelling()
-		if is_go_keyword(argName) {
-			argName = argName + "_"
-		}
+		argName = gopp.IfElseStr(is_go_keyword(argName), argName+"_", argName)
+
 		useand := argty.Kind() == clang.Type_LValueReference &&
 			isPrimitiveType(argty.PointeeType())
 		useand = useand || (argty.Kind() == clang.Type_Pointer &&
@@ -1155,8 +1149,8 @@ func (this *GenerateGo) genArgCGOSign(cursor, parent clang.Cursor, idx int) {
 	argName := gopp.IfElseStr(cursor.Spelling() == "", fmt.Sprintf("arg%d", idx), cursor.Spelling())
 	argName = gopp.IfElseStr(is_go_keyword(argName), argName+"_", argName)
 
-	dstr := getTyDesc(argty, ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN)
-	this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s", dstr, argName))
+	tystr := getTyDesc(argty, ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN)
+	this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s", tystr, argName))
 }
 
 func (this *GenerateGo) genEnums(cursor, parent clang.Cursor) {
@@ -1180,6 +1174,7 @@ func (this *GenerateGo) genEnums(cursor, parent clang.Cursor) {
 	}
 }
 
+// enum一定要使用int类型，而不能用uint。注意-1值的处理
 func (this *GenerateGo) genEnumsGlobal(cursor, parent clang.Cursor) {
 	// log.Println("yyyyyyyy", cursor.DisplayName(), parent.DisplayName())
 	for _, enum := range this.enums {
@@ -1224,7 +1219,6 @@ func (this *GenerateGo) genFunctions(cursor clang.Cursor, parent clang.Cursor) {
 		return false
 	}
 
-	reg := regexp.MustCompile(`q[A-Z].+`)
 	grfuncs := this.groupFunctionsByModule()
 	qtmods := []string{}
 	for qtmod, _ := range grfuncs {
@@ -1254,12 +1248,13 @@ func (this *GenerateGo) genFunctions(cursor clang.Cursor, parent clang.Cursor) {
 		}
 		this.cp.APf("header", "}")
 
+		// 这个是一个包范围内的排序还是所有包范围内的排序呢？
 		sort.Slice(funcs, func(i int, j int) bool {
 			return funcs[i].Mangling() > funcs[j].Mangling()
 
 		})
 		for _, fc := range funcs {
-			if !reg.MatchString(fc.Spelling()) {
+			if !is_qt_global_func(fc) {
 				continue
 			}
 
@@ -1327,7 +1322,6 @@ func (this *GenerateGo) genBareFunctionSignature(cursor, parent clang.Cursor, mi
 			retPlace = ""
 		}
 		this.cp.APf("body", "func %s%s(%s) %s {",
-			strings.Title(cursor.Spelling()),
-			overloadSuffix, argStr, retPlace)
+			strings.Title(cursor.Spelling()), overloadSuffix, argStr, retPlace)
 	}
 }

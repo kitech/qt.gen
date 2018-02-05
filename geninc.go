@@ -401,11 +401,12 @@ func (this *GenerateInline) genDtor(cursor, parent clang.Cursor) {
 	if strings.HasPrefix(pparent.Spelling(), "Qt") {
 		this.cp.APf("main", "  delete (%s::%s*)(this_);", pparent.Spelling(), parent.Spelling())
 	} else {
-		this.cp.APf("main", "  delete (%s*)(this_);", parent.Spelling())
+		this.cp.APf("main", "  delete (%s*)(this_);", parent.Type().Spelling())
 	}
 	this.cp.APf("main", "}")
 }
 
+// 在该类没有显式的声明析构方法时，补充生成一个默认析构方法
 func (this *GenerateInline) genDtorNotsee(cursor, parent clang.Cursor) {
 	// pparent := parent.SemanticParent()
 
@@ -415,7 +416,7 @@ func (this *GenerateInline) genDtorNotsee(cursor, parent clang.Cursor) {
 	if strings.HasPrefix(parent.Spelling(), "Qt") {
 		this.cp.APf("main", "  delete (%s::%s*)(this_);", parent.Spelling(), cursor.Spelling())
 	} else {
-		this.cp.APf("main", "  delete (%s*)(this_);", cursor.Spelling())
+		this.cp.APf("main", "  delete (%s*)(this_);", cursor.Type().Spelling())
 	}
 	this.cp.APf("main", "}")
 }

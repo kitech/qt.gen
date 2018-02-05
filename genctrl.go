@@ -16,7 +16,7 @@ var ast_file = "./qthdrsrc.ast"
 var hdr_file = "./headers/qthdrsrc.h"
 
 // module depend table
-// 也许可以用ldd自动推导出来
+// TODO 也许可以用ldd自动推导出来
 var modDeps = map[string][]string{
 	"core":              []string{},
 	"gui":               []string{"core"},
@@ -108,8 +108,8 @@ func (this *GenCtrl) setupEnv() {
 	// 这是要生成的模块表
 	modules := []string{
 		"QtCore", "QtGui", "QtWidgets",
-		// "QtNetwork", "QtQml", "QtQuick",
-		// "QtQuickTemplates2", "QtQuickControls2", "QtQuickWidgets",
+		"QtNetwork", "QtQml", "QtQuick",
+		"QtQuickTemplates2", "QtQuickControls2", "QtQuickWidgets",
 	}
 
 	cmdlines := []string{

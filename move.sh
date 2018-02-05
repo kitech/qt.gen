@@ -66,13 +66,19 @@ function mvbymd5()
 
 function mvqil()
 {
-    mkdir -p ~/oss/qt.inline/src/{qt5,core,gui,widgets,network,qml,quick}
+    mkdir -p ~/oss/qt.inline/src/{qt5,core,gui,widgets,network,qml,quick,quicktemplates2,quickcontrols2,quickwidgets}
     # rm -f ~/oss/qt.inline/src/{qt5,core,gui,widgets,network,qml,quick}/q*.cxx
 
     set +x
     mvbymd5 cxx src/core ~/oss/qt.inline/src/core
     mvbymd5 cxx src/gui ~/oss/qt.inline/src/gui
     mvbymd5 cxx src/widgets ~/oss/qt.inline/src/widgets
+    mvbymd5 cxx src/network ~/oss/qt.inline/src/network
+    mvbymd5 cxx src/qml ~/oss/qt.inline/src/qml
+    mvbymd5 cxx src/quick ~/oss/qt.inline/src/quick
+    mvbymd5 cxx src/quicktemplates2 ~/oss/qt.inline/src/quicktemplates2
+    mvbymd5 cxx src/quickcontrols2 ~/oss/qt.inline/src/quickcontrols2
+    mvbymd5 cxx src/quickwidgets ~/oss/qt.inline/src/quickwidgets
 
     #cp -a src/core/*.cxx ~/oss/qt.inline/src/core/
     #cp -a src/gui/*.cxx ~/oss/qt.inline/src/gui/

@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -205,6 +206,11 @@ func is_qt_private_class(cursor clang.Cursor) bool {
 	return false
 }
 
+// TODO
+func is_qt_inner_class(cursor clang.Cursor) bool {
+	return false
+}
+
 func is_projected_dtor_class(cursor clang.Cursor) bool {
 	protectedDtors := map[string]int{
 		"QTextCodec": 1, "QAccessibleInterface": 1, "QTextBlockGroup": 1,
@@ -212,6 +218,11 @@ func is_projected_dtor_class(cursor clang.Cursor) bool {
 	}
 	_, ok := protectedDtors[cursor.Spelling()]
 	return ok
+}
+
+func is_qt_global_func(cursor clang.Cursor) bool {
+	reg := regexp.MustCompile(`q[A-Z].+`) // 需要生成的全局函数名正则规范
+	return reg.MatchString(cursor.Spelling())
 }
 
 func TypeIsCharPtrPtr(ty clang.Type) bool {
