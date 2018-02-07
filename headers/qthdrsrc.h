@@ -77,6 +77,7 @@
 #endif
 
 
+
 // template class QFlags<int>;
 // #include <explicit_instantiate_templates.h>
 

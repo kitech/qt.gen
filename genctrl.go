@@ -16,23 +16,7 @@ var ast_file = "./qthdrsrc.ast"
 var hdr_file = "./headers/qthdrsrc.h"
 
 // module depend table
-// TODO 也许可以用ldd自动推导出来
-var modDeps = map[string][]string{
-	"core":              []string{},
-	"gui":               []string{"core"},
-	"widgets":           []string{"core", "gui"},
-	"network":           []string{"core"},
-	"qml":               []string{"core", "network"},
-	"quick":             []string{"core", "gui", "network", "qml"},
-	"quicktemplates2":   []string{"core", "gui", "network", "qml", "quick"},
-	"quickcontrols2":    []string{"core", "gui", "network", "qml", "quick", "quicktemplates2"},
-	"quickwidgets":      []string{"core", "gui", "network", "qml", "quick", "widgets"},
-	"multimedia":        []string{"core", "gui", "network"},
-	"multimediawidgets": []string{"core", "gui", "network", "widgets", "multimedia", "opengl"},
-	"opengl":            []string{"core", "gui", "widgets"},
-	"sql":               []string{"core"},
-	"svg":               []string{"core", "gui", "widgets"},
-}
+var modDeps = modDepsAll               // auto generated
 var skipClasses = make(map[string]int) // 全局过滤掉的class
 
 func init() {
@@ -110,11 +94,17 @@ func (this *GenCtrl) setupEnv() {
 		"QtCore", "QtGui", "QtWidgets",
 		"QtNetwork", "QtQml", "QtQuick",
 		"QtQuickTemplates2", "QtQuickControls2", "QtQuickWidgets",
+		// for platform dependent modules, need copy headers if not exists
+		"QtAndroidExtras", // TODO fatal error: 'jni.h' file not found
+		"QtX11Extras",     // 这个包没生成出来什么代码
+		"QtWinExtras",     // 缺少QtWinExtracsDepened头文件
+		"QtMacExtras",     // 缺少QtMacExtracsDepened头文件
 	}
 
 	cmdlines := []string{
 		"-x c++ -std=c++11 -D__CODE_GENERATOR__ -D_GLIBCXX_USE_CXX11ABI=1",
 		"-I/usr/include/qt -DQT_NO_DEBUG -D_GNU_SOURCE -pipe -fno-exceptions -O2 -march=x86-64 -mtune=generic -O2 -pipe -fstack-protector-strong -std=c++11 -Wall -W -D_REENTRANT -fPIC",
+		"-I./headers", "-I/usr/include/wine/windows/", // fix cross platform generate, win/mac
 	}
 	args := []string{}
 	gopp.Domap(cmdlines, func(e interface{}) interface{} {

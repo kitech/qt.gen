@@ -24,16 +24,14 @@ func get_decl_mod(cursor clang.Cursor) string {
 	segs := strings.Split(file.Name(), "/")
 	// log.Println(segs[len(segs)-2], segs[len(segs)-2][2:])
 	dmod := strings.ToLower(segs[len(segs)-2][2:])
-	premods := []string{"core", "gui", "widgets", "network", "qml", "quick"}
-
-	found := false
-	for _, m := range premods {
-		if m == dmod {
-			found = true
-			break
-		}
+	if !strings.HasPrefix(filepath.Base(filepath.Dir(file.Name())), "Qt") {
+		dmod = filepath.Base(filepath.Dir(file.Name()))
 	}
-	if !found {
+	if dmod == "android" || dmod == "jni" {
+		dmod = "androidextras"
+	}
+	log.Println(dmod, file.Name())
+	if _, found := modDeps[dmod]; !found {
 		if false {
 			log.Printf("unknown module: %s, %s %s, %s\n",
 				dmod, cursor.Spelling(), file.Name(), filepath.Base(file.Name()))

@@ -30,6 +30,9 @@ function mvgosrc()
     cp -a src/quick/*.go ~/oss/src/qt.go/qtquick/
     cp -a src/quickcontrols2/*.go ~/oss/src/qt.go/qtquickcontrols2/
     cp -a src/quickwidgets/*.go ~/oss/src/qt.go/qtquickwidgets/
+    cp -a src/androidextras/*.go ~/oss/src/qt.go/qtandroidextras/
+    cp -a src/winextras/*.go ~/oss/src/qt.go/qtwinextras/
+    cp -a src/macextras/*.go ~/oss/src/qt.go/qtmacextras/
 }
 
 function mvbymd5()

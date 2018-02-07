@@ -87,7 +87,14 @@ func (this *GenerateGo) saveCode(cursor, parent clang.Cursor) {
 	if false {
 		log.Printf("%s:%d:%d @%s\n", file.Name(), line, col, file.Time().String())
 	}
+
 	modname := strings.ToLower(filepath.Base(filepath.Dir(file.Name())))[2:]
+	log.Println(file.Name(), modname, filepath.Dir(file.Name()), filepath.Base(filepath.Dir(file.Name())))
+	if !strings.HasPrefix(filepath.Base(filepath.Dir(file.Name())), "Qt") { // fix cross platform, win/mac
+		modname = filepath.Base(filepath.Dir(file.Name()))
+		gopp.Assert(strings.ToLower(modname) == modname, "")
+	}
+
 	// savefile := fmt.Sprintf("src/%s/%s.go", modname, strings.ToLower(cursor.Spelling()))
 
 	this.saveCodeToFile(modname, strings.ToLower(cursor.Spelling()))
@@ -131,6 +138,9 @@ func (this *GenerateGo) genHeader(cursor, parent clang.Cursor) {
 		log.Printf("%s:%d:%d @%s\n", file.Name(), line, col, file.Time().String())
 	}
 	fullModname := filepath.Base(filepath.Dir(file.Name()))
+	if !strings.HasPrefix(fullModname, "Qt") { // fix cross platform win/mac
+		fullModname = "Qt" + fullModname
+	}
 	this.cp.APf("header", "package %s", strings.ToLower(fullModname[0:]))
 	this.cp.APf("header", "// %s", file.Name())
 	this.cp.APf("header", "// #include <%s>", filepath.Base(file.Name()))
@@ -211,6 +221,10 @@ func (this *GenerateGo) genImports(cursor, parent clang.Cursor) {
 	file, _, _, _ := cursor.Location().FileLocation()
 	log.Println(file.Name(), cursor.Spelling(), parent.Spelling())
 	modname := strings.ToLower(filepath.Base(filepath.Dir(file.Name())))[2:]
+	if !strings.HasPrefix(filepath.Base(filepath.Dir(file.Name())), "Qt") { // fix cross platform, win/mac
+		modname = filepath.Base(filepath.Dir(file.Name()))
+		gopp.Assert(strings.ToLower(modname) == modname, "")
+	}
 
 	this.cp.APf("ext", "import \"unsafe\"")
 	this.cp.APf("ext", "import \"reflect\"")
