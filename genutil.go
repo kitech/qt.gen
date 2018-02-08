@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/go-clang/v3.9/clang"
+	funk "github.com/thoas/go-funk"
 )
 
 // # like core
@@ -69,6 +70,7 @@ func is_private_method(c clang.Cursor) bool {
 		c.AccessSpecifier() == clang.AccessSpecifier_Private
 }
 
+// 去掉reference和pointer,并查找其定义类型名，不带const
 func get_bare_type(ty clang.Type) clang.Type {
 	switch ty.Kind() {
 	case clang.Type_LValueReference, clang.Type_Pointer:
@@ -221,6 +223,15 @@ func is_projected_dtor_class(cursor clang.Cursor) bool {
 func is_qt_global_func(cursor clang.Cursor) bool {
 	reg := regexp.MustCompile(`q[A-Z].+`) // 需要生成的全局函数名正则规范
 	return reg.MatchString(cursor.Spelling())
+}
+
+func is_qstring_cls(retPlace string) bool {
+	if funk.ContainsString(strings.FieldsFunc(retPlace, func(c rune) bool {
+		return strings.Contains(" .*/", string(c))
+	}), "QString") {
+		return true
+	}
+	return false
 }
 
 func TypeIsCharPtrPtr(ty clang.Type) bool {
