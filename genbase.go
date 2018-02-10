@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"gopp"
 	"log"
 
 	"github.com/go-clang/v3.9/clang"
@@ -13,13 +15,15 @@ type Generator interface {
 
 	putMethod(c clang.Cursor)
 	putFunc(c clang.Cursor)
-	putTmplCls(c clang.Cursor)
-	putTmplSpec(c clang.Cursor)
+	putTmplCls(c clang.Cursor)          // c 类型为clang.Cursor_ClassTemplate
+	putPlainTmplClsInst(c clang.Cursor) // c类型为clang.Cursor_ClassDecl
+	putTydefTmplClsInst(c clang.Cursor) // c类型为clang.Cursor_TypedefDecl
 	putEnum(c clang.Cursor)
 
 	genFunctions(cursor, parent clang.Cursor)
 	genEnumsGlobal(cursor, parent clang.Cursor)
-	genTemplateSpecializedClasses()
+	genPlainTmplInstClses()
+	genTydefTmplInstClses()
 }
 
 func init() {
@@ -31,11 +35,12 @@ func init() {
 type GenBase struct {
 	tu *clang.TranslationUnit
 
-	methods      []clang.Cursor
-	funcs        []clang.Cursor
-	tmplclses    []clang.Cursor
-	tmplclsspecs []clang.Cursor
-	enums        []clang.Cursor
+	methods            []clang.Cursor
+	funcs              []clang.Cursor
+	tmplclses          []clang.Cursor
+	plaintmplinstclses []clang.Cursor
+	tydeftmplinstclses []clang.Cursor
+	enums              []clang.Cursor
 
 	isPureVirtualClass  bool
 	hasVirtualProtected bool
@@ -81,8 +86,12 @@ func (this *GenBase) putTmplCls(c clang.Cursor) {
 	this.tmplclses = append(this.tmplclses, c)
 }
 
-func (this *GenBase) putTmplSpec(c clang.Cursor) {
-	this.tmplclsspecs = append(this.tmplclsspecs, c)
+func (this *GenBase) putPlainTmplClsInst(c clang.Cursor) {
+	this.plaintmplinstclses = append(this.plaintmplinstclses, c)
+}
+
+func (this *GenBase) putTydefTmplClsInst(c clang.Cursor) {
+	this.tydeftmplinstclses = append(this.tydeftmplinstclses, c)
 }
 
 func (this *GenBase) putEnum(c clang.Cursor) {
@@ -106,4 +115,11 @@ func (this *GenBase) groupFunctionsByModule() map[string][]clang.Cursor {
 	}
 
 	return rets
+}
+
+func (this *GenBase) genParamRefName(cursor, parent clang.Cursor, aidx int) string {
+	argName := cursor.Spelling()
+	argName = gopp.IfElseStr(is_go_keyword(argName), argName+"_", argName)
+
+	return gopp.IfElseStr(cursor.Spelling() == "", fmt.Sprintf("arg%d", aidx), argName)
 }

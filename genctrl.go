@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/go-clang/v3.9/clang"
+	funk "github.com/thoas/go-funk"
 
 	"gopp"
 )
@@ -162,7 +163,6 @@ func (this *GenCtrl) createTU() {
 func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 	{
 		log.Println(cursor.Spelling(), cursor.Kind().String(), cursor.DisplayName(),
-
 			cursor.SpecializedCursorTemplate().Spelling(), cursor.CanonicalCursor().Kind())
 	}
 
@@ -206,10 +206,21 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 			clts.PrivateMethodCount += 1
 		}
 	case clang.Cursor_TypedefDecl:
+		undty := cursor.TypedefDeclUnderlyingType()
+		undcs := undty.Declaration()
+		log.Println(cursor.Kind().String(), cursor.DisplayName(), undcs.Kind().String(), undcs.DisplayName(), undty.Spelling())
+		if undcs.Kind() == clang.Cursor_NoDeclFound {
+
+		}
+		if funk.ContainsInt([]int{clang.Cursor_ClassDecl, clang.Cursor_StructDecl}, int(undcs.Kind())) &&
+			strings.HasPrefix(cursor.Spelling(), "Q") {
+			this.qttmplgen.putTydefTmplClsInst(cursor)
+		}
+
 		if is_qt_class(cursor.Type()) {
 			log.Println("got", cursor.Spelling(), ",", cursor.Type().Spelling(), ",", cursor.Type().Kind(), cursor.Type().ClassType().Spelling(), ",", cursor.Type().ClassType().Kind(), ",", cursor.Type().CanonicalType().Spelling(), ",", cursor.Type().CanonicalType().Kind(), ",", cursor.Type().CanonicalType().Declaration().Kind(), ",", cursor.Type().CanonicalType().Declaration().Spelling(), ",", cursor.Type().CanonicalType().Declaration().Definition().Kind().String())
 			log.Println(cursor.Type().CanonicalType().Declaration().Kind().String(), cursor.Type().CanonicalType().Declaration().Spelling(), cursor.Type().CanonicalType().Declaration().IsCursorDefinition(), cursor.Spelling())
-			this.qttmplgen.putTmplSpec(cursor)
+			// this.qttmplgen.putPlainTmplClsInst(cursor)
 
 			tplc := cursor.Type().Declaration()
 			log.Println(tplc.Spelling(), "============", cursor.CanonicalCursor().Kind(), tplc.NumTemplateArguments())
@@ -296,6 +307,17 @@ func (this *GenCtrl) collectClasses() {
 			if !this.filter.skipClass(cursor, parent) {
 				skipClasses[cursor.Type().Spelling()] = 1
 			}
+		case clang.Cursor_StructDecl:
+		}
+		switch {
+		case funk.ContainsInt([]int{clang.Cursor_StructDecl, clang.Cursor_ClassDecl}, int(cursor.Kind())):
+			spcs := cursor.SpecializedCursorTemplate()
+			if spcs.Kind() != clang.Cursor_InvalidFile {
+				fi, lineno, _, _ := spcs.Location().FileLocation()
+				fi2, lineno2, _, _ := cursor.Location().FileLocation()
+				log.Println(spcs.Kind().String(), spcs.Spelling(), fi.Name(), lineno, spcs.DisplayName(), cursor.DisplayName(), cursor.Spelling(), cursor.Kind().String(), fi2.Name(), lineno2, cursor.TemplateArgumentType(0).Spelling(), spcs.TemplateArgumentType(0).Spelling())
+				// this.qttmplgen.putPlainTmplClsInst(cursor)
+			}
 		}
 		return clang.ChildVisit_Continue
 	})
@@ -315,7 +337,8 @@ func (this *GenCtrl) collectClasses() {
 			}
 		*/
 	}
-	this.qttmplgen.genTemplateSpecializedClasses()
+	this.qttmplgen.genPlainTmplInstClses()
+	this.qttmplgen.genTydefTmplInstClses()
 
 	log.Printf("%+v\n", clts)
 }

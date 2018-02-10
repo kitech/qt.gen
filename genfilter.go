@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/go-clang/v3.9/clang"
+	funk "github.com/thoas/go-funk"
 )
 
 var filterClass string
@@ -19,6 +20,7 @@ type GenFilter interface {
 	skipClass(cursor, parent clang.Cursor) bool
 	skipMethod(cursor, parent clang.Cursor) bool
 	skipArg(cursor, parent clang.Cursor) bool
+	skipFunc(cursor clang.Cursor) bool
 }
 
 type GenFilterBase struct {
@@ -123,10 +125,10 @@ func (this *GenFilterBase) skipClassImpl(cursor, parent clang.Cursor) int {
 func (this *GenFilterBase) skipMethod(cursor, parent clang.Cursor) bool {
 	skip := this.skipMethodImpl(cursor, parent)
 	if cursor.Spelling() == "QApplication" {
-
 	}
+	log.Println(skip, cursor.Spelling(), parent.Spelling(), cursor.DisplayName(), skip)
 	if skip > 0 {
-		log.Println(cursor.Spelling(), parent.Spelling(), cursor.DisplayName(), skip)
+		log.Println(skip, cursor.Spelling(), parent.Spelling(), cursor.DisplayName(), skip, cursor.AccessSpecifier())
 		// os.Exit(0)
 	}
 	return skip > 0
@@ -150,26 +152,21 @@ func (this *GenFilterBase) skipMethodImpl(cursor, parent clang.Cursor) int {
 		}
 	}
 
-	for _, mm := range []string{"tr", "trUtf8", "data_ptr", "d_func"} {
-		if cname == mm {
-			return 3
-		}
+	if funk.ContainsString([]string{"tr", "trUtf8", "data_ptr", "d_func"}, cname) {
+		return 3
 	}
 
 	if strings.HasPrefix(cname, "operator") {
 		return 4
 	}
 
-	for _, mm := range []string{"rend", "append", "insert", "rbegin", "prepend", "crend", "crbegin"} {
-		if cname == mm {
-			return 5
-		}
+	if funk.ContainsString([]string{"rend", "append", "insert", "rbegin", "prepend", "crend", "crbegin"}, cname) {
+		return 5
 	}
 
-	for _, mm := range []string{"rawHeaderPairs"} { // TODO return template container
-		if cname == mm {
-			return 55
-		}
+	// TODO return template container
+	if funk.ContainsString([]string{"rawHeaderPairs", "rawHeaders"}, cname) {
+		return 55
 	}
 
 	if cursor.IsVariadic() {
@@ -195,6 +192,31 @@ func (this *GenFilterBase) skipMethodImpl(cursor, parent clang.Cursor) int {
 	}
 
 	return 0
+}
+
+func (this *GenFilterBase) skipFunc(cursor clang.Cursor) bool {
+	if cursor.IsVariadic() {
+		return true
+	}
+	if strings.Contains(cursor.Spelling(), "printf") {
+		return true
+	}
+	if strings.Contains(cursor.DisplayName(), "QDebug") {
+		return true
+	}
+	if strings.Contains(cursor.Spelling(), "qt_builtin_") {
+		return true
+	}
+	if strings.Contains(cursor.Spelling(), "qustrlen") {
+		return true
+	}
+	if strings.Contains(cursor.Spelling(), "_destructor") {
+		return true
+	}
+	if this.skipReturn(cursor.ResultType(), cursor) {
+		return true
+	}
+	return false
 }
 
 func (this *GenFilterBase) skipArg(cursor, parent clang.Cursor) bool {
@@ -271,7 +293,7 @@ func (this *GenFilterBase) skipArgImpl(cursor, parent clang.Cursor) int {
 func (this *GenFilterBase) skipReturn(ty clang.Type, cursor clang.Cursor) bool {
 	skip := this.skipReturnImpl(ty, cursor)
 	if skip > 0 {
-		// log.Println(skip)
+		log.Println(skip, ty.Spelling(), cursor.DisplayName())
 	}
 	return skip > 0
 }
@@ -306,9 +328,9 @@ func (this *GenFilterBase) skipReturnImpl(ty clang.Type, cursor clang.Cursor) in
 	bareSpell = strings.TrimSpace(bareSpell)
 
 	if strings.HasPrefix(bareSpell, "Q") {
-		if strings.HasSuffix(bareSpell, "List") ||
-			strings.HasSuffix(bareSpell, "Map") ||
-			strings.HasSuffix(bareSpell, "Set") ||
+		if strings.HasSuffix(bareSpell, "Map") ||
+			// strings.HasSuffix(bareSpell, "List") ||
+			// strings.HasSuffix(bareSpell, "Set") ||
 			strings.HasSuffix(bareSpell, "Hash") {
 			return 2
 		}

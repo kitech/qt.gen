@@ -89,13 +89,8 @@ func (this *GenerateGo) saveCode(cursor, parent clang.Cursor) {
 	}
 
 	modname := strings.ToLower(filepath.Base(filepath.Dir(file.Name())))[2:]
+	modname = get_decl_mod(cursor)
 	log.Println(file.Name(), modname, filepath.Dir(file.Name()), filepath.Base(filepath.Dir(file.Name())))
-	if !strings.HasPrefix(filepath.Base(filepath.Dir(file.Name())), "Qt") { // fix cross platform, win/mac
-		modname = filepath.Base(filepath.Dir(file.Name()))
-		gopp.Assert(strings.ToLower(modname) == modname, "")
-	}
-
-	// savefile := fmt.Sprintf("src/%s/%s.go", modname, strings.ToLower(cursor.Spelling()))
 
 	this.saveCodeToFile(modname, strings.ToLower(cursor.Spelling()))
 }
@@ -103,18 +98,25 @@ func (this *GenerateGo) saveCode(cursor, parent clang.Cursor) {
 func (this *GenerateGo) saveCodeToFile(modname, file string) {
 	// qtx{yyy}, only yyy
 	savefile := fmt.Sprintf("src/%s/%s.go", modname, file)
-	log.Println(savefile)
+	log.Println(savefile, gopp.FileExist("src/"+modname))
+	if !gopp.FileExist("src/" + modname) {
+		os.Mkdir("src/"+modname+".miss", 0644)
+	}
 
 	// log.Println(this.cp.AllPoints())
 	bcc := this.cp.ExportAll()
 	if strings.HasPrefix(bcc, "//") {
 		bcc = bcc[strings.Index(bcc, "\n"):]
 	}
-	ioutil.WriteFile(savefile, []byte(bcc), 0644)
+	err := ioutil.WriteFile(savefile, []byte(bcc), 0644)
+	gopp.ErrPrint(err, savefile)
+	if err != nil {
+		// log.Panicln(savefile)
+	}
 
 	// gofmt the code
 	cmd := exec.Command("/usr/bin/gofmt", []string{"-w", savefile}...)
-	err := cmd.Run()
+	err = cmd.Run()
 	gopp.ErrPrint(err, cmd)
 }
 
@@ -141,7 +143,12 @@ func (this *GenerateGo) genHeader(cursor, parent clang.Cursor) {
 	if !strings.HasPrefix(fullModname, "Qt") { // fix cross platform win/mac
 		fullModname = "Qt" + fullModname
 	}
-	this.cp.APf("header", "package %s", strings.ToLower(fullModname[0:]))
+	modName := "qt" + get_decl_mod(cursor)
+	if fullModname == "Qtandroid" {
+		fullModname = "QtAndroidExtras"
+	}
+
+	this.cp.APf("header", "package %s", modName)
 	this.cp.APf("header", "// %s", file.Name())
 	this.cp.APf("header", "// #include <%s>", filepath.Base(file.Name()))
 	this.cp.APf("header", "// #include <%s>", fullModname)
@@ -220,11 +227,7 @@ func (this *GenerateGo) genImports(cursor, parent clang.Cursor) {
 
 	file, _, _, _ := cursor.Location().FileLocation()
 	log.Println(file.Name(), cursor.Spelling(), parent.Spelling())
-	modname := strings.ToLower(filepath.Base(filepath.Dir(file.Name())))[2:]
-	if !strings.HasPrefix(filepath.Base(filepath.Dir(file.Name())), "Qt") { // fix cross platform, win/mac
-		modname = filepath.Base(filepath.Dir(file.Name()))
-		gopp.Assert(strings.ToLower(modname) == modname, "")
-	}
+	modname := get_decl_mod(cursor)
 
 	this.cp.APf("ext", "import \"unsafe\"")
 	this.cp.APf("ext", "import \"reflect\"")
@@ -1054,8 +1057,19 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 	case clang.Type_Typedef:
 		if TypeIsQFlags(rety) {
 			this.cp.APf("body", "    return int(rv)")
+		} else if is_qt_class(rety.CanonicalType()) &&
+			(rety.Spelling() == "QObjectList" || rety.Spelling() == "QModelIndexList" ||
+				rety.Spelling() == "QFileInfoList" || rety.Spelling() == "QVariantList" ||
+				rety.Spelling() == "QWindowList" || rety.Spelling() == "QWidgetList") {
+			if strings.HasPrefix(rety.Spelling(), "QWidget") {
+				pkgPrefix = ""
+			}
+			this.cp.APf("body", "    rv2 := %sNew%sFromPointer(unsafe.Pointer(uintptr(rv))) //5551",
+				pkgPrefix, rety.Spelling())
+			this.cp.APf("body", "    return rv2")
 		} else if is_qt_class(rety.CanonicalType()) {
 			this.cp.APf("body", "    rv2 := %sNew%sFromPointer(unsafe.Pointer(uintptr(rv))) //555",
+				// pkgPrefix, rety.Spelling())
 				pkgPrefix, get_bare_type(rety.CanonicalType()).Spelling())
 			this.cp.APf("body", "    return rv2")
 		} else if TypeIsFuncPointer(rety.CanonicalType()) {
@@ -1291,21 +1305,31 @@ func (this *GenerateGo) genFunctions(cursor clang.Cursor, parent clang.Cursor) {
 
 		})
 		for _, fc := range funcs {
+			log.Println(fc.Spelling(), fc.Mangling(), fc.DisplayName(), fc.IsCursorDefinition(), is_qt_global_func(fc))
 			if !is_qt_global_func(fc) {
+				log.Println("skip global function ", fc.Spelling())
 				continue
 			}
 
-			log.Println(fc.Spelling(), fc.Mangling(), fc.DisplayName(), fc.IsCursorDefinition())
 			if strings.ContainsAny(fc.DisplayName(), "<>") {
+				log.Println("skip global function ", fc.Spelling())
 				continue
 			}
 			if strings.Contains(fc.DisplayName(), "Rgba64") {
+				log.Println("skip global function ", fc.Spelling())
 				continue
 			}
 			if strings.Contains(fc.ResultType().Spelling(), "Rgba64") {
+				log.Println("skip global function ", fc.Spelling())
 				continue
 			}
 			if hasSkipKey(fc) {
+				log.Println("skip global function ", fc.Spelling())
+				continue
+			}
+
+			if this.filter.skipFunc(fc) {
+				log.Println("skip global function ", fc.Spelling())
 				continue
 			}
 
@@ -1315,6 +1339,7 @@ func (this *GenerateGo) genFunctions(cursor clang.Cursor, parent clang.Cursor) {
 				this.funcMangles[fc.Spelling()] = 0
 			}
 			olidx := this.funcMangles[fc.Spelling()]
+			log.Println("wtf ", qtmod, fc.Spelling())
 			this.genFunction(fc, olidx)
 		}
 

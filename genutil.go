@@ -28,10 +28,11 @@ func get_decl_mod(cursor clang.Cursor) string {
 	if !strings.HasPrefix(filepath.Base(filepath.Dir(file.Name())), "Qt") {
 		dmod = filepath.Base(filepath.Dir(file.Name()))
 	}
+	log.Println(cursor.Spelling(), dmod, file.Name())
 	if dmod == "android" || dmod == "jni" {
 		dmod = "androidextras"
 	}
-	log.Println(dmod, file.Name())
+	log.Println(cursor.Spelling(), dmod, file.Name())
 	if _, found := modDeps[dmod]; !found {
 		if false {
 			log.Printf("unknown module: %s, %s %s, %s\n",
@@ -221,7 +222,9 @@ func is_projected_dtor_class(cursor clang.Cursor) bool {
 }
 
 func is_qt_global_func(cursor clang.Cursor) bool {
+	// qputenv,qsrand,qCompress
 	reg := regexp.MustCompile(`q[A-Z].+`) // 需要生成的全局函数名正则规范
+	reg = regexp.MustCompile(`q.+`)       // 需要生成的全局函数名正则规范
 	return reg.MatchString(cursor.Spelling())
 }
 

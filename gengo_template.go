@@ -8,28 +8,23 @@ import (
 	"github.com/go-clang/v3.9/clang"
 )
 
-func (this *GenerateGo) genTemplateSpecializedClasses() {
+func (this *GenerateGo) genPlainTmplInstClses() {
+}
+
+func (this *GenerateGo) genTydefTmplInstClses() {
 	log.Println("ddddddddd")
 	reg := regexp.MustCompile(`^(Q[A-Z].*)([LSHM][ListSetHashMap]+)$`)
-	for _, clsinst := range this.tmplclsspecs {
+	for _, clsinst := range this.tydeftmplinstclses {
 		mats := reg.FindAllStringSubmatch(clsinst.Spelling(), -1)
 		// log.Println(clsinst.Spelling(), mats)
 		if len(mats) == 0 {
 			continue
 		}
-		var specls clang.Cursor
-		// 查找物化类定义的模块
-		clsinst.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
-			log.Println(cursor.Kind().String(), cursor.Spelling(), parent.Kind().String(), parent.Spelling())
-			switch cursor.Kind() {
-			case clang.Cursor_TypeRef:
-				specls = cursor.Type().Declaration()
-				mod := get_decl_mod(specls)
-				log.Println(mod, specls.Spelling(), clsinst.Spelling())
-				return clang.ChildVisit_Break
-			}
-			return clang.ChildVisit_Continue
-		})
+		var undty = clsinst.TypedefDeclUnderlyingType()
+		var undcs = undty.TemplateArgumentAsType(0).Declaration()
+		if undty.TemplateArgumentAsType(0).Kind() == clang.Type_Pointer {
+			undcs = undty.TemplateArgumentAsType(0).PointeeType().Declaration()
+		}
 		tmplArgClsName := mats[0][1]
 		tmplClsName := "Q" + mats[0][2]
 		for _, tmplcls := range this.tmplclses {
@@ -46,10 +41,10 @@ func (this *GenerateGo) genTemplateSpecializedClasses() {
 				}
 
 				this.cp = NewCodePager()
-				this.genHeader(specls, specls.SemanticParent())
-				this.genImports(specls, specls.SemanticParent())
+				this.genHeader(undcs, undcs.SemanticParent())
+				this.genImports(undcs, undcs.SemanticParent())
 				this.genTemplateInstant(tmplcls, clsinst)
-				mod = get_decl_mod(specls)
+				mod = get_decl_mod(undcs)
 				log.Println(mod)
 				this.saveCodeToFile(mod, strings.ToLower(clsinst.Spelling()))
 				// os.Exit(0)
@@ -58,7 +53,7 @@ func (this *GenerateGo) genTemplateSpecializedClasses() {
 	}
 }
 
-var mthidxs = map[string]int{}
+var mthidxs_go = map[string]int{}
 
 func (this *GenerateGo) genTemplateInstant(tmplClsCursor, argClsCursor clang.Cursor) {
 	// tmplArgClsName := argClsCursor.Spelling()
@@ -68,7 +63,7 @@ func (this *GenerateGo) genTemplateInstant(tmplClsCursor, argClsCursor clang.Cur
 	this.cp.APf("body", "    *qtrt.CObject")
 	this.cp.APf("body", "}")
 
-	mthidxs = map[string]int{}
+	mthidxs_go = map[string]int{}
 	tmplClsCursor.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		switch cursor.Kind() {
 		case clang.Cursor_Constructor:
@@ -87,11 +82,11 @@ func (this *GenerateGo) genTemplateMethod(cursor, parent clang.Cursor, argClsCur
 	elemClsName := clsName[:strings.LastIndexAny(clsName, "LHSM")]
 	baseMthName := clsName + cursor.Spelling()
 	midx := 0
-	if midx_, ok := mthidxs[baseMthName]; ok {
-		mthidxs[baseMthName] = midx_ + 1
+	if midx_, ok := mthidxs_go[baseMthName]; ok {
+		mthidxs_go[baseMthName] = midx_ + 1
 		midx = midx_ + 1
 	} else {
-		mthidxs[baseMthName] = 0
+		mthidxs_go[baseMthName] = 0
 	}
 
 	rety := cursor.ResultType()
@@ -127,6 +122,8 @@ func (this *GenerateGo) genTemplateMethod(cursor, parent clang.Cursor, argClsCur
 	this.cp.APf("body", "func (this *%s) %s_%d() %s {",
 		clsName, strings.Title(validMethodName), midx, retytxt)
 	this.cp.APf("body", "    // %s_%s_%d()", clsName, validMethodName, midx)
+	this.cp.APf("body", "    rv, err := qtrt.InvokeQtFunc6(\"%s_%s_%d\", qtrt.FFI_TYPE_POINTER, this.Cthis)", clsName, validMethodName, midx)
+	this.cp.APf("body", "    gopp.ErrPrint(err, rv)")
 
 	switch rety.Kind() {
 	case clang.Type_Int:
@@ -147,18 +144,18 @@ func (this *GenerateGo) genTemplateMethod(cursor, parent clang.Cursor, argClsCur
 
 }
 
-var tmplclsifgened = map[string]int{}
+var tmplclsifgened_go = map[string]int{}
 
 func (this *GenerateGo) genTemplateInterface(tmplClsCursor, argClsCursor clang.Cursor) {
-	if _, ok := tmplclsifgened[tmplClsCursor.Spelling()]; ok {
+	if _, ok := tmplclsifgened_go[tmplClsCursor.Spelling()]; ok {
 		// return
 	}
-	tmplclsifgened[tmplClsCursor.Spelling()] = 1
+	tmplclsifgened_go[tmplClsCursor.Spelling()] = 1
 
 	log.Printf("%s_IF\n", tmplClsCursor.Spelling())
 	this.cp.APf("body", "type %s_IF interface {", tmplClsCursor.Spelling())
 
-	mthidxs = map[string]int{}
+	mthidxs_go = map[string]int{}
 	tmplClsCursor.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		switch cursor.Kind() {
 		case clang.Cursor_Constructor:
@@ -172,6 +169,7 @@ func (this *GenerateGo) genTemplateInterface(tmplClsCursor, argClsCursor clang.C
 	})
 
 	this.cp.APf("body", "}")
+	this.cp.APf("body", "")
 }
 
 func (this *GenerateGo) genTemplateInterfaceSignature(cursor, parent clang.Cursor, argClsCursor clang.Cursor) {
@@ -179,11 +177,11 @@ func (this *GenerateGo) genTemplateInterfaceSignature(cursor, parent clang.Curso
 	elemClsName := clsName[:strings.LastIndexAny(clsName, "LHSM")]
 	baseMthName := parent.Spelling() + cursor.Spelling() + "_IF"
 	midx := 0
-	if midx_, ok := mthidxs[baseMthName]; ok {
-		mthidxs[baseMthName] = midx_ + 1
+	if midx_, ok := mthidxs_go[baseMthName]; ok {
+		mthidxs_go[baseMthName] = midx_ + 1
 		midx = midx_ + 1
 	} else {
-		mthidxs[baseMthName] = 0
+		mthidxs_go[baseMthName] = 0
 	}
 
 	rety := cursor.ResultType()

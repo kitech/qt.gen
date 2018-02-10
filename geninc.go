@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"log"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -236,7 +235,8 @@ func (this *GenerateInline) genProxyClass(cursor, parent clang.Cursor) {
 		for i := int32(0); i < mcs.NumArguments(); i++ {
 			arg := mcs.Argument(uint32(i))
 			argty := arg.Type()
-			prmname := gopp.IfElseStr(arg.Spelling() == "", fmt.Sprintf("arg%d", i), arg.Spelling())
+			// prmname := gopp.IfElseStr(arg.Spelling() == "", fmt.Sprintf("arg%d", i), arg.Spelling())
+			prmname := this.genParamRefName(arg, mcs, int(i))
 			switch argty.Kind() {
 			case clang.Type_Record:
 				prms = append(prms, "(uint64_t)&"+prmname)
@@ -274,8 +274,11 @@ func (this *GenerateInline) genProxyClass(cursor, parent clang.Cursor) {
 		case clang.Type_Elaborated, clang.Type_Enum:
 			this.cp.APf("main", "    return (%s)(int)(irv);", rety.Spelling())
 		case clang.Type_Typedef:
+			log.Println(rety.Spelling(), rety.CanonicalType().Kind(), rety.CanonicalType().Spelling(), rety.ClassType().Kind(), rety.ClassType().Spelling())
 			if TypeIsQFlags(rety) {
 				this.cp.APf("main", "    return (%s)(int)(irv);", rety.Spelling())
+			} else if rety.CanonicalType().Kind() == clang.Type_Record {
+				this.cp.APf("main", "    return *(%s*)(irv);", rety.Spelling())
 			} else {
 				this.cp.APf("main", "    return (%s)(irv);", rety.Spelling())
 			}
@@ -292,6 +295,7 @@ func (this *GenerateInline) genProxyClass(cursor, parent clang.Cursor) {
 		}
 		this.cp.APf("main", "  }")
 		this.cp.APf("main", "  }")
+		this.cp.APf("main", "")
 	}
 
 	this.cp.APf("main", "};")
@@ -454,6 +458,9 @@ func (this *GenerateInline) genNonStaticMethod(cursor, parent clang.Cursor) {
 			retstr = "void*"
 		} else if rety.Kind() == clang.Type_LValueReference && !TypeIsConsted(rety) {
 			retstr = "void*"
+		} else if rety.Kind() == clang.Type_Typedef &&
+			rety.CanonicalType().Kind() == clang.Type_Record {
+			retstr = fmt.Sprintf("%s*", rety.Spelling())
 		}
 	}
 
@@ -477,6 +484,10 @@ func (this *GenerateInline) genNonStaticMethod(cursor, parent clang.Cursor) {
 				this.cp.APf("main", "return new %s(rv);", unconstystr)
 			} else if rety.Kind() == clang.Type_LValueReference && !TypeIsConsted(rety) {
 				this.cp.APf("main", "return &rv;")
+			} else if rety.Kind() == clang.Type_Typedef &&
+				rety.CanonicalType().Kind() == clang.Type_Record {
+				// QModelIndexList
+				this.cp.APf("main", "return new %s(rv);", rety.Spelling())
 			} else {
 				this.cp.APf("main", "/*return rv;*/")
 			}
@@ -562,56 +573,38 @@ func (this *GenerateInline) genArgsPxy(cursor, parent clang.Cursor) {
 func (this *GenerateInline) genArgPxy(cursor, parent clang.Cursor, idx int) {
 	// log.Println(cursor.DisplayName(), cursor.Type().Spelling(), cursor.Type().Kind() == clang.Type_LValueReference, this.mangler.convTo(parent))
 	csty := cursor.Type()
-	csname := cursor.Spelling()
-	if len(cursor.Spelling()) == 0 {
-		csname = fmt.Sprintf("arg%d", idx)
-		_ = csname
+	argName := this.genParamRefName(cursor, parent, idx)
+	if csty.Kind() == clang.Type_LValueReference {
+		// 转成指针
 	}
-	// TODO 这个条件去掉，走相同的分支。一个名字不需要分支处理
-	if len(cursor.Spelling()) == 0 {
-		log.Println(cursor.Type().Kind(), cursor.Type().Spelling(), parent.SemanticParent().Spelling(), parent.DisplayName())
-		if csty.Kind() == clang.Type_Record {
-			this.argDesc = append(this.argDesc, fmt.Sprintf("%s* arg%d", cursor.Type().Spelling(), idx))
-			this.argtyDesc = append(this.argtyDesc, cursor.Type().Spelling())
-		} else {
-			this.argDesc = append(this.argDesc, fmt.Sprintf("%s arg%d", cursor.Type().Spelling(), idx))
-			this.argtyDesc = append(this.argtyDesc, cursor.Type().Spelling())
-		}
+	if strings.Contains(csty.CanonicalType().Spelling(), "QFlags<") {
+		this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s",
+			csty.CanonicalType().Spelling(), argName))
+		this.argtyDesc = append(this.argtyDesc, csty.CanonicalType().Spelling())
 	} else {
-		if cursor.Type().Kind() == clang.Type_LValueReference {
-			// 转成指针
-		}
-		if strings.Contains(cursor.Type().CanonicalType().Spelling(), "QFlags<") {
-			this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s",
-				cursor.Type().CanonicalType().Spelling(), cursor.Spelling()))
-			this.argtyDesc = append(this.argtyDesc, cursor.Type().CanonicalType().Spelling())
+		log.Println(cursor.Type().Kind(), csty.Spelling(), parent.SemanticParent().Spelling(), parent.DisplayName())
+		if TypeIsFuncPointer(csty) {
+			this.argDesc = append(this.argDesc,
+				strings.Replace(csty.Spelling(), "(*)", fmt.Sprintf("(*%s)", argName), 1))
+			this.argtyDesc = append(this.argtyDesc, cursor.Type().Spelling())
+		} else if TypeIsCharPtrPtr(cursor.Type()) {
+			this.argDesc = append(this.argDesc, fmt.Sprintf("char** %s", argName))
+			this.argtyDesc = append(this.argtyDesc, "char**")
+		} else if (csty.Kind() == clang.Type_IncompleteArray ||
+			csty.Kind() == clang.Type_ConstantArray) &&
+			csty.ElementType().Kind() == clang.Type_Pointer {
+			this.argDesc = append(this.argDesc, fmt.Sprintf("void** %s", argName))
+			this.argtyDesc = append(this.argtyDesc, "void**")
+		} else if csty.Kind() == clang.Type_IncompleteArray ||
+			csty.Kind() == clang.Type_ConstantArray {
+			this.argDesc = append(this.argDesc, fmt.Sprintf("void* %s", argName))
+			this.argtyDesc = append(this.argtyDesc, "void*")
+			// idx := strings.Index(cursor.Type().Spelling(), " [")
+			// this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s %s",
+			//	cursor.Type().Spelling()[0:idx], cursor.Spelling(), cursor.Type().Spelling()[idx+1:]))
 		} else {
-			log.Println(cursor.Type().Kind(), cursor.Type().Spelling(), parent.SemanticParent().Spelling(), parent.DisplayName())
-			if TypeIsFuncPointer(cursor.Type()) {
-				this.argDesc = append(this.argDesc,
-					strings.Replace(cursor.Type().Spelling(), "(*)",
-						fmt.Sprintf("(*%s)", cursor.Spelling()), 1))
-				this.argtyDesc = append(this.argtyDesc, cursor.Type().Spelling())
-			} else if TypeIsCharPtrPtr(cursor.Type()) {
-				this.argDesc = append(this.argDesc, fmt.Sprintf("char** %s", cursor.Spelling()))
-				this.argtyDesc = append(this.argtyDesc, "char**")
-			} else if (cursor.Type().Kind() == clang.Type_IncompleteArray ||
-				cursor.Type().Kind() == clang.Type_ConstantArray) &&
-				cursor.Type().ElementType().Kind() == clang.Type_Pointer {
-				this.argDesc = append(this.argDesc, fmt.Sprintf("void** %s", cursor.Spelling()))
-				this.argtyDesc = append(this.argtyDesc, "void**")
-			} else if cursor.Type().Kind() == clang.Type_IncompleteArray ||
-				cursor.Type().Kind() == clang.Type_ConstantArray {
-				this.argDesc = append(this.argDesc, fmt.Sprintf("void* %s", cursor.Spelling()))
-				this.argtyDesc = append(this.argtyDesc, "void*")
-				// idx := strings.Index(cursor.Type().Spelling(), " [")
-				// this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s %s",
-				//	cursor.Type().Spelling()[0:idx], cursor.Spelling(), cursor.Type().Spelling()[idx+1:]))
-			} else {
-				this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s",
-					cursor.Type().Spelling(), cursor.Spelling()))
-				this.argtyDesc = append(this.argtyDesc, cursor.Type().Spelling())
-			}
+			this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s", csty.Spelling(), argName))
+			this.argtyDesc = append(this.argtyDesc, csty.Spelling())
 		}
 	}
 }
@@ -629,68 +622,48 @@ func (this *GenerateInline) genArgs(cursor, parent clang.Cursor) {
 func (this *GenerateInline) genArg(cursor, parent clang.Cursor, idx int) {
 	// log.Println(cursor.DisplayName(), cursor.Type().Spelling(), cursor.Type().Kind() == clang.Type_LValueReference, this.mangler.convTo(parent))
 	csty := cursor.Type()
-	csname := cursor.Spelling()
-	if len(cursor.Spelling()) == 0 {
-		csname = fmt.Sprintf("arg%d", idx)
-		_ = csname
+	argName := this.genParamRefName(cursor, parent, idx)
+	if cursor.Type().Kind() == clang.Type_LValueReference {
+		// 转成指针
 	}
-	// TODO 这个条件去掉，走相同的分支
-	if len(cursor.Spelling()) == 0 {
+	if strings.Contains(cursor.Type().CanonicalType().Spelling(), "QFlags<") {
+		this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s",
+			cursor.Type().CanonicalType().Spelling(), argName))
+		this.argtyDesc = append(this.argtyDesc, cursor.Type().CanonicalType().Spelling())
+	} else {
 		log.Println(cursor.Type().Kind(), cursor.Type().Spelling(), parent.SemanticParent().Spelling(), parent.DisplayName())
 		if csty.Kind() == clang.Type_Record {
-			this.argDesc = append(this.argDesc, fmt.Sprintf("%s* arg%d", cursor.Type().Spelling(), idx))
+			this.argDesc = append(this.argDesc, fmt.Sprintf("%s* %s", cursor.Type().Spelling(), argName))
 			this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("%s*", cursor.Type().Spelling()))
 		} else if csty.Kind() == clang.Type_LValueReference &&
 			csty.PointeeType().Kind() == clang.Type_Record {
-			this.argDesc = append(this.argDesc, fmt.Sprintf("%s* arg%d", csty.PointeeType().Declaration().Spelling(), idx))
+			this.argDesc = append(this.argDesc, fmt.Sprintf("%s* %s", csty.PointeeType().Declaration().Spelling(), argName))
 			this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("%s*", csty.PointeeType().Declaration().Spelling()))
+		} else if TypeIsFuncPointer(cursor.Type()) {
+			this.argDesc = append(this.argDesc,
+				strings.Replace(cursor.Type().Spelling(), "(*)",
+					fmt.Sprintf("(*%s)", argName), 1))
+			this.argtyDesc = append(this.argtyDesc, cursor.Type().Spelling())
+		} else if TypeIsCharPtrPtr(cursor.Type()) {
+			this.argDesc = append(this.argDesc, fmt.Sprintf("char** %s", argName))
+			this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("char**"))
+		} else if (cursor.Type().Kind() == clang.Type_IncompleteArray ||
+			cursor.Type().Kind() == clang.Type_ConstantArray) &&
+			cursor.Type().ElementType().Kind() == clang.Type_Pointer {
+			this.argDesc = append(this.argDesc, fmt.Sprintf("void** %s", argName))
+			this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("void**"))
+		} else if cursor.Type().Kind() == clang.Type_IncompleteArray ||
+			cursor.Type().Kind() == clang.Type_ConstantArray {
+			this.argDesc = append(this.argDesc, fmt.Sprintf("void* %s", argName))
+			this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("void*"))
+			// idx := strings.Index(cursor.Type().Spelling(), " [")
+			// this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s %s",
+			//	cursor.Type().Spelling()[0:idx], cursor.Spelling(), cursor.Type().Spelling()[idx+1:]))
 		} else {
-			this.argDesc = append(this.argDesc, fmt.Sprintf("%s arg%d", cursor.Type().Spelling(), idx))
-			this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("%s", cursor.Type().Spelling()))
-		}
-	} else {
-		if cursor.Type().Kind() == clang.Type_LValueReference {
-			// 转成指针
-		}
-		if strings.Contains(cursor.Type().CanonicalType().Spelling(), "QFlags<") {
 			this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s",
-				cursor.Type().CanonicalType().Spelling(), cursor.Spelling()))
-			this.argtyDesc = append(this.argtyDesc, cursor.Type().CanonicalType().Spelling())
-		} else {
-			log.Println(cursor.Type().Kind(), cursor.Type().Spelling(), parent.SemanticParent().Spelling(), parent.DisplayName())
-			if csty.Kind() == clang.Type_Record {
-				this.argDesc = append(this.argDesc, fmt.Sprintf("%s* %s", cursor.Type().Spelling(), cursor.Spelling()))
-				this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("%s*", cursor.Type().Spelling()))
-			} else if csty.Kind() == clang.Type_LValueReference &&
-				csty.PointeeType().Kind() == clang.Type_Record {
-				this.argDesc = append(this.argDesc, fmt.Sprintf("%s* %s", csty.PointeeType().Declaration().Spelling(), cursor.Spelling()))
-				this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("%s*", csty.PointeeType().Declaration().Spelling()))
-			} else if TypeIsFuncPointer(cursor.Type()) {
-				this.argDesc = append(this.argDesc,
-					strings.Replace(cursor.Type().Spelling(), "(*)",
-						fmt.Sprintf("(*%s)", cursor.Spelling()), 1))
-				this.argtyDesc = append(this.argtyDesc, cursor.Type().Spelling())
-			} else if TypeIsCharPtrPtr(cursor.Type()) {
-				this.argDesc = append(this.argDesc, fmt.Sprintf("char** %s", cursor.Spelling()))
-				this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("char**"))
-			} else if (cursor.Type().Kind() == clang.Type_IncompleteArray ||
-				cursor.Type().Kind() == clang.Type_ConstantArray) &&
-				cursor.Type().ElementType().Kind() == clang.Type_Pointer {
-				this.argDesc = append(this.argDesc, fmt.Sprintf("void** %s", cursor.Spelling()))
-				this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("void**"))
-			} else if cursor.Type().Kind() == clang.Type_IncompleteArray ||
-				cursor.Type().Kind() == clang.Type_ConstantArray {
-				this.argDesc = append(this.argDesc, fmt.Sprintf("void* %s", cursor.Spelling()))
-				this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("void*"))
-				// idx := strings.Index(cursor.Type().Spelling(), " [")
-				// this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s %s",
-				//	cursor.Type().Spelling()[0:idx], cursor.Spelling(), cursor.Type().Spelling()[idx+1:]))
-			} else {
-				this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s",
-					cursor.Type().Spelling(), cursor.Spelling()))
-				this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("%s",
-					cursor.Type().Spelling()))
-			}
+				cursor.Type().Spelling(), argName))
+			this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("%s",
+				cursor.Type().Spelling()))
 		}
 	}
 }
@@ -713,11 +686,8 @@ func (this *GenerateInline) genParamPxy(cursor, parent clang.Cursor, idx int) {
 	} else if TypeIsCharPtrPtr(csty) {
 		// forceConvStr = "(char**)"
 	}
-	if len(cursor.Spelling()) == 0 {
-		this.paramDesc = append(this.paramDesc, fmt.Sprintf("%sarg%d", forceConvStr, idx))
-	} else {
-		this.paramDesc = append(this.paramDesc, fmt.Sprintf("%s%s", forceConvStr, cursor.Spelling()))
-	}
+	argName := this.genParamRefName(cursor, parent, idx)
+	this.paramDesc = append(this.paramDesc, fmt.Sprintf("%s%s", forceConvStr, argName))
 }
 
 func (this *GenerateInline) genParamsPxyCall(cursor, parent clang.Cursor) {
@@ -741,11 +711,9 @@ func (this *GenerateInline) genParamPxyCall(cursor, parent clang.Cursor, idx int
 	} else if TypeIsCharPtrPtr(csty) {
 		// forceConvStr = "(char**)"
 	}
-	if len(cursor.Spelling()) == 0 {
-		this.paramDesc = append(this.paramDesc, fmt.Sprintf("%sarg%d", forceConvStr, idx))
-	} else {
-		this.paramDesc = append(this.paramDesc, fmt.Sprintf("%s%s", forceConvStr, cursor.Spelling()))
-	}
+
+	argName := this.genParamRefName(cursor, parent, idx)
+	this.paramDesc = append(this.paramDesc, fmt.Sprintf("%s%s", forceConvStr, argName))
 }
 
 func (this *GenerateInline) genParams(cursor, parent clang.Cursor) {
@@ -769,11 +737,9 @@ func (this *GenerateInline) genParam(cursor, parent clang.Cursor, idx int) {
 	} else if TypeIsCharPtrPtr(csty) {
 		// forceConvStr = "(char**)"
 	}
-	if len(cursor.Spelling()) == 0 {
-		this.paramDesc = append(this.paramDesc, fmt.Sprintf("%sarg%d", forceConvStr, idx))
-	} else {
-		this.paramDesc = append(this.paramDesc, fmt.Sprintf("%s%s", forceConvStr, cursor.Spelling()))
-	}
+
+	argName := this.genParamRefName(cursor, parent, idx)
+	this.paramDesc = append(this.paramDesc, fmt.Sprintf("%s%s", forceConvStr, argName))
 }
 
 func (this *GenerateInline) genRet(cursor, parent clang.Cursor, idx int) {
@@ -806,7 +772,6 @@ func (this *GenerateInline) genFunctions(cursor, parent clang.Cursor) {
 		return false
 	}
 
-	reg := regexp.MustCompile(`q[A-Z].+`)
 	grfuncs := this.groupFunctionsByModule()
 	qtmods := []string{}
 	for qtmod, _ := range grfuncs {
@@ -830,20 +795,30 @@ func (this *GenerateInline) genFunctions(cursor, parent clang.Cursor) {
 		})
 		for _, fc := range funcs {
 			log.Println(fc.Spelling(), fc.Mangling(), fc.DisplayName(), fc.IsCursorDefinition())
-			if !reg.MatchString(fc.Spelling()) {
+			if !is_qt_global_func(fc) {
+				log.Println("skip global function ", fc.Spelling())
 				continue
 			}
 
 			if strings.ContainsAny(fc.DisplayName(), "<>") {
+				log.Println("skip global function ", fc.Spelling())
 				continue
 			}
 			if strings.Contains(fc.DisplayName(), "Rgba64") {
+				log.Println("skip global function ", fc.Spelling())
 				continue
 			}
 			if strings.Contains(fc.ResultType().Spelling(), "Rgba64") {
+				log.Println("skip global function ", fc.Spelling())
 				continue
 			}
 			if hasSkipKey(fc) {
+				log.Println("skip global function ", fc.Spelling())
+				continue
+			}
+
+			if this.filter.skipFunc(fc) {
+				log.Println("skip global function ", fc.Spelling())
 				continue
 			}
 
@@ -915,8 +890,4 @@ func (this *GenerateInline) genFunction(cursor clang.Cursor, olidx int) {
 	}
 	this.cp.APf("main", "}")
 	this.cp.APf("main", "")
-}
-
-func (this *GenerateInline) genTemplateSpecializedClasses() {
-
 }

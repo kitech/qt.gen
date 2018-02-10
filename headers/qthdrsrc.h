@@ -76,7 +76,9 @@
 #include <QtUiTools>
 #endif
 
-
+QList<QObject*> __try_instant_tmpl_class_QObjectList;
+QWindowList  __try_instant_tmpl_class_QWindowList;
+QList<QWindow*> __try_instant_tmpl_class_QWindowList2;
 
 // template class QFlags<int>;
 // #include <explicit_instantiate_templates.h>

@@ -341,8 +341,19 @@ func (this *TypeConvertGo) toDest(ty clang.Type, cursor clang.Cursor) string {
 			return "int"
 		} else if strings.HasPrefix(ty.CanonicalType().Spelling(), "Q") &&
 			strings.ContainsAny(ty.CanonicalType().Spelling(), "<>") {
-			log.Println(ty.Spelling(), ty.CanonicalType().Spelling())
-			return "*" + ty.Spelling()
+			tmplArgTy := ty.TemplateArgumentAsType(0)
+			if tmplArgTy.Kind() == clang.Type_Pointer {
+				tmplArgTy = tmplArgTy.PointeeType()
+			}
+			log.Println(ty.Spelling(), ty.CanonicalType().Spelling(), tmplArgTy.Spelling())
+			refmod := get_decl_mod(tmplArgTy.Declaration())
+			usemod := get_decl_mod(cursor)
+			pkgSuff := ""
+			if refmod != usemod {
+				pkgSuff = fmt.Sprintf("qt%s.", refmod)
+				// log.Println(ty.Spelling(), usemod, refmod)
+			}
+			return "*" + pkgSuff + ty.Spelling() + "/*667*/"
 		}
 		return this.toDest(ty.CanonicalType(), cursor)
 	case clang.Type_Record:
