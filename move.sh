@@ -18,21 +18,22 @@ function help()
 
 function mvgosrc()
 {
-    mkdir -p ~/oss/src/qt.go/{qt5,qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}
-    rm -f ~/oss/src/qt.go/{qt5,qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}/q*.go
+    # ~/oss/qt.go/ must be a soft link of $GOPATH/src/github.com/kitech/qt.go/
+    mkdir -p ~/oss/qt.go/{qt5,qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}
+    rm -f ~/oss/qt.go/{qt5,qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}/q*.go
 
-    # cp -a src/qtrt/*.go qt.go/src/qtrt/
-    cp -a src/core/*.go ~/oss/src/qt.go/qtcore/
-    cp -a src/gui/*.go ~/oss/src/qt.go/qtgui/
-    cp -a src/widgets/*.go ~/oss/src/qt.go/qtwidgets/
-    cp -a src/network/*.go ~/oss/src/qt.go/qtnetwork/
-    cp -a src/qml/*.go ~/oss/src/qt.go/qtqml/
-    cp -a src/quick/*.go ~/oss/src/qt.go/qtquick/
-    cp -a src/quickcontrols2/*.go ~/oss/src/qt.go/qtquickcontrols2/
-    cp -a src/quickwidgets/*.go ~/oss/src/qt.go/qtquickwidgets/
-    cp -a src/androidextras/*.go ~/oss/src/qt.go/qtandroidextras/
-    cp -a src/winextras/*.go ~/oss/src/qt.go/qtwinextras/
-    cp -a src/macextras/*.go ~/oss/src/qt.go/qtmacextras/
+    # cp -a src/qtrt/*.go ~/oss/qt.go/qtrt/
+    cp -a src/core/*.go ~/oss/qt.go/qtcore/
+    cp -a src/gui/*.go ~/oss/qt.go/qtgui/
+    cp -a src/widgets/*.go ~/oss/qt.go/qtwidgets/
+    cp -a src/network/*.go ~/oss/qt.go/qtnetwork/
+    cp -a src/qml/*.go ~/oss/qt.go/qtqml/
+    cp -a src/quick/*.go ~/oss/qt.go/qtquick/
+    cp -a src/quickcontrols2/*.go ~/oss/qt.go/qtquickcontrols2/
+    cp -a src/quickwidgets/*.go ~/oss/qt.go/qtquickwidgets/
+    cp -a src/androidextras/*.go ~/oss/qt.go/qtandroidextras/
+    cp -a src/winextras/*.go ~/oss/qt.go/qtwinextras/
+    cp -a src/macextras/*.go ~/oss/qt.go/qtmacextras/
 }
 
 function mvbymd5()

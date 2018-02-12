@@ -39,18 +39,22 @@ func NewGenerateGo() *GenerateGo {
 
 	this.GenBase.funcMangles = map[string]int{}
 
-	this.cp = NewCodePager()
-	this.cpcs = make(map[string]*CodePager)
-	blocks := []string{"header", "main", "use", "ext", "body"}
-	for _, block := range blocks {
-		this.cp.AddPointer(block)
-		// this.cp.AddPointer(block)
-		// this.cp.APf(block, "// block begin--- %s", block)
-	}
+	this.initBlocks()
 
 	return this
 }
 
+func (this *GenerateGo) initBlocks() {
+	this.cp = NewCodePager()
+
+	this.cpcs = make(map[string]*CodePager)
+	blocks := []string{"header", "main", "use", "ext", "body", "keep"}
+	for _, block := range blocks {
+		this.cp.AddPointer(block)
+		this.cp.APf(block, "") // for keep block order
+		// this.cp.APf(block, "// block begin--- %s", block)
+	}
+}
 func (this *GenerateGo) genClass(cursor, parent clang.Cursor) {
 	if false {
 		log.Println(cursor.Spelling(), cursor.Kind().String(), cursor.DisplayName())
@@ -79,7 +83,7 @@ func (this *GenerateGo) final(cursor, parent clang.Cursor) {
 	// log.Println(this.cp.ExportAll())
 	this.saveCode(cursor, parent)
 
-	this.cp = NewCodePager()
+	this.initBlocks()
 }
 func (this *GenerateGo) saveCode(cursor, parent clang.Cursor) {
 	// qtx{yyy}, only yyy
@@ -232,23 +236,21 @@ func (this *GenerateGo) genImports(cursor, parent clang.Cursor) {
 	this.cp.APf("ext", "import \"unsafe\"")
 	this.cp.APf("ext", "import \"reflect\"")
 	this.cp.APf("ext", "import \"fmt\"")
-	this.cp.APf("ext", "import \"gopp\"")
-	this.cp.APf("ext", "import \"qt.go/qtrt\"")
+	this.cp.APf("ext", "import \"github.com/kitech/qt.go/qtrt\"")
 	for _, dep := range modDeps[modname] {
-		this.cp.APf("ext", "import \"qt.go/qt%s\"", dep)
+		this.cp.APf("ext", "import \"github.com/kitech/qt.go/qt%s\"", dep)
 	}
 
-	this.cp.APf("ext", "")
-	this.cp.APf("ext", "func init() {")
-	this.cp.APf("ext", "  if false {reflect.TypeOf(123)}")
-	this.cp.APf("ext", "  if false {reflect.TypeOf(unsafe.Sizeof(0))}")
-	this.cp.APf("ext", "  if false {fmt.Println(123)}")
-	this.cp.APf("ext", "  if false {qtrt.KeepMe()}")
-	this.cp.APf("ext", "  if false {gopp.KeepMe()}")
+	this.cp.APf("keep", "")
+	this.cp.APf("keep", "func init() {")
+	this.cp.APf("keep", "  if false {reflect.TypeOf(123)}")
+	this.cp.APf("keep", "  if false {reflect.TypeOf(unsafe.Sizeof(0))}")
+	this.cp.APf("keep", "  if false {fmt.Println(123)}")
+	this.cp.APf("keep", "  if false {qtrt.KeepMe()}")
 	for _, dep := range modDeps[modname] {
-		this.cp.APf("ext", "if false {qt%s.KeepMe()}", dep)
+		this.cp.APf("keep", "if false {qt%s.KeepMe()}", dep)
 	}
-	this.cp.APf("ext", "}")
+	this.cp.APf("keep", "}")
 }
 
 func (this *GenerateGo) genClassDef(cursor, parent clang.Cursor) {
@@ -543,7 +545,7 @@ func (this *GenerateGo) genCtor(cursor, parent clang.Cursor, midx int) {
 	this.genArgsConvFFI(cursor, parent, midx)
 	this.cp.APf("body", "    rv, err := qtrt.InvokeQtFunc6(\"%s\", qtrt.FFI_TYPE_POINTER, %s)",
 		this.mangler.origin(cursor), paramStr)
-	this.cp.APf("body", "    gopp.ErrPrint(err, rv)")
+	this.cp.APf("body", "    qtrt.ErrPrint(err, rv)")
 	this.cp.APf("body", "    gothis := New%sFromPointer(unsafe.Pointer(uintptr(rv)))", parent.Spelling())
 	if !has_qobject_base_class(parent) {
 		this.cp.APf("body", "    qtrt.SetFinalizer(gothis, Delete%s)", parent.Spelling())
@@ -641,7 +643,7 @@ func (this *GenerateGo) genDtor(cursor, parent clang.Cursor, midx int) {
 	this.cp.APf("body", "    rv, err := qtrt.InvokeQtFunc6(\"%s\", qtrt.FFI_TYPE_VOID, this.GetCthis())",
 		this.mangler.origin(cursor))
 	this.cp.APf("body", "    qtrt.Cmemset(this.GetCthis(), 9, %d)", parent.Type().SizeOf())
-	this.cp.APf("body", "    gopp.ErrPrint(err, rv)")
+	this.cp.APf("body", "    qtrt.ErrPrint(err, rv)")
 	this.cp.APf("body", "    this.SetCthis(nil)")
 
 	this.genMethodFooterFFI(cursor, parent, midx)
@@ -655,7 +657,7 @@ func (this *GenerateGo) genDtorNoCode(cursor, parent clang.Cursor, midx int) {
 	this.cp.APf("body", "func Delete%s(this *%s) {", cursor.Spelling(), cursor.Spelling())
 	this.cp.APf("body", "    rv, err := qtrt.InvokeQtFunc6(\"_ZN%d%sD2Ev\", qtrt.FFI_TYPE_VOID, this.GetCthis())",
 		len(cursor.Spelling()), cursor.Spelling())
-	this.cp.APf("body", "    gopp.ErrPrint(err, rv)")
+	this.cp.APf("body", "    qtrt.ErrPrint(err, rv)")
 	this.cp.APf("body", "    this.SetCthis(nil)")
 
 	this.genMethodFooterFFI(cursor, parent, midx)
@@ -696,7 +698,7 @@ func (this *GenerateGo) genNonStaticMethod(cursor, parent clang.Cursor, midx int
 		this.cp.APf("body", "    rv, err := qtrt.InvokeQtFunc6(\"%s\", %s %s, this.GetCthis(), %s)",
 			this.mangler.origin(cursor), ffirety, mvexpr, paramStr)
 	}
-	this.cp.APf("body", "    gopp.ErrPrint(err, rv)")
+	this.cp.APf("body", "    qtrt.ErrPrint(err, rv)")
 	if retype.Kind() == clang.Type_Record {
 		// this.cp.APf("body", "   rv = uint64(uintptr(mv))")
 	}
@@ -717,7 +719,7 @@ func (this *GenerateGo) genStaticMethod(cursor, parent clang.Cursor, midx int) {
 
 	this.cp.APf("body", "    rv, err := qtrt.InvokeQtFunc6(\"%s\", qtrt.FFI_TYPE_POINTER, %s)",
 		this.mangler.origin(cursor), paramStr)
-	this.cp.APf("body", "    gopp.ErrPrint(err, rv)")
+	this.cp.APf("body", "    qtrt.ErrPrint(err, rv)")
 
 	this.genRetFFI(cursor, parent, midx)
 	this.genMethodFooterFFI(cursor, parent, midx)
@@ -810,7 +812,7 @@ func (this *GenerateGo) genProtectedCallback(cursor, parent clang.Cursor, midx i
 	cp.APf("body", "func callback%s(cthis unsafe.Pointer %s) {", cursor.Mangling(), argStr)
 	cp.APf("body", "  // log.Println(cthis, \"%s.%s\")", parent.Spelling(), cursor.Spelling())
 	cp.APf("body", "  rvx := qtrt.CallbackAllInherits(cthis, \"%s\" %s)", cursor.Spelling(), prmStr)
-	cp.APf("body", "  gopp.ErrPrint(nil, rvx)")
+	cp.APf("body", "  qtrt.ErrPrint(nil, rvx)")
 	cp.APf("body", "}")
 	cp.APf("body", "func init(){ qtrt.SetInheritCallback2c(\"%s\", C.callback%s /*nil*/) }", cursor.Mangling(), cursor.Mangling())
 	cp.APf("body", "")
@@ -1284,16 +1286,14 @@ func (this *GenerateGo) genFunctions(cursor clang.Cursor, parent clang.Cursor) {
 		// write code
 		this.cp.APf("header", "package qt%s", qtmod)
 		this.cp.APf("header", "import \"unsafe\"")
-		this.cp.APf("header", "import \"gopp\"")
-		this.cp.APf("header", "import \"qt.go/qtrt\"")
+		this.cp.APf("header", "import \"github.com/kitech/qt.go/qtrt\"")
 		for _, mod := range modDeps[qtmod] {
-			this.cp.APf("header", "import \"qt.go/qt%s\"", mod)
+			this.cp.APf("header", "import \"github.com/kitech/qt.go/qt%s\"", mod)
 		}
 		this.cp.APf("header", "func init(){")
 		this.cp.APf("header", "  if false{_=unsafe.Pointer(uintptr(0))}")
 		this.cp.APf("header", "  if false{qtrt.KeepMe()}")
 		this.cp.APf("header", "  if false{qtrt.KeepMe()}")
-		this.cp.APf("header", "  if false{gopp.KeepMe()}")
 		for _, dep := range modDeps[qtmod] {
 			this.cp.APf("header", "if false {qt%s.KeepMe()}", dep)
 		}
@@ -1358,7 +1358,7 @@ func (this *GenerateGo) genFunction(cursor clang.Cursor, olidx int) {
 	this.genArgsConvFFI(cursor, cursor.SemanticParent(), olidx)
 	this.cp.APf("body", "  rv, err := qtrt.InvokeQtFunc6(\"%s\", qtrt.FFI_TYPE_POINTER, %s)",
 		cursor.Mangling(), paramStr)
-	this.cp.APf("body", "  gopp.ErrPrint(err, rv)")
+	this.cp.APf("body", "  qtrt.ErrPrint(err, rv)")
 
 	this.genRetFFI(cursor, cursor.SemanticParent(), olidx)
 	this.genMethodFooterFFI(cursor, cursor.SemanticParent(), olidx)
