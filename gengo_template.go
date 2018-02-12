@@ -53,8 +53,6 @@ func (this *GenerateGo) genTydefTmplInstClses() {
 	}
 }
 
-var mthidxs_go = map[string]int{}
-
 func (this *GenerateGo) genTemplateInstant(tmplClsCursor, argClsCursor clang.Cursor) {
 	// tmplArgClsName := argClsCursor.Spelling()
 	// tmplClsName := tmplClsCursor.Spelling()
@@ -63,7 +61,7 @@ func (this *GenerateGo) genTemplateInstant(tmplClsCursor, argClsCursor clang.Cur
 	this.cp.APf("body", "    *qtrt.CObject")
 	this.cp.APf("body", "}")
 
-	mthidxs_go = map[string]int{}
+	this.mthidxs = map[string]int{}
 	tmplClsCursor.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		switch cursor.Kind() {
 		case clang.Cursor_Constructor:
@@ -82,11 +80,11 @@ func (this *GenerateGo) genTemplateMethod(cursor, parent clang.Cursor, argClsCur
 	elemClsName := clsName[:strings.LastIndexAny(clsName, "LHSM")]
 	baseMthName := clsName + cursor.Spelling()
 	midx := 0
-	if midx_, ok := mthidxs_go[baseMthName]; ok {
-		mthidxs_go[baseMthName] = midx_ + 1
+	if midx_, ok := this.mthidxs[baseMthName]; ok {
+		this.mthidxs[baseMthName] = midx_ + 1
 		midx = midx_ + 1
 	} else {
-		mthidxs_go[baseMthName] = 0
+		this.mthidxs[baseMthName] = 0
 	}
 
 	rety := cursor.ResultType()
@@ -144,18 +142,16 @@ func (this *GenerateGo) genTemplateMethod(cursor, parent clang.Cursor, argClsCur
 
 }
 
-var tmplclsifgened_go = map[string]int{}
-
 func (this *GenerateGo) genTemplateInterface(tmplClsCursor, argClsCursor clang.Cursor) {
-	if _, ok := tmplclsifgened_go[tmplClsCursor.Spelling()]; ok {
+	if _, ok := tmplclsifgened[tmplClsCursor.Spelling()]; ok {
 		// return
 	}
-	tmplclsifgened_go[tmplClsCursor.Spelling()] = 1
+	tmplclsifgened[tmplClsCursor.Spelling()] = 1
 
 	log.Printf("%s_IF\n", tmplClsCursor.Spelling())
 	this.cp.APf("body", "type %s_IF interface {", tmplClsCursor.Spelling())
 
-	mthidxs_go = map[string]int{}
+	this.mthidxs = map[string]int{}
 	tmplClsCursor.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		switch cursor.Kind() {
 		case clang.Cursor_Constructor:
@@ -177,11 +173,11 @@ func (this *GenerateGo) genTemplateInterfaceSignature(cursor, parent clang.Curso
 	elemClsName := clsName[:strings.LastIndexAny(clsName, "LHSM")]
 	baseMthName := parent.Spelling() + cursor.Spelling() + "_IF"
 	midx := 0
-	if midx_, ok := mthidxs_go[baseMthName]; ok {
-		mthidxs_go[baseMthName] = midx_ + 1
+	if midx_, ok := this.mthidxs[baseMthName]; ok {
+		this.mthidxs[baseMthName] = midx_ + 1
 		midx = midx_ + 1
 	} else {
-		mthidxs_go[baseMthName] = 0
+		this.mthidxs[baseMthName] = 0
 	}
 
 	rety := cursor.ResultType()

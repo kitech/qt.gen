@@ -145,7 +145,9 @@ func (this *GenCtrl) createTU() {
 		tu = cidx.TranslationUnit(ast_file)
 	} else {
 		save_ast = true
-		tu = cidx.ParseTranslationUnit(hdr_file, args, nil, 0)
+		opts := uint32(0)
+		opts |= clang.TranslationUnit_DetailedPreprocessingRecord
+		tu = cidx.ParseTranslationUnit(hdr_file, args, nil, opts)
 	}
 	if !tu.IsValid() {
 		log.Panicln("wtf", "maybe cached qthdrsrc.ast file expired, delete and retry please.")
@@ -215,6 +217,7 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		if funk.ContainsInt([]int{clang.Cursor_ClassDecl, clang.Cursor_StructDecl}, int(undcs.Kind())) &&
 			strings.HasPrefix(cursor.Spelling(), "Q") {
 			this.qttmplgen.putTydefTmplClsInst(cursor)
+			clts.TydefTmplInstClsCount += 1
 		}
 
 		if is_qt_class(cursor.Type()) {
@@ -224,17 +227,6 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 
 			tplc := cursor.Type().Declaration()
 			log.Println(tplc.Spelling(), "============", cursor.CanonicalCursor().Kind(), tplc.NumTemplateArguments())
-			/*
-				tplc.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
-					log.Println(c1.Kind().String(), c1.Spelling(), p1.Spelling(), cursor.Spelling(), c1.NumTemplateArguments())
-					return clang.ChildVisit_Recurse
-					// return clang.ChildVisit_Continue
-				})
-			*/
-
-			if cursor.Spelling() == "QWidgetList" || cursor.Spelling() == "QByteArrayList" {
-				// os.Exit(0)
-			}
 			// cursor.Visit(this.visfn)
 		}
 
@@ -250,16 +242,6 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		this.qttmplgen.putTmplCls(cursor)
 		log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName())
 		log.Println(cursor.IsCursorDefinition(), cursor.NumTemplateArguments())
-		/*
-			cursor.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
-				log.Println(c1.Kind().String(), c1.Spelling(), p1.Spelling(), cursor.Spelling(), ",", cursor.Mangling())
-				// return clang.ChildVisit_Recurse
-				return clang.ChildVisit_Continue
-			})
-		*/
-		if cursor.Spelling() == "QList" {
-			// os.Exit(0)
-		}
 	case clang.Cursor_ClassTemplatePartialSpecialization:
 		log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName())
 	case clang.Cursor_FunctionTemplate:
@@ -290,6 +272,18 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName(), cursor.Type().Spelling())
 	}
 
+	// 查找直接的实例化过的模板类定义
+	if funk.ContainsInt([]int{clang.Cursor_StructDecl, clang.Cursor_ClassDecl}, int(cursor.Kind())) {
+		spcs := cursor.SpecializedCursorTemplate()
+		if spcs.Kind() != clang.Cursor_InvalidFile {
+			fi, lineno, _, _ := spcs.Location().FileLocation()
+			fi2, lineno2, _, _ := cursor.Location().FileLocation()
+			log.Println(spcs.Kind().String(), spcs.Spelling(), fi.Name(), lineno, spcs.DisplayName(), cursor.DisplayName(), cursor.Spelling(), cursor.Kind().String(), fi2.Name(), lineno2, cursor.TemplateArgumentType(0).Spelling(), spcs.TemplateArgumentType(0).Spelling())
+			this.qttmplgen.putPlainTmplClsInst(cursor)
+			clts.PlainTmplInstClsConut += 1
+		}
+	}
+
 	clts.CursorCount += 1
 	return clang.ChildVisit_Continue
 	// return clang.ChildVisit_Recurse
@@ -308,16 +302,8 @@ func (this *GenCtrl) collectClasses() {
 				skipClasses[cursor.Type().Spelling()] = 1
 			}
 		case clang.Cursor_StructDecl:
-		}
-		switch {
-		case funk.ContainsInt([]int{clang.Cursor_StructDecl, clang.Cursor_ClassDecl}, int(cursor.Kind())):
-			spcs := cursor.SpecializedCursorTemplate()
-			if spcs.Kind() != clang.Cursor_InvalidFile {
-				fi, lineno, _, _ := spcs.Location().FileLocation()
-				fi2, lineno2, _, _ := cursor.Location().FileLocation()
-				log.Println(spcs.Kind().String(), spcs.Spelling(), fi.Name(), lineno, spcs.DisplayName(), cursor.DisplayName(), cursor.Spelling(), cursor.Kind().String(), fi2.Name(), lineno2, cursor.TemplateArgumentType(0).Spelling(), spcs.TemplateArgumentType(0).Spelling())
-				// this.qttmplgen.putPlainTmplClsInst(cursor)
-			}
+		case clang.Cursor_MacroDefinition:
+			readSourceRange(cursor.Extent())
 		}
 		return clang.ChildVisit_Continue
 	})
@@ -359,10 +345,12 @@ type collects struct {
 	FunctionCount int           // 全局函数
 	EnumCount     int
 
-	TemplateClassCount int
-	SkippedClassCount  int
-	SkippedMethodCount int
-	PrivateMethodCount int
+	TydefTmplInstClsCount int
+	PlainTmplInstClsConut int
+	InnerClsCount         int
+	SkippedClassCount     int
+	SkippedMethodCount    int
+	PrivateMethodCount    int
 
 	funcParents map[string]int // got 11 elements
 }

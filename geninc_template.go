@@ -12,6 +12,136 @@ import (
 )
 
 func (this *GenerateInline) genPlainTmplInstClses() {
+	log.Println(len(this.plaintmplinstclses))
+	this.cpcs = NewCodeFS()
+
+	for i, icls := range this.plaintmplinstclses {
+		log.Println(i, icls.Spelling(), icls.DisplayName())
+		qtmod := get_decl_mod(icls)
+		if qtmod == "stdglobal" {
+			continue
+		}
+
+		this.genPlainTmplInstCls(icls)
+	}
+
+	// save
+	dirs := this.cpcs.ListDirs()
+	for _, dir := range dirs {
+		files := this.cpcs.ListFiles(dir)
+		for _, file := range files {
+			cp := this.cpcs.GetFile(dir, file)
+			log.Println("saving...", dir, file, cp.TotolLine(), cp.TotolLength())
+			path := fmt.Sprintf("src/%s/%s.cxx", dir, file)
+			err := cp.WriteFile(path)
+			gopp.ErrPrint(err, path)
+		}
+	}
+}
+
+func (this *GenerateInline) genPlainTmplInstCls(ptInstCls clang.Cursor) {
+	qtmod := get_decl_mod(ptInstCls)
+	qtfile := "qplaintmplinstcls"
+	cp := this.cpcs.GetFile(qtmod, qtfile)
+	if len(cp.AllPoints()) == 0 {
+		this.initBlocks(cp)
+		cp.APf("header", "#include <%s>", this.getIncNameByMod(qtmod))
+		cp.APf("header", "#include <stdint.h>")
+		cp.APf("header", "#include <stdbool.h>")
+	}
+
+	ptInstCls.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
+		switch cursor.Kind() {
+		case clang.Cursor_Constructor:
+			log.Println(qtmod, parent.DisplayName(), cursor.Spelling(), cursor.DisplayName(), cursor.Mangling(), cursor.Kind().String())
+
+			this.genArgs(cursor, parent)
+			argstr := strings.Join(this.argDesc, ", ")
+			this.genParams(cursor, parent)
+			prmstr := strings.Join(this.paramDesc, ", ")
+
+			cp.APf("body", "// [%d] %s::%s", parent.Type().SizeOf(), parent.DisplayName(), cursor.DisplayName())
+			cp.APf("body", "extern \"C\"")
+			cp.APf("body", "void* %s(%s) {", this.mangler.convTo(cursor), argstr)
+			cp.APf("body", "    return new %s(%s);", parent.Type().Spelling(), prmstr)
+			cp.APf("body", "}")
+			cp.APf("body", "")
+
+		case clang.Cursor_Destructor:
+			log.Println(qtmod, parent.DisplayName(), cursor.Spelling(), cursor.DisplayName(), cursor.Mangling(), cursor.Kind().String())
+			if cursor.AccessSpecifier() != clang.AccessSpecifier_Public {
+				break
+			}
+			cp.APf("body", "// [%d] %s::%s", parent.Type().SizeOf(), parent.DisplayName(), cursor.DisplayName())
+			cp.APf("body", "extern \"C\"")
+			cp.APf("body", "void %s(void* this_) {", this.mangler.convTo(cursor))
+			cp.APf("body", "    delete((%s*)this_);", parent.Type().Spelling())
+			cp.APf("body", "}")
+			cp.APf("body", "")
+
+		case clang.Cursor_CXXMethod:
+			log.Println(qtmod, parent.Spelling(), parent.DisplayName(), parent.Mangling(), cursor.Spelling(), cursor.DisplayName(), cursor.Mangling(), cursor.Kind().String())
+			if cursor.AccessSpecifier() != clang.AccessSpecifier_Public {
+				break
+			}
+			if strings.HasPrefix(parent.Type().Spelling(), "QtPrivate::") {
+				break
+			}
+			if strings.Contains(parent.Type().Spelling(), "QInputMethodQueryEvent::QueryPair") {
+				break // it's private member
+			}
+
+			rety := cursor.ResultType()
+			retstr := "void"
+			retstmt := "/*return rv;*/"
+			retassign := gopp.IfElseStr(rety.Kind() == clang.Type_Void, "/*auto rv = */", "auto rv = ")
+			switch {
+			case rety.Kind() == clang.Type_Bool || rety.Kind() == clang.Type_Int:
+				retstr = getTyDesc(rety, AsCReturn)
+				retstmt = "return rv;"
+			case rety.Kind() == clang.Type_Record:
+				retstr = getTyDesc(rety, AsCReturn)
+				retstmt = fmt.Sprintf("return new %s(rv);", rety.Spelling())
+			case rety.Kind() == clang.Type_LValueReference:
+				if rety.PointeeType().Kind() == clang.Type_Record && is_qt_class(rety.PointeeType()) {
+					retstr = getTyDesc(rety, AsCReturn)
+					retstmt = fmt.Sprintf("return new %s(rv);", rety.PointeeType().Spelling())
+				}
+			case rety.Kind() == clang.Type_Pointer:
+				retstr = getTyDesc(rety, AsCReturn)
+				retstmt = fmt.Sprintf("return (%s)rv;", retstr)
+			case rety.Kind() == clang.Type_Typedef:
+				if rety.Declaration().TypedefDeclUnderlyingType().Kind() == clang.Type_Record &&
+					is_qt_class(rety) {
+					retstr = getTyDesc(rety, AsCReturn)
+					retstmt = fmt.Sprintf("return new %s(rv);", rety.Spelling())
+				}
+			case rety.Kind() == clang.Type_Unexposed && rety.CanonicalType().Kind() == clang.Type_Record && is_qt_class(rety.CanonicalType()):
+				retstr = getTyDesc(rety, AsCReturn)
+				retstmt = fmt.Sprintf("return new %s(rv);", rety.CanonicalType().Spelling())
+			default:
+				if TypeIsCharPtr(rety) {
+					retstr = getTyDesc(rety, AsCReturn)
+					retstmt = fmt.Sprintf("return (%s)rv;", retstr)
+				}
+			}
+
+			this.genArgs(cursor, parent)
+			argstr := gopp.IfElseStr(len(this.argDesc) > 0, ", "+strings.Join(this.argDesc, ", "), "")
+			this.genParams(cursor, parent)
+			prmstr := strings.Join(this.paramDesc, ", ")
+			cp.APf("body", "// [%d] %s %s::%s", cursor.ResultType().SizeOf(), cursor.ResultType().Spelling(), parent.DisplayName(), cursor.DisplayName())
+			cp.APf("body", "extern \"C\"")
+			cp.APf("body", "%s %s(void* this_ %s) {", retstr, this.mangler.convTo(cursor), argstr)
+			cp.APf("body", "   %s ((%s*)this_)->%s(%s);",
+				retassign, parent.Type().Spelling(), cursor.Spelling(), prmstr)
+			cp.APf("body", "   %s", retstmt)
+
+			cp.APf("body", "}")
+			cp.APf("body", "")
+		}
+		return clang.ChildVisit_Continue
+	})
 }
 
 // TODO 无法找到这种模板实例化类的定义，无法遍历其方法并得到方法的mangling name
@@ -59,11 +189,9 @@ func (this *GenerateInline) genTydefTmplInstClses() {
 	}
 }
 
-var mthidxs_inc = map[string]int{}
-
 func (this *GenerateInline) genTemplateInstant(tmplClsCursor, instClsCursor clang.Cursor) {
 
-	mthidxs_inc = map[string]int{}
+	this.mthidxs = map[string]int{}
 	tmplClsCursor.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		switch cursor.Kind() {
 		case clang.Cursor_Constructor:
@@ -97,11 +225,11 @@ func (this *GenerateInline) genTemplateMethod(cursor, parent clang.Cursor, instC
 	elemClsName := undty.TemplateArgumentAsType(0).Spelling()
 	baseMthName := clsName + cursor.Spelling()
 	midx := 0
-	if midx_, ok := mthidxs_inc[baseMthName]; ok {
-		mthidxs_inc[baseMthName] = midx_ + 1
+	if midx_, ok := this.mthidxs[baseMthName]; ok {
+		this.mthidxs[baseMthName] = midx_ + 1
 		midx = midx_ + 1
 	} else {
-		mthidxs_inc[baseMthName] = 0
+		this.mthidxs[baseMthName] = 0
 	}
 
 	rety := cursor.ResultType()
@@ -282,18 +410,16 @@ var isTmplKeyRef = func(str string, parent clang.Cursor) bool {
 	return strings.Contains(str, "Key")
 }
 
-var tmplclsifgened_inc = map[string]int{}
-
 func (this *GenerateInline) genTemplateInterface(tmplClsCursor, argClsCursor clang.Cursor) {
-	if _, ok := tmplclsifgened_inc[tmplClsCursor.Spelling()]; ok {
+	if _, ok := tmplclsifgened[tmplClsCursor.Spelling()]; ok {
 		// return
 	}
-	tmplclsifgened_inc[tmplClsCursor.Spelling()] = 1
+	tmplclsifgened[tmplClsCursor.Spelling()] = 1
 
 	log.Printf("%s_IF\n", tmplClsCursor.Spelling())
 	this.cp.APf("body", "type %s_IF interface {", tmplClsCursor.Spelling())
 
-	mthidxs_inc = map[string]int{}
+	this.mthidxs = map[string]int{}
 	tmplClsCursor.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		switch cursor.Kind() {
 		case clang.Cursor_Constructor:
@@ -314,11 +440,11 @@ func (this *GenerateInline) genTemplateInterfaceSignature(cursor, parent clang.C
 	elemClsName := clsName[:strings.LastIndexAny(clsName, "LHSM")]
 	baseMthName := parent.Spelling() + cursor.Spelling() + "_IF"
 	midx := 0
-	if midx_, ok := mthidxs_inc[baseMthName]; ok {
-		mthidxs_inc[baseMthName] = midx_ + 1
+	if midx_, ok := this.mthidxs[baseMthName]; ok {
+		this.mthidxs[baseMthName] = midx_ + 1
 		midx = midx_ + 1
 	} else {
-		mthidxs_inc[baseMthName] = 0
+		this.mthidxs[baseMthName] = 0
 	}
 
 	rety := cursor.ResultType()

@@ -23,8 +23,8 @@ type GenerateGo struct {
 	maxClassSize int64 // 暂存一下类的大小的最大值
 
 	cp          *CodePager
-	cpcs        map[string]*CodePager
-	argDesc     []string // origin c/c++ language syntax
+	cpcs        map[string]*CodePager // mod =>
+	argDesc     []string              // origin c/c++ language syntax
 	paramDesc   []string
 	destArgDesc []string // dest language syntax
 

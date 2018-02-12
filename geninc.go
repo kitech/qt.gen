@@ -20,6 +20,7 @@ type GenerateInline struct {
 
 	methods   []clang.Cursor
 	cp        *CodePager
+	cpcs      *CodeFS // mod => file =>,
 	argDesc   []string
 	argtyDesc []string
 	paramDesc []string
@@ -42,6 +43,14 @@ func NewGenerateInline() *GenerateInline {
 	}
 
 	return this
+}
+
+func (this *GenerateInline) initBlocks(cp *CodePager) {
+	blocks := []string{"header", "main", "use", "ext", "body"}
+	for _, block := range blocks {
+		cp.AddPointer(block)
+		cp.APf(block, "")
+	}
 }
 
 func (this *GenerateInline) genClass(cursor, parent clang.Cursor) {
@@ -631,14 +640,19 @@ func (this *GenerateInline) genArg(cursor, parent clang.Cursor, idx int) {
 			cursor.Type().CanonicalType().Spelling(), argName))
 		this.argtyDesc = append(this.argtyDesc, cursor.Type().CanonicalType().Spelling())
 	} else {
-		log.Println(cursor.Type().Kind(), cursor.Type().Spelling(), parent.SemanticParent().Spelling(), parent.DisplayName())
+		log.Println(csty.Kind(), csty.Spelling(), parent.SemanticParent().Spelling(), parent.DisplayName())
 		if csty.Kind() == clang.Type_Record {
 			this.argDesc = append(this.argDesc, fmt.Sprintf("%s* %s", cursor.Type().Spelling(), argName))
 			this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("%s*", cursor.Type().Spelling()))
 		} else if csty.Kind() == clang.Type_LValueReference &&
 			csty.PointeeType().Kind() == clang.Type_Record {
-			this.argDesc = append(this.argDesc, fmt.Sprintf("%s* %s", csty.PointeeType().Declaration().Spelling(), argName))
-			this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("%s*", csty.PointeeType().Declaration().Spelling()))
+			if csty.PointeeType().NumTemplateArguments() > 0 {
+				this.argDesc = append(this.argDesc, fmt.Sprintf("%s* %s", csty.PointeeType().Spelling(), argName))
+				this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("%s*", csty.PointeeType().Spelling()))
+			} else {
+				this.argDesc = append(this.argDesc, fmt.Sprintf("%s* %s", csty.PointeeType().Declaration().Spelling(), argName))
+				this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("%s*", csty.PointeeType().Declaration().Spelling()))
+			}
 		} else if TypeIsFuncPointer(cursor.Type()) {
 			this.argDesc = append(this.argDesc,
 				strings.Replace(cursor.Type().Spelling(), "(*)",

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"gopp"
 	"log"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -289,4 +291,56 @@ func rewriteOperatorMethodName(name string) string {
 		valiname = strings.Replace(valiname, replaces[i*2], replaces[i*2+1], -1)
 	}
 	return valiname
+}
+
+var fileCache = map[string]*os.File{}
+
+func readSourceRange(sr clang.SourceRange) (string, string) {
+	bfp, blineno, bcol, boffset := sr.Start().ExpansionLocation()
+	efp, elineno, ecol, eoffset := sr.End().ExpansionLocation()
+	log.Println(bfp.Name(), efp.Name(), len(bfp.Name()), len(efp.Name()), blineno, bcol, boffset, elineno, ecol, eoffset)
+
+	if bfp.Name() == "" {
+		return "", ""
+	}
+	if bfp.Name() != efp.Name() {
+		log.Fatalln("wtf", bfp.Name())
+	}
+
+	var fph *os.File
+	if fph_, ok := fileCache[bfp.Name()]; ok {
+		fph = fph_
+	} else {
+		fph_, err := os.Open(bfp.Name())
+		gopp.ErrPrint(err, bfp.Name())
+		fph = fph_
+		fileCache[bfp.Name()] = fph
+	}
+	if fph == nil {
+		log.Fatalln("wtf", bfp.Name())
+	}
+
+	fph.Seek(int64(boffset), os.SEEK_SET)
+	var buf = make([]byte, eoffset-boffset)
+	n, err := fph.ReadAt(buf, int64(boffset))
+	gopp.ErrPrint(err, n, boffset, eoffset)
+	spelling := string(buf[:n])
+	pos := strings.Index(spelling, " ")
+	macroval := gopp.IfElseStr(pos > 0, spelling[pos+1:], "")
+	if len(macroval) > 0 {
+		macroty := ""
+		if strings.HasPrefix(macroval, "\"") {
+			macroty = "str"
+		} else if strings.HasPrefix(macroval, "0x") {
+			macroty = "num16"
+		} else if gopp.IsNumberic(macroval) {
+			macroty = "num10"
+		}
+		log.Println(bfp.Name(), n, spelling, len(macroval), macroval, macroty)
+		if macroty != "" {
+			return macroval, macroty
+		}
+	}
+
+	return "", ""
 }

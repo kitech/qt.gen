@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"gopp"
 	"log"
+	"strings"
 
 	"github.com/go-clang/v3.9/clang"
 )
@@ -51,6 +52,9 @@ type GenBase struct {
 
 	funcMangles map[string]int
 
+	// method indexes, reset perclass
+	mthidxs map[string]int
+
 	_argDesc1   []string
 	_paramDesc1 []string
 	_argtyDesc1 []string
@@ -64,6 +68,9 @@ type GenBase struct {
 	_paramDesc4 []string
 	_argtyDesc4 []string
 }
+
+// 这个是全局的，不能放在类内吧
+var tmplclsifgened = map[string]int{}
 
 // TODO is what?
 func (this *GenBase) isSignal() bool {
@@ -122,4 +129,14 @@ func (this *GenBase) genParamRefName(cursor, parent clang.Cursor, aidx int) stri
 	argName = gopp.IfElseStr(is_go_keyword(argName), argName+"_", argName)
 
 	return gopp.IfElseStr(cursor.Spelling() == "", fmt.Sprintf("arg%d", aidx), argName)
+}
+
+// mod lower case, include need camel case
+func (this *GenBase) getIncNameByMod(mod string) string {
+	for name, _ := range modDepsAll {
+		if strings.ToLower(name) == mod && name != mod {
+			return "Qt" + name
+		}
+	}
+	return ""
 }

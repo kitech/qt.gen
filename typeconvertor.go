@@ -93,66 +93,83 @@ func getTyDesc(ty clang.Type, usecat int) string {
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.int"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "int"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[AsCReturn] = "int"
 		che[AsGoReturn] = "int"
 		che[AsGoSignature] = "int"
+
 	case clang.Type_UInt:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.uint"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "unsigned int"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[AsCReturn] = "unsigned int"
 		che[AsGoReturn] = "uint"
 		che[AsGoSignature] = "uint"
+
 	case clang.Type_LongLong:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.int64_t"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "int64_t"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[AsCReturn] = "int64_t"
 		che[AsGoReturn] = "int64"
 		che[AsGoSignature] = "int64"
+
 	case clang.Type_ULongLong:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.uint64_t"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "uint64_t"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[AsCReturn] = "uint64_t"
 		che[AsGoReturn] = "uint64"
 		che[AsGoSignature] = "uint64"
+
 	case clang.Type_Short:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.int16_t"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "int16_t"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[AsCReturn] = "int16_t"
 		che[AsGoReturn] = "int16"
 		che[AsGoSignature] = "int16"
+
 	case clang.Type_UShort:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.uint16_t"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "uint16_t"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[AsCReturn] = "uint16_t"
 		che[AsGoReturn] = "uint16"
 		che[AsGoSignature] = "uint16"
+
 	case clang.Type_UChar:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.uint8_t"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "uint8_t"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[AsCReturn] = "uint8_t"
 		che[AsGoReturn] = "byte"
 		che[AsGoSignature] = "byte"
 	case clang.Type_Char_S:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.int8_t"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "int8_t"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[AsCReturn] = "int8_t"
 		che[AsGoReturn] = "byte"
 		che[AsGoSignature] = "byte"
 	case clang.Type_SChar:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.char"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "char"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[AsCReturn] = "char"
 		che[AsGoReturn] = "byte"
 		che[AsGoSignature] = "byte"
 	case clang.Type_Long:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.long"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "long"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[AsCReturn] = "long"
 		che[AsGoReturn] = "int64"
 		che[AsGoSignature] = "int64"
 	case clang.Type_ULong:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.ulong"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "ulong"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[AsCReturn] = "ulong"
 		che[AsGoReturn] = "uint64"
 		che[AsGoSignature] = "uint64"
 	case clang.Type_Typedef:
@@ -160,6 +177,7 @@ func getTyDesc(ty clang.Type, usecat int) string {
 		if TypeIsQFlags(ty) {
 			che[ArgTyDesc_CGO_SIGNATURE] = "C.int"
 			che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "int"
+			che[AsCReturn] = "int"
 			che[AsGoReturn] = "int"
 			che[AsGoSignature] = "int"
 			break
@@ -174,6 +192,7 @@ func getTyDesc(ty clang.Type, usecat int) string {
 		che[ArgTyDesc_CGO_SIGNATURE] = "unsafe.Pointer  /*444*/"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "void*"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[AsCReturn] = "void*"
 		che[AsGoReturn] = "unsafe.Pointer"
 		che[AsGoSignature] = "unsafe.Pointer"
 	case clang.Type_Pointer:
@@ -186,6 +205,7 @@ func getTyDesc(ty clang.Type, usecat int) string {
 		che[ArgTyDesc_CGO_SIGNATURE] = "unsafe.Pointer  /*666*/"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "void*"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[AsCReturn] = "void*"
 		che[AsGoReturn] = "unsafe.Pointer/*666*/"
 		che[AsGoSignature] = "unsafe.Pointer"
 	case clang.Type_LValueReference:
@@ -196,48 +216,56 @@ func getTyDesc(ty clang.Type, usecat int) string {
 		che[ArgTyDesc_CGO_SIGNATURE] = "unsafe.Pointer  /*555*/"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "void*"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[AsCReturn] = "void*"
 		che[AsGoReturn] = "unsafe.Pointer/*555*/"
 		che[AsGoSignature] = "unsafe.Pointer"
 	case clang.Type_RValueReference:
 		che[ArgTyDesc_CGO_SIGNATURE] = "unsafe.Pointer  /*333*/"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "void*"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[AsCReturn] = "void*"
 		che[AsGoReturn] = "unsafe.Pointer/*333*/"
 		che[AsGoSignature] = "unsafe.Pointer"
 	case clang.Type_Elaborated:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.int"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "int"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[AsCReturn] = "int"
 		che[AsGoReturn] = "int"
 		che[AsGoSignature] = "int"
 	case clang.Type_Enum:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.int"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "int"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[AsCReturn] = "int"
 		che[AsGoReturn] = "int"
 		che[AsGoSignature] = "int"
 	case clang.Type_Bool:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.bool"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "bool"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[AsCReturn] = "bool"
 		che[AsGoReturn] = "bool"
 		che[AsGoSignature] = "bool"
 	case clang.Type_Double:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.double"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "double"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[AsCReturn] = "double"
 		che[AsGoReturn] = "float64"
 		che[AsGoSignature] = "float64"
 	case clang.Type_LongDouble: // TODO?
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.double"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "double"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[AsCReturn] = "double"
 		che[AsGoReturn] = "float64"
 		che[AsGoSignature] = "float64"
 	case clang.Type_Float:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.float"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "float"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[AsCReturn] = "float"
 		che[AsGoReturn] = "float32"
 		che[AsGoSignature] = "float32"
 	case clang.Type_IncompleteArray:
@@ -248,12 +276,14 @@ func getTyDesc(ty clang.Type, usecat int) string {
 		che[ArgTyDesc_CGO_SIGNATURE] = "unsafe.Pointer  /*222*/"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "void*"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[AsCReturn] = "void*"
 		che[AsGoReturn] = "unsafe.Pointer/*222*/"
 		che[AsGoSignature] = "unsafe.Pointer"
 	case clang.Type_Char16:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.int16_t"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "int16_t"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+		che[AsCReturn] = "int16_t"
 		che[AsGoReturn] = "int16"
 		che[AsGoSignature] = "int16"
 	case clang.Type_Void:
@@ -263,8 +293,11 @@ func getTyDesc(ty clang.Type, usecat int) string {
 		che[RetTyDesc_CPP] = "void"
 		che[ArgTyDesc_CPP_SIGNAUTE] = "void"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "void"
+		che[AsCReturn] = "void"
 		che[AsGoReturn] = "/*void*/"
 		che[AsGoSignature] = "/*void*/"
+	case clang.Type_Unexposed:
+		return getTyDesc(ty.CanonicalType(), usecat)
 	default:
 		log.Fatalln(ty.Spelling(), ty.Kind().Spelling())
 	}

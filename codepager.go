@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"strings"
+	"sync"
 
 	"gopp"
 
@@ -175,8 +177,8 @@ func (this *CodePager) ExportAll() string {
 
 func (this *CodePager) TotolLength() int {
 	return gopp.Doreduce(this.lines, 0, func(v, i interface{}) interface{} {
-		kv := i.(gopp.Pair)
-		rv := gopp.Doreduce(kv.Val, v, func(v, i interface{}) interface{} {
+		kv := i.([]string)
+		rv := gopp.Doreduce(kv, 0, func(v, i interface{}) interface{} {
 			return v.(int) + len(i.(string))
 		})
 		return v.(int) + rv.(int)
@@ -185,11 +187,8 @@ func (this *CodePager) TotolLength() int {
 
 func (this *CodePager) TotolLine() int {
 	return gopp.Doreduce(this.lines, 0, func(v, i interface{}) interface{} {
-		kv := i.(gopp.Pair)
-		rv := gopp.Doreduce(kv.Val, v, func(v, i interface{}) interface{} {
-			return v.(int) + 1
-		})
-		return v.(int) + rv.(int)
+		kv := i.([]string)
+		return v.(int) + len(kv)
 	}).(int)
 }
 
@@ -198,4 +197,60 @@ func (this *CodePager) Reset() {
 		log.Println("Warning code maybe not export")
 	}
 	this = NewCodePager()
+}
+
+func (this *CodePager) WriteFile(file string) error {
+	scc := this.ExportAll()
+	return ioutil.WriteFile(file, []byte(scc), 0644)
+}
+
+// 模拟写入源代码的文件系统
+type CodeFS struct {
+	// dir => file => page
+	cfs map[string]map[string]*CodePager
+	mu  sync.RWMutex
+}
+
+func NewCodeFS() *CodeFS {
+	this := &CodeFS{}
+	this.cfs = map[string]map[string]*CodePager{}
+	return this
+}
+
+func (this *CodeFS) MkDir(dir string) {
+	if _, ok := this.cfs[dir]; !ok {
+		this.cfs[dir] = map[string]*CodePager{}
+	}
+}
+
+func (this *CodeFS) MkFile(dir, file string) {
+	this.MkDir(dir)
+	if _, ok := this.cfs[dir][file]; !ok {
+		this.cfs[dir][file] = NewCodePager()
+	}
+}
+
+func (this *CodeFS) GetFile(dir, file string) *CodePager {
+	this.MkFile(dir, file)
+	return this.cfs[dir][file]
+}
+
+func (this *CodeFS) ListDirs() (dirs []string) {
+	for dir, _ := range this.cfs {
+		dirs = append(dirs, dir)
+	}
+	return
+}
+
+func (this *CodeFS) ListFiles(dir string) (files []string) {
+	for file, _ := range this.cfs[dir] {
+		files = append(files, file)
+	}
+	return
+}
+
+// 写入到磁盘文件系统
+// bdir base directory
+func (this *CodeFS) WriteToDiskFS(bdir string, ext string) error {
+	return nil
 }
