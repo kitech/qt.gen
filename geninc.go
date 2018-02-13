@@ -905,3 +905,6 @@ func (this *GenerateInline) genFunction(cursor clang.Cursor, olidx int) {
 	this.cp.APf("main", "}")
 	this.cp.APf("main", "")
 }
+
+func (this *GenerateInline) genConstantsGlobal(cursor, parent clang.Cursor) {
+}

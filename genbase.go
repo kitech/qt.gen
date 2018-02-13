@@ -20,11 +20,13 @@ type Generator interface {
 	putPlainTmplClsInst(c clang.Cursor) // c类型为clang.Cursor_ClassDecl
 	putTydefTmplClsInst(c clang.Cursor) // c类型为clang.Cursor_TypedefDecl
 	putEnum(c clang.Cursor)
+	putConstant(c clang.Cursor)
 
 	genFunctions(cursor, parent clang.Cursor)
 	genEnumsGlobal(cursor, parent clang.Cursor)
 	genPlainTmplInstClses()
 	genTydefTmplInstClses()
+	genConstantsGlobal(cursor, parent clang.Cursor)
 }
 
 func init() {
@@ -42,6 +44,7 @@ type GenBase struct {
 	plaintmplinstclses []clang.Cursor
 	tydeftmplinstclses []clang.Cursor
 	enums              []clang.Cursor
+	constants          []clang.Cursor
 
 	isPureVirtualClass  bool
 	hasVirtualProtected bool
@@ -84,25 +87,23 @@ func (this *GenBase) isSlot() bool {
 func (this *GenBase) putMethod(c clang.Cursor) {
 	this.methods = append(this.methods, c)
 }
-
 func (this *GenBase) putFunc(c clang.Cursor) {
 	this.funcs = append(this.funcs, c)
 }
-
 func (this *GenBase) putTmplCls(c clang.Cursor) {
 	this.tmplclses = append(this.tmplclses, c)
 }
-
 func (this *GenBase) putPlainTmplClsInst(c clang.Cursor) {
 	this.plaintmplinstclses = append(this.plaintmplinstclses, c)
 }
-
 func (this *GenBase) putTydefTmplClsInst(c clang.Cursor) {
 	this.tydeftmplinstclses = append(this.tydeftmplinstclses, c)
 }
-
 func (this *GenBase) putEnum(c clang.Cursor) {
 	this.enums = append(this.enums, c)
+}
+func (this *GenBase) putConstant(c clang.Cursor) {
+	this.constants = append(this.constants, c)
 }
 
 //////

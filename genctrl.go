@@ -34,11 +34,12 @@ type GenCtrl struct {
 	args     []string
 	save_ast bool
 
-	filter    GenFilter
-	genor     Generator
-	qtenumgen Generator // for generate global enums
-	qtfuncgen Generator // for generate global functions
-	qttmplgen Generator // for generate template
+	filter     GenFilter
+	genor      Generator
+	qtenumgen  Generator // for generate global enums
+	qtfuncgen  Generator // for generate global functions
+	qttmplgen  Generator // for generate template
+	qtconstgen Generator // for generate global macros
 }
 
 func NewGenCtrl() *GenCtrl {
@@ -79,6 +80,7 @@ func (this *GenCtrl) setupLang() {
 		this.qtenumgen = NewGenerateGo()
 		this.qtfuncgen = NewGenerateGo()
 		this.qttmplgen = NewGenerateGo()
+		this.qtconstgen = NewGenerateGo()
 	case "rs":
 		fallthrough
 	default:
@@ -164,8 +166,7 @@ func (this *GenCtrl) createTU() {
 
 func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 	{
-		log.Println(cursor.Spelling(), cursor.Kind().String(), cursor.DisplayName(),
-			cursor.SpecializedCursorTemplate().Spelling(), cursor.CanonicalCursor().Kind())
+		log.Println(cursor.Spelling(), cursor.Kind().String(), cursor.DisplayName(), cursor.SpecializedCursorTemplate().DisplayName(), cursor.CanonicalCursor().Kind(), cursor.IsCursorDefinition())
 	}
 
 	switch cursor.Kind() {
@@ -179,7 +180,7 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		clts.ClassCount += 1
 		log.Println(cursor.Spelling(), cursor.Kind().String(), cursor.DisplayName())
 		if !this.filter.skipClass(cursor, parent) {
-			this.genor.genClass(cursor, parent)
+			//this.genor.genClass(cursor, parent)
 		} else {
 			clts.SkippedClassCount += 1
 		}
@@ -196,7 +197,7 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		this.qtfuncgen.putFunc(cursor)
 	case clang.Cursor_StructDecl:
 		if !this.filter.skipClass(cursor, parent) {
-			this.genor.genClass(cursor, parent)
+			//this.genor.genClass(cursor, parent)
 			// return clang.ChildVisit_Break
 		}
 	case clang.Cursor_CXXMethod:
@@ -266,6 +267,9 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 	case clang.Cursor_UnexposedDecl:
 	case clang.Cursor_TypeAliasTemplateDecl:
 		log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName())
+	case clang.Cursor_MacroDefinition:
+		clts.ConstCount += 1
+		this.qtconstgen.putConstant(cursor)
 	case clang.Cursor_InvalidCode:
 		fallthrough
 	default:
@@ -316,6 +320,12 @@ func (this *GenCtrl) collectClasses() {
 		gg.cp.APf("header", "package qtcore")
 		gg.genEnumsGlobal(cursor, cursor.SemanticParent())
 		gg.saveCodeToFile("core", "qnamespace")
+
+		gg = this.qtconstgen.(*GenerateGo)
+		gg.cp.APf("header", "package qtcore")
+		gg.genConstantsGlobal(cursor, cursor.SemanticParent())
+		gg.saveCodeToFile("core", "qconstants")
+
 		/*
 			gg = this.genor.(*GenerateGo)
 			for mod, cp := range gg.cpcs {
@@ -344,6 +354,7 @@ type collects struct {
 	MethodCount   int           // 查找到的所有的qt方法
 	FunctionCount int           // 全局函数
 	EnumCount     int
+	ConstCount    int
 
 	TydefTmplInstClsCount int
 	PlainTmplInstClsConut int

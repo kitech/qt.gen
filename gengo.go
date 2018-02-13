@@ -1237,8 +1237,9 @@ func (this *GenerateGo) genEnumsGlobal(cursor, parent clang.Cursor) {
 			enum.DisplayName() == "future_statu" || enum.DisplayName() == "launch" {
 			continue
 		}
+		qtmod := get_decl_mod(enum)
 		this.cp.APf("body", "")
-		this.cp.APUf("body", "type %s__%s = int", "Qt", enum.DisplayName())
+		this.cp.APUf("body", "type %s__%s = int // %s", "Qt", enum.DisplayName(), qtmod)
 		enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
 			switch c1.Kind() {
 			case clang.Cursor_EnumConstantDecl:
@@ -1385,5 +1386,26 @@ func (this *GenerateGo) genBareFunctionSignature(cursor, parent clang.Cursor, mi
 		}
 		this.cp.APf("body", "func %s%s(%s) %s {",
 			strings.Title(cursor.Spelling()), overloadSuffix, argStr, retPlace)
+	}
+}
+
+// TODO sperate to modules
+func (this *GenerateGo) genConstantsGlobal(cursor, parent clang.Cursor) {
+	for _, macro := range this.constants {
+		if strings.HasPrefix(macro.Spelling(), "_") {
+			continue
+		}
+		macroval, macroty := readSourceRange(macro.Extent())
+		if macroty == "" {
+			continue
+		}
+		if strings.ContainsAny(macroval, "()\\") {
+			continue
+		}
+		macroval = gopp.IfElseStr(strings.HasPrefix(macroty, "num"), strings.TrimRight(macroval, "ACDL"), macroval)
+
+		qtmod := get_decl_mod(macro)
+		log.Println(qtmod, macro.Spelling(), macroval, macroty)
+		this.cp.APf("body", "const %s = %s // %s @ %s", macro.Spelling(), macroval, macroty, qtmod)
 	}
 }
