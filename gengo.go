@@ -263,7 +263,7 @@ func (this *GenerateGo) genClassDef(cursor, parent clang.Cursor) {
 		this.cp.APf("body", "    *qtrt.CObject")
 	} else {
 		for _, bc := range bcs {
-			this.cp.APf("body", "    *%s%s", calc_package_suffix(cursor, bc), bc.Type().Spelling())
+			this.cp.APf("body", "    *%s%s", calc_package_prefix(cursor, bc), bc.Type().Spelling())
 			// break
 		}
 	}
@@ -272,7 +272,7 @@ func (this *GenerateGo) genClassDef(cursor, parent clang.Cursor) {
 	// genTypeInterface, genTypeITF
 	this.cp.APf("body", "type %s_ITF interface {", cursor.Spelling())
 	for _, bc := range bcs {
-		this.cp.APf("body", "    %s%s_ITF", calc_package_suffix(cursor, bc), bc.Type().Spelling())
+		this.cp.APf("body", "    %s%s_ITF", calc_package_prefix(cursor, bc), bc.Type().Spelling())
 		// break
 	}
 	this.cp.APf("body", "    %s_PTR() *%s", cursor.Spelling(), cursor.Spelling())
@@ -430,7 +430,7 @@ func (this *GenerateGo) genMethodSignature(cursor, parent clang.Cursor, midx int
 	if cursor.Kind() == clang.Cursor_Constructor {
 	}
 
-	this.genArgsDest(cursor, parent)
+	this.genArgsDest(cursor, parent, true)
 	argStr := strings.Join(this.destArgDesc, ", ")
 
 	overloadSuffix := gopp.IfElseStr(midx == 0, "", fmt.Sprintf("_%d", midx))
@@ -462,7 +462,7 @@ func (this *GenerateGo) genMethodSignature(cursor, parent clang.Cursor, midx int
 
 // only for static member
 func (this *GenerateGo) genMethodSignatureNoThis(cursor, parent clang.Cursor, midx int) {
-	this.genArgsDest(cursor, parent)
+	this.genArgsDest(cursor, parent, true)
 	argStr := strings.Join(this.destArgDesc, ", ")
 
 	overloadSuffix := gopp.IfElseStr(midx == 0, "", fmt.Sprintf("_%d", midx))
@@ -581,7 +581,7 @@ func (this *GenerateGo) genCtorFromPointer(cursor, parent clang.Cursor, midx int
 	} else {
 		bcobjs := []string{}
 		for i, bc := range bcs {
-			pkgSuff := calc_package_suffix(cursor, bc)
+			pkgSuff := calc_package_prefix(cursor, bc)
 			this.cp.APf("body", "    bcthis%d := %sNew%sFromPointer(cthis)", i, pkgSuff, bc.Spelling())
 			bcobjs = append(bcobjs, fmt.Sprintf("bcthis%d", i))
 			// break // TODO multiple base classes
@@ -640,7 +640,7 @@ func (this *GenerateGo) genSetCthis(cursor, parent clang.Cursor, midx int) {
 		this.cp.APf("body", "    }")
 	} else {
 		for _, bc := range bcs {
-			pkgSuff := calc_package_suffix(cursor, bc)
+			pkgSuff := calc_package_prefix(cursor, bc)
 			this.cp.APf("body", "    this.%s = %sNew%sFromPointer(cthis)", bc.Spelling(), pkgSuff, bc.Spelling())
 			// break
 		}
@@ -819,7 +819,7 @@ func (this *GenerateGo) genProtectedCallback(cursor, parent clang.Cursor, midx i
 
 	// cp.APf("extern", "extern void set_callback%s(void* fnptr);", cursor.Mangling())
 	cp.APf("extern", "extern void callback%s(void* fnptr %s);", cursor.Mangling(), argStrSign)
-	cp.APf("body", "// %s %s", getTyDesc(cursor.ResultType(), ArgTyDesc_CPP_SIGNAUTE), cursor.DisplayName())
+	cp.APf("body", "// %s %s", getTyDesc(cursor.ResultType(), ArgTyDesc_CPP_SIGNAUTE, cursor), cursor.DisplayName())
 	cp.APf("body", "//export callback%s", cursor.Mangling())
 	cp.APf("body", "func callback%s(cthis unsafe.Pointer %s) {", cursor.Mangling(), argStr)
 	cp.APf("body", "  // log.Println(cthis, \"%s.%s\")", parent.Spelling(), cursor.Spelling())
@@ -835,11 +835,12 @@ func (this *GenerateGo) genProtectedCallback(cursor, parent clang.Cursor, midx i
 		if _, ok := inheritMethods[key]; !ok {
 			inheritMethods[key] = 1
 
-			this.genArgsDest(cursor, parent)
+			this.genArgsDest(cursor, parent, false)
 			argStr := strings.Join(this.destArgDesc, ", ")
-			retStr := getTyDesc(cursor.ResultType(), AsGoReturn)
+			retStr := getTyDesc(cursor.ResultType(), AsGoReturn, parent)
+			log.Println(parent.Spelling(), cursor.DisplayName(), argStr, retStr, get_decl_loc(cursor), get_decl_mod(cursor))
 
-			this.cp.APf("body", "// %s %s", getTyDesc(cursor.ResultType(), ArgTyDesc_CPP_SIGNAUTE), cursor.DisplayName())
+			this.cp.APf("body", "// %s %s", getTyDesc(cursor.ResultType(), ArgTyDesc_CPP_SIGNAUTE, cursor), cursor.DisplayName())
 			this.cp.APf("body", "func (this *%s) Inherit%s(f func(%s) %s) {",
 				parent.Spelling(), strings.Title(cursor.Spelling()), argStr, retStr)
 			this.cp.APf("body", "  qtrt.SetAllInheritCallback(this, \"%s\", f)", cursor.Spelling())
@@ -887,16 +888,16 @@ func (this *GenerateGo) genArg(cursor, parent clang.Cursor, idx int) {
 	}
 }
 
-func (this *GenerateGo) genArgsDest(cursor, parent clang.Cursor) {
+func (this *GenerateGo) genArgsDest(cursor, parent clang.Cursor, asitf bool) {
 	this.destArgDesc = make([]string, 0)
 	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
 		argc := cursor.Argument(uint32(idx))
-		this.genArgDest(argc, cursor, idx)
+		this.genArgDest(argc, cursor, idx, asitf)
 	}
 	// log.Println(strings.Join(this.destArgDesc, ", "), this.mangler.origin(cursor))
 }
 
-func (this *GenerateGo) genArgDest(cursor, parent clang.Cursor, idx int) {
+func (this *GenerateGo) genArgDest(cursor, parent clang.Cursor, idx int, asitf bool) {
 	// log.Println(cursor.DisplayName(), cursor.Type().Spelling(), cursor.Type().Kind() == clang.Type_LValueReference, this.mangler.origin(parent), get_bare_type(cursor.Type()).Spelling(), is_qt_class(cursor.Type()))
 
 	argName := gopp.IfElseStr(cursor.Spelling() == "", fmt.Sprintf("arg%d", idx), cursor.Spelling())
@@ -911,6 +912,16 @@ func (this *GenerateGo) genArgDest(cursor, parent clang.Cursor, idx int) {
 		this.destArgDesc = append(this.destArgDesc, fmt.Sprintf("%s int", argName))
 	} else if is_qt_class(cursor.Type()) && get_bare_type(cursor.Type()).Spelling() == "QString" {
 		this.destArgDesc = append(this.destArgDesc, fmt.Sprintf("%s string", argName))
+	} else if is_qt_class(cursor.Type()) {
+		destTyITF := destTy
+		if asitf && (strings.HasPrefix(destTy, "*Q") || strings.Contains(destTy, ".Q")) {
+			if pos := strings.Index(destTy, "/*"); pos > 0 {
+				destTyITF = destTy[1:pos] + "_ITF" + destTy[pos:]
+			} else {
+				destTyITF = strings.TrimLeft(destTy, "*") + "_ITF"
+			}
+		}
+		this.destArgDesc = append(this.destArgDesc, fmt.Sprintf("%s %s", argName, destTyITF))
 	} else {
 		if cursor.Type().Kind() == clang.Type_IncompleteArray {
 			this.destArgDesc = append(this.destArgDesc, fmt.Sprintf("%s %s", argName, destTy))
@@ -956,6 +967,7 @@ func (this *GenerateGo) genArgsConvFFI(cursor, parent clang.Cursor, midx int) {
 // aidx method index
 func (this *GenerateGo) genArgConvFFI(cursor, parent clang.Cursor, midx, aidx int) {
 	argty := cursor.Type()
+	barety := get_bare_type(argty)
 	if TypeIsCharPtrPtr(argty) {
 		this.cp.APf("body", "    var convArg%d = qtrt.StringSliceToCCharPP(%s)", aidx,
 			this.genParamRefName(cursor, parent, aidx))
@@ -980,8 +992,8 @@ func (this *GenerateGo) genArgConvFFI(cursor, parent clang.Cursor, midx, aidx in
 		} else if usemod == "core" && refmod == "widgets" {
 		} else if usemod == "gui" && refmod == "widgets" {
 		} else {
-			this.cp.APf("body", "    var convArg%d = %s.GetCthis()", aidx,
-				this.genParamRefName(cursor, parent, aidx))
+			this.cp.APf("body", "    var convArg%d = %s.%s_PTR().GetCthis()", aidx,
+				this.genParamRefName(cursor, parent, aidx), barety.Spelling())
 		}
 	} else { // no convert needed
 		// log.Fatalln("wtf", argty.Kind(), argty.Spelling(), parent.Spelling())
@@ -1196,7 +1208,7 @@ func (this *GenerateGo) genArgCGO(cursor, parent clang.Cursor, idx int) {
 	argName := gopp.IfElseStr(cursor.Spelling() == "", fmt.Sprintf("arg%d", idx), cursor.Spelling())
 	argName = gopp.IfElseStr(is_go_keyword(argName), argName+"_", argName)
 
-	dstr := getTyDesc(argty, ArgTyDesc_CGO_SIGNATURE)
+	dstr := getTyDesc(argty, ArgTyDesc_CGO_SIGNATURE, cursor)
 	this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s", argName, dstr))
 }
 
@@ -1214,7 +1226,7 @@ func (this *GenerateGo) genArgCGOSign(cursor, parent clang.Cursor, idx int) {
 	argName := gopp.IfElseStr(cursor.Spelling() == "", fmt.Sprintf("arg%d", idx), cursor.Spelling())
 	argName = gopp.IfElseStr(is_go_keyword(argName), argName+"_", argName)
 
-	tystr := getTyDesc(argty, ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN)
+	tystr := getTyDesc(argty, ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN, cursor)
 	this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s", tystr, argName))
 }
 
@@ -1380,7 +1392,7 @@ func (this *GenerateGo) genFunction(cursor clang.Cursor, olidx int) {
 
 // only for static member
 func (this *GenerateGo) genBareFunctionSignature(cursor, parent clang.Cursor, midx int) {
-	this.genArgsDest(cursor, parent)
+	this.genArgsDest(cursor, parent, true)
 	argStr := strings.Join(this.destArgDesc, ", ")
 
 	overloadSuffix := gopp.IfElseStr(midx == 0, "", fmt.Sprintf("_%d", midx))

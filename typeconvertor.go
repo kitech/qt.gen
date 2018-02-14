@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"gopp"
 	"log"
 	"reflect"
 	"strings"
@@ -21,6 +22,7 @@ const (
 	// 在go源代码中使用的类型转换
 	ArgDesc_GO_SIGNATURE = iota + 8
 	AsGoSignature        // 转换到go函数签名相应的类型
+	AsGoITF              // 转换到go函数签名中需要用到interface的相应的类型
 	AsGoReturn           // 转换 go函数返回值相应的类型，可能与签名中的不一样
 	ArgTyDesc_GO_INVOKE_GO
 	PrmTyDesc_GO_INVOKE_GO  // 有时需要做*或者&操作或者强制类型转换
@@ -76,16 +78,22 @@ const (
 var tycvCache = map[clang.Type]map[int]string{}
 var argcvCache = map[string]string{}
 
-func getTyDesc(ty clang.Type, usecat int) string {
+// cusecs 当前类型引用位置，用于定位模块
+func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 	che, ok := tycvCache[ty]
 	if !ok {
 		che = map[int]string{}
 		tycvCache[ty] = che
 	}
-	// 存在的话从暂存里拿
+	// 存在的话从暂存里拿，不能在暂存里拿，因为包名前缀可能不同
 	if dstr, ok := che[usecat]; ok {
-		return dstr
+		if false {
+			return dstr
+		}
 	}
+
+	// 类继承的处理，继承某类型，并做特殊处理
+	// che[AsGoITF] = getTyDesc(ty, AsGoSignature, usecs)
 
 	// 重新计算
 	switch ty.Kind() {
@@ -180,35 +188,76 @@ func getTyDesc(ty clang.Type, usecat int) string {
 			che[AsCReturn] = "int"
 			che[AsGoReturn] = "int"
 			che[AsGoSignature] = "int"
+			che[AsGoITF] = "int"
 			break
+			// typedef template classes
 		} else if strings.HasPrefix(ty.CanonicalType().Spelling(), "Q") &&
 			strings.ContainsAny(ty.CanonicalType().Spelling(), "<>") {
 			log.Println(ty.Spelling(), ty.CanonicalType().Spelling())
+			tmplArgTy := ty.TemplateArgumentAsType(0)
+			if tmplArgTy.Kind() == clang.Type_Pointer {
+				tmplArgTy = tmplArgTy.PointeeType()
+			}
+			log.Println(ty.Spelling(), ty.CanonicalType().Spelling(), tmplArgTy.Spelling())
+			refmod := get_decl_mod(tmplArgTy.Declaration())
+			usemod := get_decl_mod(usecs)
+			pkgPref := gopp.IfElseStr(refmod != usemod, fmt.Sprintf("qt%s.", refmod), "")
+			log.Println(ty.Spelling(), ty.CanonicalType().Spelling(), tmplArgTy.Spelling(), refmod, usemod, pkgPref, usecs.DisplayName(), get_decl_loc(usecs))
+
+			che[AsCSignature] = "*" + ty.Spelling()
+			che[AsGoSignature] = "*" + pkgPref + ty.Spelling() + "/*9999*/"
+			che[AsGoITF] = pkgPref + ty.Spelling() + "_ITF"
+			che[AsGoReturn] = "*" + pkgPref + ty.Spelling() + "/*9999*/"
+			break
+		} else if is_qt_class(ty.CanonicalType()) {
+			refmod := get_decl_mod(ty.CanonicalType().Declaration())
+			usemod := get_decl_mod(usecs)
+			pkgPref := gopp.IfElseStr(refmod != usemod, fmt.Sprintf("qt%s.", refmod), "")
+
+			che[AsCSignature] = "*" + ty.Spelling()
+			che[AsGoSignature] = "*" + pkgPref + ty.Spelling() + "/*888*/"
+			che[AsGoITF] = pkgPref + ty.Spelling() + "_ITF"
+			che[AsGoReturn] = "*" + pkgPref + ty.Spelling() + "/*7777*/"
+			break
 		}
-		return getTyDesc(ty.CanonicalType(), usecat)
-	case clang.Type_Record:
-		if is_qt_class(ty) {
-		}
+		return getTyDesc(ty.CanonicalType(), usecat, usecs)
+	case clang.Type_Record: // TODO qt class
 		che[ArgTyDesc_CGO_SIGNATURE] = "unsafe.Pointer  /*444*/"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "void*"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
 		che[AsCReturn] = "void*"
 		che[AsGoReturn] = "unsafe.Pointer"
 		che[AsGoSignature] = "unsafe.Pointer"
-	case clang.Type_Pointer:
-		if isPrimitivePPType(ty) && ty.PointeeType().PointeeType().Kind() == clang.Type_Char_S {
-			// return "[]string"
-		} else if ty.PointeeType().Kind() == clang.Type_Char_S {
-			// return "string"
-		} else if is_qt_class(ty.PointeeType()) {
+
+		if is_qt_class(ty) {
+			refmod := get_decl_mod(ty.Declaration())
+			usemod := get_decl_mod(usecs)
+			pkgPref := gopp.IfElseStr(refmod != usemod, fmt.Sprintf("qt%s.", refmod), "")
+			if strings.ContainsAny(get_bare_type(ty).Spelling(), "<>") {
+				log.Println(ty.Spelling(), get_bare_type(ty).Spelling())
+			}
+			che[AsCSignature] = "*" + ty.Spelling()
+			che[AsGoSignature] = "*" + pkgPref + ty.Spelling() + "/*6666*/"
+			che[AsGoITF] = pkgPref + ty.Spelling() + "_ITF"
+			che[AsGoITF] = "*" + pkgPref + ty.Spelling() + "/*6666*/"
 		}
+
+	case clang.Type_Pointer: // TODO qt class
 		che[ArgTyDesc_CGO_SIGNATURE] = "unsafe.Pointer  /*666*/"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "void*"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
 		che[AsCReturn] = "void*"
 		che[AsGoReturn] = "unsafe.Pointer/*666*/"
 		che[AsGoSignature] = "unsafe.Pointer"
-	case clang.Type_LValueReference:
+
+		if isPrimitivePPType(ty) && ty.PointeeType().PointeeType().Kind() == clang.Type_Char_S {
+			// return "[]string"
+		} else if ty.PointeeType().Kind() == clang.Type_Char_S {
+			// return "string"
+		} else if is_qt_class(ty.PointeeType()) {
+		}
+
+	case clang.Type_LValueReference: // TODO qt class
 		if isPrimitiveType(ty.PointeeType()) {
 			// return this.toDest(ty.PointeeType(), cursor)
 		} else if is_qt_class(ty.PointeeType()) {
@@ -297,7 +346,7 @@ func getTyDesc(ty clang.Type, usecat int) string {
 		che[AsGoReturn] = "/*void*/"
 		che[AsGoSignature] = "/*void*/"
 	case clang.Type_Unexposed:
-		return getTyDesc(ty.CanonicalType(), usecat)
+		return getTyDesc(ty.CanonicalType(), usecat, usecs)
 	default:
 		log.Fatalln(ty.Spelling(), ty.Kind().Spelling())
 	}
@@ -305,7 +354,7 @@ func getTyDesc(ty clang.Type, usecat int) string {
 	if dstr, ok := che[usecat]; ok {
 		return dstr
 	}
-	return fmt.Sprintf("Unknown_%s_%s", ty.Spelling(), ty.Kind().String())
+	return fmt.Sprintf("Unknown_Type_%s_%s", ty.Kind().String(), ty.Spelling())
 }
 
 type TypeConvertor interface {
@@ -337,9 +386,6 @@ func NewTypeConvertGo() *TypeConvertGo {
 	this := &TypeConvertGo{}
 	return this
 }
-
-var privClasses = map[string]int{"QV8Engine": 1, "QQmlComponentAttached": 1,
-	"QQmlImageProviderBase": 1}
 
 // 把C/C++类型转换为Go的类型表示法
 func (this *TypeConvertGo) toDest(ty clang.Type, cursor clang.Cursor) string {
@@ -381,27 +427,19 @@ func (this *TypeConvertGo) toDest(ty clang.Type, cursor clang.Cursor) string {
 			log.Println(ty.Spelling(), ty.CanonicalType().Spelling(), tmplArgTy.Spelling())
 			refmod := get_decl_mod(tmplArgTy.Declaration())
 			usemod := get_decl_mod(cursor)
-			pkgSuff := ""
-			if refmod != usemod {
-				pkgSuff = fmt.Sprintf("qt%s.", refmod)
-				// log.Println(ty.Spelling(), usemod, refmod)
-			}
-			return "*" + pkgSuff + ty.Spelling() + "/*667*/"
+			pkgPref := gopp.IfElseStr(refmod != usemod, fmt.Sprintf("qt%s.", refmod), "")
+			return "*" + pkgPref + ty.Spelling() + "/*667*/"
 		}
 		return this.toDest(ty.CanonicalType(), cursor)
 	case clang.Type_Record:
 		if is_qt_class(ty) {
 			refmod := get_decl_mod(ty.Declaration())
 			usemod := get_decl_mod(cursor)
-			pkgSuff := ""
-			if refmod != usemod {
-				pkgSuff = fmt.Sprintf("qt%s.", refmod)
-				// log.Println(ty.Spelling(), usemod, refmod)
-			}
+			pkgPref := gopp.IfElseStr(refmod != usemod, fmt.Sprintf("qt%s.", refmod), "")
 			if strings.ContainsAny(get_bare_type(ty).Spelling(), "<>") {
 				log.Println(ty.Spelling(), get_bare_type(ty).Spelling())
 			}
-			return "*" + pkgSuff + get_bare_type(ty).Spelling() + "/*123*/"
+			return "*" + pkgPref + get_bare_type(ty).Spelling() + "/*123*/"
 		}
 		return "unsafe.Pointer /*444*/"
 	case clang.Type_Pointer:
@@ -412,16 +450,12 @@ func (this *TypeConvertGo) toDest(ty clang.Type, cursor clang.Cursor) string {
 		} else if is_qt_class(ty.PointeeType()) {
 			refmod := get_decl_mod(get_bare_type(ty).Declaration())
 			usemod := get_decl_mod(cursor)
-			pkgSuff := ""
-			if refmod != usemod {
-				pkgSuff = fmt.Sprintf("qt%s.", refmod)
-				// log.Println(ty.Spelling(), usemod, refmod)
-			}
+			pkgPref := gopp.IfElseStr(refmod != usemod, fmt.Sprintf("qt%s.", refmod), "")
 			if _, ok := privClasses[ty.PointeeType().Spelling()]; ok {
 			} else if usemod == "core" && refmod == "widgets" {
 			} else if usemod == "gui" && refmod == "widgets" {
 			} else {
-				return "*" + pkgSuff + get_bare_type(ty).Spelling() +
+				return "*" + pkgPref + get_bare_type(ty).Spelling() +
 					fmt.Sprintf("/*777 %s*/", ty.Spelling())
 			}
 		}
@@ -432,12 +466,8 @@ func (this *TypeConvertGo) toDest(ty clang.Type, cursor clang.Cursor) string {
 		} else if is_qt_class(ty.PointeeType()) {
 			refmod := get_decl_mod(get_bare_type(ty).Declaration())
 			usemod := get_decl_mod(cursor)
-			pkgSuff := ""
-			if refmod != usemod {
-				pkgSuff = fmt.Sprintf("qt%s.", refmod)
-				// log.Println(ty.Spelling(), usemod, refmod)
-			}
-			return "*" + pkgSuff + get_bare_type(ty).Spelling()
+			pkgPref := gopp.IfElseStr(refmod != usemod, fmt.Sprintf("qt%s.", refmod), "")
+			return "*" + pkgPref + get_bare_type(ty).Spelling()
 		}
 		return "unsafe.Pointer /*555*/"
 	case clang.Type_RValueReference:

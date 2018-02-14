@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"gopp"
 	"log"
 	"os"
@@ -13,7 +14,14 @@ import (
 	funk "github.com/thoas/go-funk"
 )
 
-// # like core
+func get_decl_loc(cursor clang.Cursor) string {
+	loc := cursor.Location()
+	file, lineno, _, _ := loc.FileLocation()
+	// log.Println(file.Name())
+	return fmt.Sprintf("%s:%d", file.Name(), lineno)
+}
+
+// # like core without qt prefix
 func get_decl_mod(cursor clang.Cursor) string {
 	loc := cursor.Location()
 	file, _, _, _ := loc.FileLocation()
@@ -47,7 +55,7 @@ func get_decl_mod(cursor clang.Cursor) string {
 }
 
 // 计算包名补全
-func calc_package_suffix(curc, refc clang.Cursor) string {
+func calc_package_prefix(curc, refc clang.Cursor) string {
 	curmod := get_decl_mod(curc)
 	refmod := get_decl_mod(refc)
 	if refmod != curmod {
@@ -266,6 +274,9 @@ func TypeIsFuncPointer(ty clang.Type) bool {
 func TypeIsConsted(ty clang.Type) bool {
 	return ty.IsConstQualifiedType() || strings.HasPrefix(ty.Spelling(), "const ")
 }
+
+var privClasses = map[string]int{"QV8Engine": 1, "QQmlComponentAttached": 1,
+	"QQmlImageProviderBase": 1}
 
 func rewriteOperatorMethodName(name string) string {
 	replaces := []string{

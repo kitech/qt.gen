@@ -306,6 +306,7 @@ func (this *GenCtrl) collectClasses() {
 			if !this.filter.skipClass(cursor, parent) {
 				skipClasses[cursor.Type().Spelling()] = 1
 			}
+			log.Println(cursor.DisplayName(), cursor.BriefCommentText(), cursor.RawCommentText())
 		case clang.Cursor_StructDecl:
 		case clang.Cursor_MacroDefinition:
 			readSourceRange(cursor.Extent())

@@ -97,31 +97,31 @@ func (this *GenerateInline) genPlainTmplInstCls(ptInstCls clang.Cursor) {
 			retassign := gopp.IfElseStr(rety.Kind() == clang.Type_Void, "/*auto rv = */", "auto rv = ")
 			switch {
 			case rety.Kind() == clang.Type_Bool || rety.Kind() == clang.Type_Int:
-				retstr = getTyDesc(rety, AsCReturn)
+				retstr = getTyDesc(rety, AsCReturn, cursor)
 				retstmt = "return rv;"
 			case rety.Kind() == clang.Type_Record:
-				retstr = getTyDesc(rety, AsCReturn)
+				retstr = getTyDesc(rety, AsCReturn, cursor)
 				retstmt = fmt.Sprintf("return new %s(rv);", rety.Spelling())
 			case rety.Kind() == clang.Type_LValueReference:
 				if rety.PointeeType().Kind() == clang.Type_Record && is_qt_class(rety.PointeeType()) {
-					retstr = getTyDesc(rety, AsCReturn)
+					retstr = getTyDesc(rety, AsCReturn, cursor)
 					retstmt = fmt.Sprintf("return new %s(rv);", rety.PointeeType().Spelling())
 				}
 			case rety.Kind() == clang.Type_Pointer:
-				retstr = getTyDesc(rety, AsCReturn)
+				retstr = getTyDesc(rety, AsCReturn, cursor)
 				retstmt = fmt.Sprintf("return (%s)rv;", retstr)
 			case rety.Kind() == clang.Type_Typedef:
 				if rety.Declaration().TypedefDeclUnderlyingType().Kind() == clang.Type_Record &&
 					is_qt_class(rety) {
-					retstr = getTyDesc(rety, AsCReturn)
+					retstr = getTyDesc(rety, AsCReturn, cursor)
 					retstmt = fmt.Sprintf("return new %s(rv);", rety.Spelling())
 				}
 			case rety.Kind() == clang.Type_Unexposed && rety.CanonicalType().Kind() == clang.Type_Record && is_qt_class(rety.CanonicalType()):
-				retstr = getTyDesc(rety, AsCReturn)
+				retstr = getTyDesc(rety, AsCReturn, cursor)
 				retstmt = fmt.Sprintf("return new %s(rv);", rety.CanonicalType().Spelling())
 			default:
 				if TypeIsCharPtr(rety) {
-					retstr = getTyDesc(rety, AsCReturn)
+					retstr = getTyDesc(rety, AsCReturn, cursor)
 					retstmt = fmt.Sprintf("return (%s)rv;", retstr)
 				}
 			}
