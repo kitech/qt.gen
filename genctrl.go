@@ -74,6 +74,7 @@ func (this *GenCtrl) setupLang() {
 		this.qtenumgen = NewGenerateInline()
 		this.qtfuncgen = NewGenerateInline()
 		this.qttmplgen = NewGenerateInline()
+		this.qtconstgen = NewGenerateInline()
 	case "go":
 		this.filter = &GenFilterGo{}
 		this.genor = NewGenerateGo()

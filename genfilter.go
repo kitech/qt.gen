@@ -157,7 +157,7 @@ func (this *GenFilterBase) skipMethodImpl(cursor, parent clang.Cursor) int {
 	}
 
 	if strings.HasPrefix(cname, "operator") {
-		return 4
+		// return 4
 	}
 
 	if funk.ContainsString([]string{"rend", "append", "insert", "rbegin", "prepend", "crend", "crbegin"}, cname) {
@@ -179,16 +179,23 @@ func (this *GenFilterBase) skipMethodImpl(cursor, parent clang.Cursor) int {
 	if cursor.CXXConstructor_IsMoveConstructor() {
 		return 8
 	}
-
-	//
-	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
-		if this.skipArg(cursor.Argument(uint32(idx)), cursor) {
+	if strings.HasPrefix(cname, "operator") {
+		if (parent.Spelling() == "QSignalBlocker" && cursor.Spelling() == "operator=") ||
+			(parent.Spelling() == "QLoggingCategory" && cursor.Spelling() == "operator()") ||
+			(parent.Spelling() == "QSemaphoreReleaser" && cursor.Spelling() == "operator=") {
 			return 9
 		}
 	}
 
+	//
+	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
+		if this.skipArg(cursor.Argument(uint32(idx)), cursor) {
+			return 10
+		}
+	}
+
 	if this.skipReturn(cursor.ResultType(), cursor) {
-		return 10
+		return 11
 	}
 
 	return 0
@@ -392,6 +399,17 @@ type GenFilterInc struct {
 	GenFilterBase
 }
 
+func (this *GenFilterInc) skipMethod(cursor, parent clang.Cursor) bool {
+	bskip := this.GenFilterBase.skipMethod(cursor, parent)
+	return bskip
+}
+
 type GenFilterGo struct {
 	GenFilterBase
+}
+
+// 过滤更多
+func (this *GenFilterGo) skipMethod(cursor, parent clang.Cursor) bool {
+	bskip := this.GenFilterBase.skipMethod(cursor, parent)
+	return bskip
 }

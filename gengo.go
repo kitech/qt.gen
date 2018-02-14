@@ -236,6 +236,7 @@ func (this *GenerateGo) genImports(cursor, parent clang.Cursor) {
 	this.cp.APf("ext", "import \"unsafe\"")
 	this.cp.APf("ext", "import \"reflect\"")
 	this.cp.APf("ext", "import \"fmt\"")
+	this.cp.APf("ext", "import \"log\"")
 	this.cp.APf("ext", "import \"github.com/kitech/qt.go/qtrt\"")
 	for _, dep := range modDeps[modname] {
 		this.cp.APf("ext", "import \"github.com/kitech/qt.go/qt%s\"", dep)
@@ -246,6 +247,7 @@ func (this *GenerateGo) genImports(cursor, parent clang.Cursor) {
 	this.cp.APf("keep", "  if false {reflect.TypeOf(123)}")
 	this.cp.APf("keep", "  if false {reflect.TypeOf(unsafe.Sizeof(0))}")
 	this.cp.APf("keep", "  if false {fmt.Println(123)}")
+	this.cp.APf("keep", "  if false {log.Println(123)}")
 	this.cp.APf("keep", "  if false {qtrt.KeepMe()}")
 	for _, dep := range modDeps[modname] {
 		this.cp.APf("keep", "if false {qt%s.KeepMe()}", dep)
@@ -452,9 +454,10 @@ func (this *GenerateGo) genMethodSignature(cursor, parent clang.Cursor, midx int
 		if cursor.ResultType().Kind() == clang.Type_Void {
 			retPlace = ""
 		}
+		mthname := gopp.IfElseStr(strings.HasPrefix(cursor.Spelling(), "operator"),
+			rewriteOperatorMethodName(cursor.Spelling()), cursor.Spelling())
 		this.cp.APf("body", "func (this *%s) %s%s(%s) %s {",
-			parent.Spelling(), strings.Title(cursor.Spelling()),
-			overloadSuffix, argStr, retPlace)
+			parent.Spelling(), strings.Title(mthname), overloadSuffix, argStr, retPlace)
 	}
 
 	// TODO fill types, default args
@@ -469,7 +472,7 @@ func (this *GenerateGo) genMethodSignatureNoThis(cursor, parent clang.Cursor, mi
 	switch cursor.Kind() {
 	case clang.Cursor_Constructor:
 	case clang.Cursor_Destructor:
-	default:
+	case clang.Cursor_CXXMethod:
 		retPlace := "interface{}"
 		retPlace = this.tyconver.toDest(cursor.ResultType(), cursor)
 		if is_qstring_cls(retPlace) {
@@ -478,9 +481,12 @@ func (this *GenerateGo) genMethodSignatureNoThis(cursor, parent clang.Cursor, mi
 		if cursor.ResultType().Kind() == clang.Type_Void {
 			retPlace = ""
 		}
+		mthname := gopp.IfElseStr(strings.HasPrefix(cursor.Spelling(), "operator"),
+			rewriteOperatorMethodName(cursor.Spelling()), cursor.Spelling())
 		this.cp.APf("body", "func %s_%s%s(%s) %s {",
-			parent.Spelling(), strings.Title(cursor.Spelling()),
-			overloadSuffix, argStr, retPlace)
+			parent.Spelling(), strings.Title(mthname), overloadSuffix, argStr, retPlace)
+	default:
+		// wtf
 	}
 
 	// TODO fill types, default args
@@ -561,6 +567,8 @@ func (this *GenerateGo) genCtor(cursor, parent clang.Cursor, midx int) {
 	this.cp.APf("body", "    gothis := New%sFromPointer(unsafe.Pointer(uintptr(rv)))", parent.Spelling())
 	if !has_qobject_base_class(parent) {
 		this.cp.APf("body", "    qtrt.SetFinalizer(gothis, Delete%s)", parent.Spelling())
+	} else {
+		this.cp.APf("body", "    qtrt.ConnectDestroyed(gothis, \"%s\")", parent.DisplayName())
 	}
 	this.cp.APf("body", "    return gothis")
 
@@ -747,15 +755,17 @@ func (this *GenerateGo) genStaticMethodNoThis(cursor, parent clang.Cursor, midx 
 	// this.genMethodHeaderLongName(cursor, parent, midx)
 	this.genMethodSignatureNoThis(cursor, parent, midx)
 	overloadSuffix := gopp.IfElseStr(midx == 0, "", fmt.Sprintf("_%d", midx))
+	mthname := gopp.IfElseStr(strings.HasPrefix(cursor.Spelling(), "operator"),
+		rewriteOperatorMethodName(cursor.Spelling()), cursor.Spelling())
 
 	// this.cp.APf("body", "    // %d: (%s), (%s)", midx, argStr, paramStr)
 	this.cp.APf("body", "    var nilthis *%s", parent.Spelling())
 	if cursor.ResultType().Kind() == clang.Type_Void {
 		this.cp.APf("body", "    nilthis.%s%s(%s)",
-			strings.Title(cursor.Spelling()), overloadSuffix, paramStr)
+			strings.Title(mthname), overloadSuffix, paramStr)
 	} else {
 		this.cp.APf("body", "    rv := nilthis.%s%s(%s)",
-			strings.Title(cursor.Spelling()), overloadSuffix, paramStr)
+			strings.Title(mthname), overloadSuffix, paramStr)
 		this.cp.APf("body", "    return rv")
 	}
 	// this.genRetFFI(cursor, parent, midx)
@@ -840,9 +850,12 @@ func (this *GenerateGo) genProtectedCallback(cursor, parent clang.Cursor, midx i
 			retStr := getTyDesc(cursor.ResultType(), AsGoReturn, parent)
 			log.Println(parent.Spelling(), cursor.DisplayName(), argStr, retStr, get_decl_loc(cursor), get_decl_mod(cursor))
 
+			mthname := gopp.IfElseStr(strings.HasPrefix(cursor.Spelling(), "operator"),
+				rewriteOperatorMethodName(cursor.Spelling()), cursor.Spelling())
+
 			this.cp.APf("body", "// %s %s", getTyDesc(cursor.ResultType(), ArgTyDesc_CPP_SIGNAUTE, cursor), cursor.DisplayName())
 			this.cp.APf("body", "func (this *%s) Inherit%s(f func(%s) %s) {",
-				parent.Spelling(), strings.Title(cursor.Spelling()), argStr, retStr)
+				parent.Spelling(), strings.Title(mthname), argStr, retStr)
 			this.cp.APf("body", "  qtrt.SetAllInheritCallback(this, \"%s\", f)", cursor.Spelling())
 			this.cp.APf("body", "}")
 			this.cp.APf("body", "")
@@ -977,9 +990,10 @@ func (this *GenerateGo) genArgConvFFI(cursor, parent clang.Cursor, midx, aidx in
 		this.cp.APf("body", "    defer qtrt.FreeMem(convArg%d)", aidx)
 	} else if is_qt_class(argty) && get_bare_type(argty).Spelling() == "QString" {
 		usemod := get_decl_mod(cursor)
-		pkgpref := gopp.IfElseStr(usemod == "core", "", "qtcore.")
-		this.cp.APf("body", "    var tmpArg%d = %sNewQString_5(%s)", aidx, pkgpref,
+		pkgPref := gopp.IfElseStr(usemod == "core", "", "qtcore.")
+		this.cp.APf("body", "    var tmpArg%d = %sNewQString_5(%s)", aidx, pkgPref,
 			this.genParamRefName(cursor, parent, aidx))
+		// this.cp.APf("body", "    defer %sDeleteQString(tmpArg%d)", pkgPref, aidx) // not needed
 		this.cp.APf("body", "    var convArg%d = tmpArg%d.GetCthis()", aidx, aidx)
 	} else if is_qt_class(argty) && !isPrimitiveType(argty.CanonicalType()) {
 		if argty.Spelling() == "QRgb" {
@@ -992,8 +1006,13 @@ func (this *GenerateGo) genArgConvFFI(cursor, parent clang.Cursor, midx, aidx in
 		} else if usemod == "core" && refmod == "widgets" {
 		} else if usemod == "gui" && refmod == "widgets" {
 		} else {
-			this.cp.APf("body", "    var convArg%d = %s.%s_PTR().GetCthis()", aidx,
+			this.cp.APf("body", "    var convArg%d unsafe.Pointer", aidx)
+			this.cp.APf("body", "    if %s != nil && %s.%s_PTR() != nil {",
+				this.genParamRefName(cursor, parent, aidx),
 				this.genParamRefName(cursor, parent, aidx), barety.Spelling())
+			this.cp.APf("body", "        convArg%d = %s.%s_PTR().GetCthis()", aidx,
+				this.genParamRefName(cursor, parent, aidx), barety.Spelling())
+			this.cp.APf("body", "    }")
 		}
 	} else { // no convert needed
 		// log.Fatalln("wtf", argty.Kind(), argty.Spelling(), parent.Spelling())
@@ -1055,9 +1074,13 @@ func (this *GenerateGo) genParamFFI(cursor, parent clang.Cursor, idx int) {
 
 		useand := argty.Kind() == clang.Type_LValueReference &&
 			isPrimitiveType(argty.PointeeType())
-		useand = useand || (argty.Kind() == clang.Type_Pointer &&
-			isPrimitiveType(argty.PointeeType()) &&
-			argty.PointeeType().Kind() != clang.Type_UChar) // UChar, SChar是字符串或者字节串
+		if argty.Kind() == clang.Type_Pointer && isPrimitiveType(argty.PointeeType()) &&
+			argty.PointeeType().Kind() == clang.Type_UChar { // UChar, SChar是字符串或者字节串
+			useand = false
+		} else if argty.Kind() == clang.Type_Pointer && isPrimitiveType(argty.PointeeType()) &&
+			argty.PointeeType().Kind() == clang.Type_Bool {
+			useand = false
+		}
 		andop := gopp.IfElseStr(useand, "&", "")
 		this.paramDesc = append(this.paramDesc,
 			andop+gopp.IfElseStr(cursor.Spelling() == "",
@@ -1137,7 +1160,7 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 		} else if TypeIsCharPtr(rety) {
 			this.cp.APf("body", "    return qtrt.GoStringI(rv)")
 		} else if rety.PointeeType().CanonicalType().Kind() == clang.Type_UChar {
-			this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv)) /*222*/")
+			this.cp.APf("body", "    return byte(rv) /*2221*/")
 		} else if rety.PointeeType().CanonicalType().Kind() == clang.Type_UShort {
 			this.cp.APf("body", "    return uint16(rv)")
 		} else if isPrimitiveType(rety.PointeeType()) {

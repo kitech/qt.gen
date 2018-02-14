@@ -458,6 +458,8 @@ func (this *TypeConvertGo) toDest(ty clang.Type, cursor clang.Cursor) string {
 				return "*" + pkgPref + get_bare_type(ty).Spelling() +
 					fmt.Sprintf("/*777 %s*/", ty.Spelling())
 			}
+		} else if ty.PointeeType().Kind() == clang.Type_Bool {
+			return "*bool"
 		}
 		return "unsafe.Pointer /*666*/"
 	case clang.Type_LValueReference:

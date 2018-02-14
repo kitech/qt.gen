@@ -193,7 +193,8 @@ func is_trivial_class(cursor clang.Cursor) bool {
 func is_deleted_class(cursor clang.Cursor) bool {
 	deleted := false
 	arr := map[string]int{"QClipboard": 1, "QInputMethod": 1, "QSessionManager": 1,
-		"QPaintDevice": 1, "QPagedPaintDevice": 1, "QScroller": 1, "QStandardPaths": 1}
+		"QPaintDevice": 1, "QPagedPaintDevice": 1, "QScroller": 1, "QStandardPaths": 1,
+		"QLoggingCategory": 1}
 	if _, ok := arr[cursor.Spelling()]; ok {
 		return true
 	}
@@ -281,20 +282,20 @@ var privClasses = map[string]int{"QV8Engine": 1, "QQmlComponentAttached": 1,
 func rewriteOperatorMethodName(name string) string {
 	replaces := []string{
 		"&=", "_and_equal",
-		"^=", "_jian_equal",
+		"^=", "_caret_equal",
 		"|=", "_or_equal",
 		"+=", "_add_equal",
 		"-=", "_minus_equal",
 		"==", "_equal_equal",
 		"!=", "_not_equal",
-		"!", "_not", "=", "_equal",
 		"<<", "_left_shift",
 		">>", "_right_shift",
 		"[]", "_get_index",
 		"()", "_fncall",
-		"->", "_pointer_selector",
+		"->", "_minus_greater",
 		"<", "_less_than", ">", "_greater_than",
-		"&", "_and", "^", "_jian", "|", "_or", "~", "_pozhehao",
+		"!", "_not", "=", "_equal",
+		"&", "_and", "^", "_caret", "|", "_or", "~", "_around",
 		"/", "_div", "*", "_mul", "-", "_minus", "+", "_add",
 		" ", "_"}
 	valiname := name
