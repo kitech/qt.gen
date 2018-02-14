@@ -149,6 +149,7 @@ func (this *GenCtrl) createTU() {
 		save_ast = true
 		opts := uint32(0)
 		opts |= clang.TranslationUnit_DetailedPreprocessingRecord
+		opts |= clang.TranslationUnit_IncludeBriefCommentsInCodeCompletion
 		tu = cidx.ParseTranslationUnit(hdr_file, args, nil, opts)
 	}
 	if !tu.IsValid() {
@@ -180,7 +181,7 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		clts.ClassCount += 1
 		log.Println(cursor.Spelling(), cursor.Kind().String(), cursor.DisplayName())
 		if !this.filter.skipClass(cursor, parent) {
-			//this.genor.genClass(cursor, parent)
+			this.genor.genClass(cursor, parent)
 		} else {
 			clts.SkippedClassCount += 1
 		}
@@ -197,7 +198,7 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		this.qtfuncgen.putFunc(cursor)
 	case clang.Cursor_StructDecl:
 		if !this.filter.skipClass(cursor, parent) {
-			//this.genor.genClass(cursor, parent)
+			this.genor.genClass(cursor, parent)
 			// return clang.ChildVisit_Break
 		}
 	case clang.Cursor_CXXMethod:

@@ -76,12 +76,37 @@
 #include <QtUiTools>
 #endif
 
-QList<QObject*> __try_instant_tmpl_class_QObjectList;
-QWindowList  __try_instant_tmpl_class_QWindowList;
-QList<QWindow*> __try_instant_tmpl_class_QWindowList2;
-
-// template class QFlags<int>;
 // #include <explicit_instantiate_templates.h>
+// template class QFlags<int>;
+
+/*
+template class QHash<QString, QVariant>;
+template class QMap<QString, QVariant>;
+template class QHash<WId, QWidget *>;
+template class QHash<int, QByteArray>;
+template class QList<QVariant>;
+template class QList<QByteArray>;
+template class QList<QFileInfo>;
+template class QList<QObject*>;
+template class QList<QWindow*>;
+template class QList<QWidget*>;
+template class QList<QGraphicsItem *>;
+template class QSet<QWidget*>;  // for QWidgetSet
+template class QList<QModelIndex>;
+template class QList<QQmlProperty>;
+template class QList<QJSValue>;
+template class QList<QQmlError>;
+*/
+
+// template class QList<QPointingDeviceUniqueId>;
+// template class QHash<QString, QRemoteObjectSourceLocationInfo>;
+// template class QList<QScriptValue>;
+// template class QList<QDeclarativeProperty>;
+// template class QList<QSurfaceDataRow*>;
+// template class QList<QBarDataRow*>;
+// template class QList<QCameraFocusZone>;
+// template class QList<QMediaResource>;
+// template class QMap<QModbusDataUnit::RegisterType, QModbusDataUnit>;
 
 #include <QtCore/extra_export.h>
 

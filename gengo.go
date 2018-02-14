@@ -257,6 +257,7 @@ func (this *GenerateGo) genClassDef(cursor, parent clang.Cursor) {
 	bcs := find_base_classes(cursor)
 	bcs = this.filter_base_classes(bcs)
 
+	// genTypeStruct
 	this.cp.APf("body", "type %s struct {", cursor.Spelling())
 	if len(bcs) == 0 {
 		this.cp.APf("body", "    *qtrt.CObject")
@@ -266,8 +267,19 @@ func (this *GenerateGo) genClassDef(cursor, parent clang.Cursor) {
 			// break
 		}
 	}
-	// this.cp.APf("body", "    cthis unsafe.Pointer")
 	this.cp.APf("body", "}")
+
+	// genTypeInterface, genTypeITF
+	this.cp.APf("body", "type %s_ITF interface {", cursor.Spelling())
+	for _, bc := range bcs {
+		this.cp.APf("body", "    %s%s_ITF", calc_package_suffix(cursor, bc), bc.Type().Spelling())
+		// break
+	}
+	this.cp.APf("body", "    %s_PTR() *%s", cursor.Spelling(), cursor.Spelling())
+	this.cp.APf("body", "}")
+	this.cp.APf("body", "func (ptr *%s) %s_PTR() *%s { return ptr }",
+		cursor.Spelling(), cursor.Spelling(), cursor.Spelling())
+	this.cp.APf("body", "")
 
 	this.genGetCthis(cursor, cursor, 0) // 只要定义了结构体，就有GetCthis方法
 	this.genSetCthis(cursor, cursor, 0) // 只要定义了结构体，就有GetCthis方法
@@ -1395,6 +1407,10 @@ func (this *GenerateGo) genConstantsGlobal(cursor, parent clang.Cursor) {
 		if strings.HasPrefix(macro.Spelling(), "_") {
 			continue
 		}
+		qtmod := get_decl_mod(macro)
+		if qtmod == "stdglobal" {
+			continue
+		}
 		macroval, macroty := readSourceRange(macro.Extent())
 		if macroty == "" {
 			continue
@@ -1404,7 +1420,6 @@ func (this *GenerateGo) genConstantsGlobal(cursor, parent clang.Cursor) {
 		}
 		macroval = gopp.IfElseStr(strings.HasPrefix(macroty, "num"), strings.TrimRight(macroval, "ACDL"), macroval)
 
-		qtmod := get_decl_mod(macro)
 		log.Println(qtmod, macro.Spelling(), macroval, macroty)
 		this.cp.APf("body", "const %s = %s // %s @ %s", macro.Spelling(), macroval, macroty, qtmod)
 	}
