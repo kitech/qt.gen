@@ -93,7 +93,7 @@ func get_bare_type(ty clang.Type) clang.Type {
 
 func is_go_keyword(s string) bool {
 	keywords := map[string]int{"match": 1, "type": 1, "move": 1, "select": 1, "map": 1,
-		"range": 1, "var": 1}
+		"range": 1, "var": 1, "len": 1}
 	_, ok := keywords[s]
 	return ok
 }

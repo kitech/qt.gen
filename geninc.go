@@ -206,6 +206,8 @@ func (this *GenerateInline) genProxyClass(cursor, parent clang.Cursor) {
 		if !mcs.CXXMethod_IsVirtual() { // 是否只override virtual方法呢？
 			// continue
 		}
+
+		this.cp.APf("main", "// %s", strings.Join(this.getFuncQulities(mcs), " "))
 		this.cp.APf("main", "// %s %s", mcs.ResultType().Spelling(), mcs.DisplayName())
 		if mcs.Kind() == clang.Cursor_Destructor {
 			continue
@@ -213,6 +215,8 @@ func (this *GenerateInline) genProxyClass(cursor, parent clang.Cursor) {
 		if mcs.Spelling() == "drawItems" || mcs.Spelling() == "getPaintContext" { // temporary skip this
 			continue
 		}
+
+		this.hasVirtualProtected = true
 
 		// gen projected methods
 		this.genArgsPxy(mcs, cursor)
@@ -270,7 +274,6 @@ func (this *GenerateInline) genProxyClass(cursor, parent clang.Cursor) {
 		prmStr4 := strings.Join(prms, ", ")
 
 		rety := mcs.ResultType()
-		this.hasVirtualProtected = true
 		this.cp.APf("main", "  virtual %s %s(%s) {", mcs.ResultType().Spelling(), mcs.Spelling(), argStr)
 		this.cp.APf("main", "    int handled = 0;")
 		this.cp.APf("main", "    auto irv = callbackAllInherits_fnptr(this, (char*)\"%s\", &handled, %s);",
@@ -310,6 +313,10 @@ func (this *GenerateInline) genProxyClass(cursor, parent clang.Cursor) {
 	this.cp.APf("main", "};")
 	this.cp.APf("main", "")
 
+	// a hotfix
+	if this.hasVirtualProtected && cursor.Spelling() == "QVariant" {
+		this.hasVirtualProtected = false
+	}
 }
 
 func (this *GenerateInline) genMethods(cursor, parent clang.Cursor) {
@@ -346,22 +353,7 @@ func (this *GenerateInline) genMethods(cursor, parent clang.Cursor) {
 
 // TODO move to base
 func (this *GenerateInline) genMethodHeader(cursor, parent clang.Cursor) {
-	qualities := make([]string, 0)
-	qualities = append(qualities, strings.Split(cursor.AccessSpecifier().Spelling(), "=")[1])
-	if cursor.CXXMethod_IsStatic() {
-		qualities = append(qualities, "static")
-	}
-	if cursor.IsFunctionInlined() {
-		qualities = append(qualities, "inline")
-	}
-	if cursor.CXXMethod_IsPureVirtual() {
-		qualities = append(qualities, "purevirtual")
-	}
-	if cursor.CXXMethod_IsVirtual() {
-		qualities = append(qualities, "virtual")
-	}
-	qualities = append(qualities, cursor.Visibility().String())
-	qualities = append(qualities, cursor.Availability().String())
+	qualities := this.getFuncQulities(cursor)
 	if len(qualities) > 0 {
 		this.cp.APf("main", "// %s", strings.Join(qualities, " "))
 	}

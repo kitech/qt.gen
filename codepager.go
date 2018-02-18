@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
+	"path"
 	"strings"
 	"sync"
+	"time"
 
 	"gopp"
 
@@ -252,5 +255,31 @@ func (this *CodeFS) ListFiles(dir string) (files []string) {
 // 写入到磁盘文件系统
 // bdir base directory
 func (this *CodeFS) WriteToDiskFS(bdir string, ext string) error {
+	log.Println("saving dirs:", len(this.cfs))
+	fc := 0
+	btime := time.Now()
+
+	err := this._WriteToDiskFS(bdir, ext, &fc)
+
+	log.Printf("saving all files done: dir: %d, files: %d, eclapse: %s\n",
+		len(this.cfs), fc, time.Now().Sub(btime))
+	return err
+}
+func (this *CodeFS) _WriteToDiskFS(bdir string, ext string, fcp *int) error {
+	for dir, _ := range this.cfs {
+		for file, cp := range this.cfs[dir] {
+			*fcp += 1
+			fpath := fmt.Sprintf("%s/%s/%s%s", bdir, dir, file, gopp.IfElseStr(ext == "", "", "."+ext))
+			fdir := path.Dir(fpath)
+			if !gopp.FileExist(fdir) {
+				err := os.MkdirAll(fdir, 0755)
+				gopp.ErrPrint(err, fdir)
+			}
+			err := cp.WriteFile(fpath)
+			gopp.ErrPrint(err, fpath, cp.AllPoints(), fdir)
+		}
+	}
 	return nil
 }
+
+/// C++ mangling

@@ -95,7 +95,7 @@ func (this *GenFilterBase) skipClassImpl(cursor, parent clang.Cursor) int {
 		return 8
 	}
 	// test
-	fixclasses := []string{"QDebug", "QNoDebug", "QDebugStateSaver", "QFileDevice",
+	fixclasses := []string{"QDebug", "QNoDebug", "QDebugStateSaver", // "QFileDevice",
 		"QLibraryInfo", "QInternal", "QAccessibleObject", "QAccessibleActionInterface",
 		"QGraphicsObject"}
 	for _, c := range fixclasses {

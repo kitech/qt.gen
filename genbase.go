@@ -106,6 +106,26 @@ func (this *GenBase) putConstant(c clang.Cursor) {
 	this.constants = append(this.constants, c)
 }
 
+func (this *GenBase) getFuncQulities(cursor clang.Cursor) []string {
+	qualities := make([]string, 0)
+	qualities = append(qualities, strings.Split(cursor.AccessSpecifier().Spelling(), "=")[1])
+	if cursor.CXXMethod_IsStatic() {
+		qualities = append(qualities, "static")
+	}
+	if cursor.IsFunctionInlined() {
+		qualities = append(qualities, "inline")
+	}
+	if cursor.CXXMethod_IsPureVirtual() {
+		qualities = append(qualities, "purevirtual")
+	}
+	if cursor.CXXMethod_IsVirtual() {
+		qualities = append(qualities, "virtual")
+	}
+	qualities = append(qualities, cursor.Visibility().String())
+	qualities = append(qualities, cursor.Availability().String())
+	return qualities
+}
+
 //////
 func (this *GenBase) groupFunctionsByModule() map[string][]clang.Cursor {
 	rets := map[string][]clang.Cursor{}
