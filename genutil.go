@@ -93,7 +93,7 @@ func get_bare_type(ty clang.Type) clang.Type {
 
 func is_go_keyword(s string) bool {
 	keywords := map[string]int{"match": 1, "type": 1, "move": 1, "select": 1, "map": 1,
-		"range": 1, "var": 1, "len": 1}
+		"range": 1, "var": 1, "len": 1, "fmt": 1}
 	_, ok := keywords[s]
 	return ok
 }
@@ -252,9 +252,20 @@ func TypeIsCharPtrPtr(ty clang.Type) bool {
 	return (isPrimitivePPType(ty) && ty.PointeeType().PointeeType().Kind() == clang.Type_Char_S) ||
 		(ty.Kind() == clang.Type_IncompleteArray && TypeIsCharPtr(ty.ElementType()))
 }
-
 func TypeIsCharPtr(ty clang.Type) bool {
 	return ty.Kind() == clang.Type_Pointer && ty.PointeeType().Kind() == clang.Type_Char_S
+}
+func TypeIsUCharPtr(ty clang.Type) bool {
+	return ty.Kind() == clang.Type_Pointer && ty.PointeeType().Kind() == clang.Type_UChar
+}
+func TypeIsBoolPtr(ty clang.Type) bool {
+	return ty.Kind() == clang.Type_Pointer && ty.PointeeType().Kind() == clang.Type_Bool
+}
+func TypeIsVoidPtr(ty clang.Type) bool {
+	return ty.Kind() == clang.Type_Pointer && ty.PointeeType().Kind() == clang.Type_Void
+}
+func TypeIsIntPtr(ty clang.Type) bool {
+	return ty.Kind() == clang.Type_Pointer && ty.PointeeType().Kind() == clang.Type_Int
 }
 
 func TypeIsQFlags(ty clang.Type) bool {
@@ -355,4 +366,62 @@ func readSourceRange(sr clang.SourceRange) (string, string) {
 	}
 
 	return "", ""
+}
+
+func num_default_value(mth clang.Cursor) (n int) {
+	for i := int32(0); i < mth.NumArguments(); i++ {
+		argcs := mth.Argument(uint32(i))
+		_, has := has_default_value(argcs)
+		n += gopp.IfElseInt(has, 1, 0)
+	}
+	return
+}
+
+func has_default_value(arg clang.Cursor) (string, bool) {
+	bfp, _, _, boffset := arg.Location().FileLocation()
+
+	var fph *os.File
+	if fph_, ok := fileCache[bfp.Name()]; ok {
+		fph = fph_
+	} else {
+		fph_, err := os.Open(bfp.Name())
+		gopp.ErrPrint(err, bfp.Name())
+		fph = fph_
+		fileCache[bfp.Name()] = fph
+	}
+	if fph == nil {
+		log.Fatalln("wtf", bfp.Name())
+	}
+
+	fph.Seek(int64(boffset), os.SEEK_SET)
+	s := ""
+	hasdv := false
+	leftb := 0
+	buf := make([]byte, 1)
+	for {
+		_, err := fph.Read(buf)
+		if err != nil {
+			gopp.ErrPrint(err)
+			break
+		} else {
+			if buf[0] == '(' {
+				leftb += 1
+			}
+			if buf[0] == ',' || (buf[0] == ')' && leftb == 0) || buf[0] == '#' {
+				break
+			} else {
+				if buf[0] == '=' {
+					hasdv = true
+				} else if hasdv {
+					s += string(buf)
+				}
+			}
+			if buf[0] == ')' {
+				leftb -= 1
+			}
+		}
+	}
+	s = strings.TrimSpace(s)
+	log.Println(arg.DisplayName(), arg.SemanticParent().Spelling(), hasdv, s)
+	return s, hasdv
 }

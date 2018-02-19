@@ -32,7 +32,7 @@ func (this *GenerateGo) genTydefTmplInstClses() {
 				log.Println(tmplClsName, tmplArgClsName)
 
 				this.cp = NewCodePager()
-				this.genHeader(tmplcls, tmplcls.SemanticParent())
+				this.genFileHeader(tmplcls, tmplcls.SemanticParent())
 				this.genImports(tmplcls, tmplcls.SemanticParent())
 				this.genTemplateInterface(tmplcls, clsinst)
 				mod := get_decl_mod(tmplcls)
@@ -41,7 +41,7 @@ func (this *GenerateGo) genTydefTmplInstClses() {
 				}
 
 				this.cp = NewCodePager()
-				this.genHeader(undcs, undcs.SemanticParent())
+				this.genFileHeader(undcs, undcs.SemanticParent())
 				this.genImports(undcs, undcs.SemanticParent())
 				this.genTemplateInstant(tmplcls, clsinst)
 				mod = get_decl_mod(undcs)

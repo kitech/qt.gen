@@ -63,7 +63,7 @@ func (this *GenerateInline) genClass(cursor, parent clang.Cursor) {
 	}
 
 	this.isPureVirtualClass = false
-	this.genHeader(cursor, parent)
+	this.genFileHeader(cursor, parent)
 	this.walkClass(cursor, parent)
 	this.genProtectedCallbacks(cursor, parent)
 	this.genProxyClass(cursor, parent)
@@ -103,7 +103,7 @@ func (this *GenerateInline) saveCodeToFile(modname, file string) {
 
 }
 
-func (this *GenerateInline) genHeader(cursor, parent clang.Cursor) {
+func (this *GenerateInline) genFileHeader(cursor, parent clang.Cursor) {
 	file, line, col, _ := cursor.Location().FileLocation()
 	if false {
 		log.Printf("%s:%d:%d @%s\n", file.Name(), line, col, file.Time().String())
