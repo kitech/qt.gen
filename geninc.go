@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/go-clang/v3.9/clang"
+	funk "github.com/thoas/go-funk"
 )
 
 type GenerateInline struct {
@@ -215,8 +216,10 @@ func (this *GenerateInline) genProxyClass(cursor, parent clang.Cursor) {
 		if mcs.Spelling() == "drawItems" || mcs.Spelling() == "getPaintContext" { // temporary skip this
 			continue
 		}
-
 		this.hasVirtualProtected = true
+		if mcs.CXXMethod_IsPureVirtual() {
+			// continue
+		}
 
 		// gen projected methods
 		this.genArgsPxy(mcs, cursor)
@@ -224,17 +227,11 @@ func (this *GenerateInline) genProxyClass(cursor, parent clang.Cursor) {
 		this.genParamsPxy(mcs, cursor)
 		paramStr := strings.Join(this.paramDesc, ", ")
 		argStr2 := argStr
-		if len(argStr2) > 0 {
-			argStr2 = ", " + argStr2
-		}
+		argStr2 = gopp.IfElseStr(len(argStr2) > 0, ", "+argStr2, argStr2)
 		paramStr2 := paramStr
-		if len(paramStr2) > 0 {
-			paramStr2 = ", " + paramStr2
-		}
+		paramStr2 = gopp.IfElseStr(len(paramStr2) > 0, ", "+paramStr2, paramStr2)
 		argtyStr := strings.Join(this.argtyDesc, ", ")
-		if len(argtyStr) > 0 {
-			argtyStr = ", " + argtyStr
-		}
+		argtyStr = gopp.IfElseStr(len(argtyStr) > 0, ", "+argtyStr, argtyStr)
 
 		this.genArgs(mcs, cursor)
 		argtyStr3 := strings.Join(this.argtyDesc, ", ")
@@ -346,7 +343,7 @@ func (this *GenerateInline) genMethods(cursor, parent clang.Cursor) {
 			}
 		}
 	}
-	if !seeDtor && !is_deleted_class(cursor) && !is_projected_dtor_class(cursor) {
+	if !seeDtor && !is_deleted_class(cursor) && !is_protected_dtor_class(cursor) {
 		this.genDtorNotsee(cursor, parent)
 	}
 }
@@ -745,7 +742,12 @@ func (this *GenerateInline) genParam(cursor, parent clang.Cursor, idx int) {
 	}
 
 	argName := this.genParamRefName(cursor, parent, idx)
-	this.paramDesc = append(this.paramDesc, fmt.Sprintf("%s%s", forceConvStr, argName))
+	if idx == 0 && // for argc
+		funk.ContainsString([]string{"QCoreApplication", "QGuiApplication", "QApplication", "QAndroidService"}, parent.Spelling()) {
+		this.paramDesc = append(this.paramDesc, fmt.Sprintf("*(new int(%s))", argName))
+	} else {
+		this.paramDesc = append(this.paramDesc, fmt.Sprintf("%s%s", forceConvStr, argName))
+	}
 }
 
 func (this *GenerateInline) genRet(cursor, parent clang.Cursor, idx int) {

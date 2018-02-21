@@ -207,6 +207,20 @@ func is_deleted_class(cursor clang.Cursor) bool {
 	return deleted
 }
 
+func getOverloadedIndex(cursor clang.Cursor, cursors []clang.Cursor) int {
+	idx := 0
+	for _, cs := range cursors {
+		if cs.Kind() == cursor.Kind() && cs.Spelling() == cursor.Spelling() {
+			if cs.Equal(cursor) {
+				return idx
+			} else {
+				idx += 1
+			}
+		}
+	}
+	return idx
+}
+
 // TODO
 func is_qt_private_class(cursor clang.Cursor) bool {
 	loc := cursor.Type().Declaration().Definition().Location()
@@ -223,7 +237,7 @@ func is_qt_inner_class(cursor clang.Cursor) bool {
 	return false
 }
 
-func is_projected_dtor_class(cursor clang.Cursor) bool {
+func is_protected_dtor_class(cursor clang.Cursor) bool {
 	protectedDtors := map[string]int{
 		"QTextCodec": 1, "QAccessibleInterface": 1, "QTextBlockGroup": 1,
 		"QTextObject": 1, "QAccessibleWidget": 1,
