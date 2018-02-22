@@ -870,6 +870,10 @@ func (this *GenerateInline) genFunction(cursor clang.Cursor, olidx int) {
 		}
 	}
 
+	hasLongDoubleArg := FuncHasLongDoubleArg(cursor)
+	if hasLongDoubleArg {
+		this.cp.APf("main", "#ifndef Q_OS_DARWIN")
+	}
 	overloadSuffix := gopp.IfElseStr(olidx == 0, "", fmt.Sprintf("_%d", olidx))
 	this.genMethodHeader(cursor, cursor.SemanticParent())
 	this.cp.APf("main", "%s %s%s(%s) {", retstr,
@@ -897,6 +901,9 @@ func (this *GenerateInline) genFunction(cursor clang.Cursor, olidx int) {
 		}
 	}
 	this.cp.APf("main", "}")
+	if hasLongDoubleArg {
+		this.cp.APf("main", "#endif")
+	}
 	this.cp.APf("main", "")
 }
 

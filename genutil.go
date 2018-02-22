@@ -262,6 +262,15 @@ func is_qstring_cls(retPlace string) bool {
 	return false
 }
 
+func FuncHasLongDoubleArg(c clang.Cursor) bool {
+	for i := int32(0); i < c.NumArguments(); i++ {
+		if c.Argument(uint32(i)).Type().Kind() == clang.Type_LongDouble {
+			return true
+		}
+	}
+	return false
+}
+
 func TypeIsCharPtrPtr(ty clang.Type) bool {
 	return (isPrimitivePPType(ty) && ty.PointeeType().PointeeType().Kind() == clang.Type_Char_S) ||
 		(ty.Kind() == clang.Type_IncompleteArray && TypeIsCharPtr(ty.ElementType()))

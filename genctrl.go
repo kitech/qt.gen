@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"github.com/go-clang/v3.9/clang"
@@ -107,7 +108,7 @@ func (this *GenCtrl) setupEnv() {
 
 	cmdlines := []string{
 		"-x c++ -std=c++11 -D__CODE_GENERATOR__ -D_GLIBCXX_USE_CXX11ABI=1",
-		"-I/usr/include/qt -DQT_NO_DEBUG -D_GNU_SOURCE -pipe -fno-exceptions -O2 -march=x86-64 -mtune=generic -O2 -pipe -fstack-protector-strong -std=c++11 -Wall -W -D_REENTRANT -fPIC",
+		"-DQT_NO_DEBUG -D_GNU_SOURCE -pipe -fno-exceptions -O2 -march=x86-64 -mtune=generic -O2 -pipe -fstack-protector-strong -std=c++11 -Wall -W -D_REENTRANT -fPIC",
 		"-I./headers", "-I/usr/include/wine/windows/", // fix cross platform generate, win/mac
 	}
 	args := []string{}
@@ -115,10 +116,28 @@ func (this *GenCtrl) setupEnv() {
 		args = append(args, strings.Split(e.(string), " ")...)
 		return nil
 	})
+
+	qtdir := gopp.IfElseStr(os.Getenv("QT_DIR") == "", "/usr", os.Getenv("QT_DIR"))
+	qtver := ""
+	if qtdir == "/usr" {
+		args = append(args, fmt.Sprintf("-I%s/include/qt", qtdir))
+	} else {
+		reg := `Qt([0-9.]+)`
+		exp := regexp.MustCompile(reg)
+		mats := exp.FindAllStringSubmatch(qtdir, -1)
+		log.Println(mats)
+		qtver = mats[0][1]
+		args = append(args, fmt.Sprintf("-I%s/%s/gcc_64/include", qtdir, qtver))
+	}
+
 	gopp.Domap(modules, func(e interface{}) interface{} {
 		args = append(args, fmt.Sprintf("-DQT_%s_LIB", strings.ToUpper(e.(string)[2:])))
 		args = append(args, fmt.Sprintf("-DGEN_GO_QT_%s_LIB", strings.ToUpper(e.(string)[2:])))
-		args = append(args, fmt.Sprintf("-I/usr/include/qt/%s", e.(string)))
+		if qtdir == "/usr" {
+			args = append(args, fmt.Sprintf("-I/usr/include/qt/%s", e.(string)))
+		} else {
+			args = append(args, fmt.Sprintf("-I%s/%s/gcc_64/include/%s", qtdir, qtver, e.(string)))
+		}
 		return nil
 	})
 	cmd := exec.Command("g++", "--print-file-name=include")
