@@ -110,6 +110,10 @@ func (this *GenerateInline) genFileHeader(cursor, parent clang.Cursor) {
 		log.Printf("%s:%d:%d @%s\n", file.Name(), line, col, file.Time().String())
 	}
 	this.cp.APf("header", "// %s", file.Name())
+	this.cp.APf("header", "#ifndef protected")        // for combile source code, so with #ifdef
+	this.cp.APf("header", "#define protected public") // for protected function call
+	// this.cp.APf("header", "#define private public") // not used for now
+	this.cp.APf("header", "#endif")
 	hbname := filepath.Base(file.Name())
 	if strings.HasSuffix(hbname, "_impl.h") {
 		this.cp.APf("header", "#include <%s.h>", hbname[:len(hbname)-7])
@@ -187,6 +191,7 @@ func (this *GenerateInline) genProxyClass(cursor, parent clang.Cursor) {
 	this.cp.APf("main", "public:")
 	this.cp.APf("main", "  virtual ~My%s() {}", cursor.Spelling())
 
+	proxyedMethods := []clang.Cursor{} // 这个要生成相应的公开调用封装函数
 	for _, mcs := range this.methods {
 		if mcs.Kind() == clang.Cursor_Constructor {
 			this.cp.APf("main", "// %s %s", mcs.ResultType().Spelling(), mcs.DisplayName())
@@ -222,6 +227,7 @@ func (this *GenerateInline) genProxyClass(cursor, parent clang.Cursor) {
 		}
 
 		// gen projected methods
+		proxyedMethods = append(proxyedMethods, mcs)
 		this.genArgsPxy(mcs, cursor)
 		argStr := strings.Join(this.argDesc, ", ")
 		this.genParamsPxy(mcs, cursor)
@@ -314,6 +320,24 @@ func (this *GenerateInline) genProxyClass(cursor, parent clang.Cursor) {
 	if this.hasVirtualProtected && cursor.Spelling() == "QVariant" {
 		this.hasVirtualProtected = false
 	}
+	this.genMethodsProxyed(proxyedMethods)
+}
+
+func (this *GenerateInline) genMethodsProxyed(methods []clang.Cursor) {
+	for midx, method := range methods {
+		this.genMethodProxyed(method, midx)
+	}
+}
+
+func (this *GenerateInline) genMethodProxyed(cursor clang.Cursor, midx int) {
+	this.genMethodHeader(cursor, cursor.SemanticParent())
+	// this.cp.APf("main", "")
+
+	if !cursor.CXXMethod_IsPureVirtual() {
+		parentSelector := ""
+		parentSelector = fmt.Sprintf("%s::", cursor.SemanticParent().Spelling())
+		this.genNonStaticMethod(cursor, cursor.SemanticParent(), parentSelector)
+	}
 }
 
 func (this *GenerateInline) genMethods(cursor, parent clang.Cursor) {
@@ -339,7 +363,7 @@ func (this *GenerateInline) genMethods(cursor, parent clang.Cursor) {
 			if cursor.CXXMethod_IsStatic() {
 				this.genStaticMethod(cursor, parent)
 			} else {
-				this.genNonStaticMethod(cursor, parent)
+				this.genNonStaticMethod(cursor, parent, "")
 			}
 		}
 	}
@@ -423,7 +447,7 @@ func (this *GenerateInline) genDtorNotsee(cursor, parent clang.Cursor) {
 	this.cp.APf("main", "}")
 }
 
-func (this *GenerateInline) genNonStaticMethod(cursor, parent clang.Cursor) {
+func (this *GenerateInline) genNonStaticMethod(cursor, parent clang.Cursor, withParentSelector string) {
 	this.genArgs(cursor, parent)
 	argStr := strings.Join(this.argDesc, ", ")
 	this.genParams(cursor, parent)
@@ -465,14 +489,14 @@ func (this *GenerateInline) genNonStaticMethod(cursor, parent clang.Cursor) {
 	this.cp.APf("main", "%s %s(void *this_%s) {", retstr, this.mangler.convTo(cursor), argStr)
 	log.Println(rety.Spelling(), rety.Declaration().Spelling(), rety.IsPODType())
 	if cursor.ResultType().Kind() == clang.Type_Void {
-		this.cp.APf("main", "  ((%s%s*)this_)->%s(%s);", pparentstr, parent.Spelling(), cursor.Spelling(), paramStr)
+		this.cp.APf("main", "  ((%s%s*)this_)->%s%s(%s);", pparentstr, parent.Spelling(), withParentSelector, cursor.Spelling(), paramStr)
 	} else {
 		if retset {
-			this.cp.APf("main", "  return (%s)((%s%s*)this_)->%s(%s);", retstr, pparentstr, parent.Spelling(), cursor.Spelling(), paramStr)
+			this.cp.APf("main", "  return (%s)((%s%s*)this_)->%s%s(%s);", retstr, pparentstr, parent.Spelling(), withParentSelector, cursor.Spelling(), paramStr)
 		} else {
 			autoand := gopp.IfElseStr(rety.Kind() == clang.Type_LValueReference, "auto&", "auto")
-			this.cp.APf("main", "  %s rv = ((%s%s*)this_)->%s(%s);",
-				autoand, pparentstr, parent.Spelling(), cursor.Spelling(), paramStr)
+			this.cp.APf("main", "  %s rv = ((%s%s*)this_)->%s%s(%s);",
+				autoand, pparentstr, parent.Spelling(), withParentSelector, cursor.Spelling(), paramStr)
 
 			if cancpobj {
 				unconstystr := strings.Replace(rety.Spelling(), "const ", "", 1)
@@ -492,6 +516,7 @@ func (this *GenerateInline) genNonStaticMethod(cursor, parent clang.Cursor) {
 		}
 	}
 	this.cp.APf("main", "}")
+	this.cp.APf("main", "")
 }
 
 func (this *GenerateInline) genStaticMethod(cursor, parent clang.Cursor) {
