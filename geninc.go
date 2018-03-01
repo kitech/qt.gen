@@ -187,7 +187,7 @@ func (this *GenerateInline) genProxyClass(cursor, parent clang.Cursor) {
 		return
 	}
 
-	this.cp.APf("main", "class My%s : public %s {", cursor.Spelling(), cursor.Type().Spelling())
+	this.cp.APf("main", "class Q_DECL_EXPORT My%s : public %s {", cursor.Spelling(), cursor.Type().Spelling())
 	this.cp.APf("main", "public:")
 	this.cp.APf("main", "  virtual ~My%s() {}", cursor.Spelling())
 
@@ -303,10 +303,19 @@ func (this *GenerateInline) genProxyClass(cursor, parent clang.Cursor) {
 		this.cp.APf("main", "      // %s", rety.Kind().String()+rety.CanonicalType().Kind().String()+rety.CanonicalType().Spelling())
 		this.cp.APf("main", "    } else {")
 		// TODO check return and convert return if needed
+		ispurevirt := mcs.CXXMethod_IsPureVirtual()
 		if mcs.ResultType().Kind() == clang.Type_Void {
-			this.cp.APf("main", "    %s::%s(%s);", cursor.Spelling(), mcs.Spelling(), paramStr)
+			if ispurevirt {
+				this.cp.APf("main", "    // %s::%s(%s);", cursor.Spelling(), mcs.Spelling(), paramStr)
+			} else {
+				this.cp.APf("main", "    %s::%s(%s);", cursor.Spelling(), mcs.Spelling(), paramStr)
+			}
 		} else {
-			this.cp.APf("main", "    return %s::%s(%s);", cursor.Spelling(), mcs.Spelling(), paramStr)
+			if ispurevirt {
+				this.cp.APf("main", "    return %s{};", rety.Spelling())
+			} else {
+				this.cp.APf("main", "    return %s::%s(%s);", cursor.Spelling(), mcs.Spelling(), paramStr)
+			}
 		}
 		this.cp.APf("main", "  }")
 		this.cp.APf("main", "  }")
