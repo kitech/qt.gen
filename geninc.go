@@ -383,7 +383,7 @@ func (this *GenerateInline) genMethodHeader(cursor, parent clang.Cursor) {
 	this.cp.APf("main", "// %s:%d", file.Name(), lineno)
 	this.cp.APf("main", "// [%d] %s %s",
 		cursor.ResultType().SizeOf(), cursor.ResultType().Spelling(), cursor.DisplayName())
-	this.cp.APf("main", "extern \"C\"")
+	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
 }
 
 func (this *GenerateInline) genCtor(cursor, parent clang.Cursor) {
@@ -437,7 +437,7 @@ func (this *GenerateInline) genDtorNotsee(cursor, parent clang.Cursor) {
 	// pparent := parent.SemanticParent()
 
 	this.cp.APf("main", "")
-	this.cp.APf("main", "extern \"C\"")
+	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
 	this.cp.APf("main", "void C_ZN%d%sD2Ev(void *this_) {", len(cursor.Spelling()), cursor.Spelling())
 	if strings.HasPrefix(parent.Spelling(), "Qt") {
 		this.cp.APf("main", "  delete (%s::%s*)(this_);", parent.Spelling(), cursor.Spelling())
