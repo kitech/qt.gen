@@ -91,7 +91,7 @@ function mvqil()
     # cp -a src/quick/*.cxx ~/oss/qt.inline/src/quick/
 
     # cp -a CMakeLists.txt ~/oss/qt.inline/
-    cp -a src/qihotfix.cpp ~/oss/qt.inline/src/
+    # cp -a src/qihotfix.cpp ~/oss/qt.inline/src/
 }
 
 function mvrssrc()

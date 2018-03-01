@@ -330,6 +330,7 @@ func (this *GenerateInline) genMethodsProxyed(methods []clang.Cursor) {
 }
 
 func (this *GenerateInline) genMethodProxyed(cursor clang.Cursor, midx int) {
+
 	this.genMethodHeader(cursor, cursor.SemanticParent())
 	// this.cp.APf("main", "")
 
@@ -383,7 +384,6 @@ func (this *GenerateInline) genMethodHeader(cursor, parent clang.Cursor) {
 	this.cp.APf("main", "// %s:%d", file.Name(), lineno)
 	this.cp.APf("main", "// [%d] %s %s",
 		cursor.ResultType().SizeOf(), cursor.ResultType().Spelling(), cursor.DisplayName())
-	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
 }
 
 func (this *GenerateInline) genCtor(cursor, parent clang.Cursor) {
@@ -400,6 +400,7 @@ func (this *GenerateInline) genCtor(cursor, parent clang.Cursor) {
 
 	pureVirtRetstr := gopp.IfElseStr(this.isPureVirtualClass, "0; //", "")
 
+	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
 	this.cp.APf("main", "void* %s(%s) {", this.mangler.convTo(cursor), argStr)
 	pxyclsp := ""
 	if !is_deleted_class(parent) && this.hasVirtualProtected {
@@ -423,6 +424,7 @@ func (this *GenerateInline) genCtor(cursor, parent clang.Cursor) {
 func (this *GenerateInline) genDtor(cursor, parent clang.Cursor) {
 	pparent := parent.SemanticParent()
 
+	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
 	this.cp.APf("main", "void %s(void *this_) {", this.mangler.convTo(cursor))
 	if strings.HasPrefix(pparent.Spelling(), "Qt") {
 		this.cp.APf("main", "  delete (%s::%s*)(this_);", pparent.Spelling(), parent.Spelling())
@@ -486,6 +488,7 @@ func (this *GenerateInline) genNonStaticMethod(cursor, parent clang.Cursor, with
 		}
 	}
 
+	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
 	this.cp.APf("main", "%s %s(void *this_%s) {", retstr, this.mangler.convTo(cursor), argStr)
 	log.Println(rety.Spelling(), rety.Declaration().Spelling(), rety.IsPODType())
 	if cursor.ResultType().Kind() == clang.Type_Void {
@@ -551,6 +554,7 @@ func (this *GenerateInline) genStaticMethod(cursor, parent clang.Cursor) {
 		}
 	}
 
+	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
 	this.cp.APf("main", "%s %s(%s) {", retstr, this.mangler.convTo(cursor), argStr)
 	if cursor.ResultType().Kind() == clang.Type_Void {
 		this.cp.APf("main", "  %s%s::%s(%s);", pparentstr, parent.Spelling(), cursor.Spelling(), paramStr)
@@ -901,6 +905,7 @@ func (this *GenerateInline) genFunction(cursor clang.Cursor, olidx int) {
 	}
 	overloadSuffix := gopp.IfElseStr(olidx == 0, "", fmt.Sprintf("_%d", olidx))
 	this.genMethodHeader(cursor, cursor.SemanticParent())
+	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
 	this.cp.APf("main", "%s %s%s(%s) {", retstr,
 		this.mangler.convTo(cursor), overloadSuffix, argStr)
 	if rety.Kind() == clang.Type_Void {
