@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
-	"regexp"
 	"strings"
 
 	"github.com/go-clang/v3.9/clang"
@@ -15,7 +15,7 @@ import (
 )
 
 var ast_file = "./qthdrsrc.ast"
-var hdr_file = "./headers/qthdrsrc.h"
+var hdr_file = "./bsheaders/qthdrsrc.h"
 
 // module depend table
 var modDeps = modDepsAll               // auto generated
@@ -109,7 +109,7 @@ func (this *GenCtrl) setupEnv() {
 	cmdlines := []string{
 		"-x c++ -std=c++11 -D__CODE_GENERATOR__ -D_GLIBCXX_USE_CXX11ABI=1",
 		"-DQT_NO_DEBUG -D_GNU_SOURCE -pipe -fno-exceptions -O2 -march=x86-64 -mtune=generic -O2 -pipe -fstack-protector-strong -std=c++11 -Wall -W -D_REENTRANT -fPIC",
-		"-I./headers", "-I/usr/include/wine/windows/", // fix cross platform generate, win/mac
+		"-I./bsheaders", "-I/usr/include/wine/windows/", // fix cross platform generate, win/mac
 	}
 	args := []string{}
 	gopp.Domap(cmdlines, func(e interface{}) interface{} {
@@ -117,17 +117,11 @@ func (this *GenCtrl) setupEnv() {
 		return nil
 	})
 
-	qtdir := gopp.IfElseStr(os.Getenv("QT_DIR") == "", "/usr", os.Getenv("QT_DIR"))
-	qtver := ""
+	qtdir := gopp.IfElseStr(os.Getenv("QT_DIR") == "", "/usr", "./qtheaders")
 	if qtdir == "/usr" {
 		args = append(args, fmt.Sprintf("-I%s/include/qt", qtdir))
 	} else {
-		reg := `Qt([0-9.]+)`
-		exp := regexp.MustCompile(reg)
-		mats := exp.FindAllStringSubmatch(qtdir, -1)
-		log.Println(mats)
-		qtver = mats[0][1]
-		args = append(args, fmt.Sprintf("-I%s/%s/gcc_64/include", qtdir, qtver))
+		args = append(args, fmt.Sprintf("-I./qtheaders/include"))
 	}
 
 	gopp.Domap(modules, func(e interface{}) interface{} {
@@ -136,7 +130,8 @@ func (this *GenCtrl) setupEnv() {
 		if qtdir == "/usr" {
 			args = append(args, fmt.Sprintf("-I/usr/include/qt/%s", e.(string)))
 		} else {
-			args = append(args, fmt.Sprintf("-I%s/%s/gcc_64/include/%s", qtdir, qtver, e.(string)))
+			// args = append(args, fmt.Sprintf("-I%s/%s/gcc_64/include/%s", qtdir, qtver, e.(string)))
+			args = append(args, fmt.Sprintf("-I./qtheaders/include/%s", e.(string)))
 		}
 		return nil
 	})
@@ -150,6 +145,8 @@ func (this *GenCtrl) setupEnv() {
 	gopp.ErrPrint(err)
 	args = append(args, fmt.Sprintf("-I/usr/include/c++/%s", strings.TrimSpace(string(out))))
 	log.Println(args)
+	fullCmd := fmt.Sprintf("g++ %s -o qthdrsrc.o -c %s", strings.Join(args, " "), hdr_file)
+	ioutil.WriteFile("bcmd.sh", []byte(fullCmd), 0755)
 	// os.Exit(0)
 
 	this.cidx = cidx

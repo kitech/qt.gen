@@ -50,6 +50,7 @@ func (this *GenFilterBase) skipClassImpl(cursor, parent clang.Cursor) int {
 		"QOpenGLExtraFunctionsPrivate",
 		"QAnimationGroup-",
 		"QMetaType",
+		"QAtomicOpsSupport",
 	}
 
 	for _, prefix := range prefixes {
