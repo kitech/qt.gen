@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"github.com/go-clang/v3.9/clang"
@@ -15,7 +16,7 @@ import (
 )
 
 var ast_file = "./qthdrsrc.ast"
-var hdr_file = "./bsheaders/qthdrsrc.h"
+var bshdr_file = "./bsheaders/qthdrsrc.h"
 
 // module depend table
 var modDeps = modDepsAll               // auto generated
@@ -100,15 +101,16 @@ func (this *GenCtrl) setupEnv() {
 		"QtNetwork", "QtQml", "QtQuick",
 		"QtQuickTemplates2", "QtQuickControls2", "QtQuickWidgets",
 		// for platform dependent modules, need copy headers if not exists
-		"QtAndroidExtras", // TODO fatal error: 'jni.h' file not found
-		"QtX11Extras",     // 这个包没生成出来什么代码
-		"QtWinExtras",     // 缺少QtWinExtracsDepened头文件
+		"QtAndroidExtras", // fatal error: 'jni.h' file not found, link /opt/android-ndk/sysroot/usr/include/jni.h -> bsheaders/jni.h
+		"QtX11Extras",     // 这个包没生成出来什么代码,
+		"QtWinExtras",     // 缺少QtWinExtracsDepened头文件,link qt-opensource-linux.bin installs to gcc_64
 		"QtMacExtras",     // 缺少QtMacExtracsDepened头文件
 	}
 
 	cmdlines := []string{
 		"-x c++ -std=c++11 -D__CODE_GENERATOR__ -D_GLIBCXX_USE_CXX11ABI=1",
 		"-DQT_NO_DEBUG -D_GNU_SOURCE -pipe -fno-exceptions -O2 -march=x86-64 -mtune=generic -O2 -pipe -fstack-protector-strong -std=c++11 -Wall -W -D_REENTRANT -fPIC",
+		// "-DQ_CLANG_QDOC", // 开启QDOC，竟然会出错
 		"-I./bsheaders", "-I/usr/include/wine/windows/", // fix cross platform generate, win/mac
 	}
 	args := []string{}
@@ -117,11 +119,20 @@ func (this *GenCtrl) setupEnv() {
 		return nil
 	})
 
-	qtdir := gopp.IfElseStr(os.Getenv("QT_DIR") == "", "/usr", "./qtheaders")
+	qtdir := gopp.IfElseStr(os.Getenv("QT_DIR") == "", "/usr", os.Getenv("QT_DIR"))
+	qtver := ""
 	if qtdir == "/usr" {
 		args = append(args, fmt.Sprintf("-I%s/include/qt", qtdir))
-	} else {
+	} else if strings.HasPrefix(qtdir, "qtheaders") {
 		args = append(args, fmt.Sprintf("-I./qtheaders/include"))
+	} else {
+		log.Println(qtdir)
+		reg := `Qt([0-9.]+)`
+		exp := regexp.MustCompile(reg)
+		mats := exp.FindAllStringSubmatch(qtdir, -1)
+		log.Println(mats)
+		qtver = mats[0][1]
+		args = append(args, fmt.Sprintf("-I%s/%s/gcc_64/include", qtdir, qtver))
 	}
 
 	gopp.Domap(modules, func(e interface{}) interface{} {
@@ -129,9 +140,10 @@ func (this *GenCtrl) setupEnv() {
 		args = append(args, fmt.Sprintf("-DGEN_GO_QT_%s_LIB", strings.ToUpper(e.(string)[2:])))
 		if qtdir == "/usr" {
 			args = append(args, fmt.Sprintf("-I/usr/include/qt/%s", e.(string)))
-		} else {
-			// args = append(args, fmt.Sprintf("-I%s/%s/gcc_64/include/%s", qtdir, qtver, e.(string)))
+		} else if strings.HasPrefix(qtdir, "qtheaders") {
 			args = append(args, fmt.Sprintf("-I./qtheaders/include/%s", e.(string)))
+		} else {
+			args = append(args, fmt.Sprintf("-I%s/%s/gcc_64/include/%s", qtdir, qtver, e.(string)))
 		}
 		return nil
 	})
@@ -145,7 +157,7 @@ func (this *GenCtrl) setupEnv() {
 	gopp.ErrPrint(err)
 	args = append(args, fmt.Sprintf("-I/usr/include/c++/%s", strings.TrimSpace(string(out))))
 	log.Println(args)
-	fullCmd := fmt.Sprintf("g++ %s -o qthdrsrc.o -c %s", strings.Join(args, " "), hdr_file)
+	fullCmd := fmt.Sprintf("g++ %s -o qthdrsrc.o -c %s", strings.Join(args, " "), bshdr_file)
 	ioutil.WriteFile("bcmd.sh", []byte(fullCmd), 0755)
 	// os.Exit(0)
 
@@ -167,7 +179,8 @@ func (this *GenCtrl) createTU() {
 		opts := uint32(0)
 		opts |= clang.TranslationUnit_DetailedPreprocessingRecord
 		opts |= clang.TranslationUnit_IncludeBriefCommentsInCodeCompletion
-		tu = cidx.ParseTranslationUnit(hdr_file, args, nil, opts)
+		tu = cidx.ParseTranslationUnit(bshdr_file, args, nil, opts)
+		// 需要正常编译能够通过
 	}
 	if !tu.IsValid() {
 		log.Panicln("wtf", "maybe cached qthdrsrc.ast file expired, delete and retry please.")
@@ -180,6 +193,10 @@ func (this *GenCtrl) createTU() {
 	this.tuc = cursor
 	this.tu = tu
 	this.save_ast = save_ast
+
+	if this.save_ast {
+		this.tu.SaveTranslationUnit(ast_file, 0)
+	}
 }
 
 func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {

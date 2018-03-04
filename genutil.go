@@ -21,12 +21,23 @@ func get_decl_loc(cursor clang.Cursor) string {
 	return fmt.Sprintf("%s:%d", file.Name(), lineno)
 }
 
+// xxx/include/ => /usr/include/qt
+func fix_inc_name(name string) string {
+	if !strings.HasPrefix(name, "/usr/include/qt") {
+		if strings.Contains(name, "/include/") {
+			return "/usr/include/qt/" + strings.Split(name, "/include/")[1]
+		}
+	}
+	return name
+}
+
 // # like core without qt prefix
 func get_decl_mod(cursor clang.Cursor) string {
 	loc := cursor.Location()
 	file, _, _, _ := loc.FileLocation()
-	// log.Println(file.Name())
-	if !strings.HasPrefix(file.Name(), "/usr/include/qt") {
+	log.Println(cursor.Spelling(), cursor.IsCursorDefinition(), file.Name())
+	if !strings.HasPrefix(file.Name(), "/usr/include/qt") &&
+		!strings.Contains(file.Name(), "/gcc_64/include/") {
 		if strings.Contains(file.Name(), "bsheaders/QtCore/") { // fix qRegisterResourceData
 			return "core"
 		}

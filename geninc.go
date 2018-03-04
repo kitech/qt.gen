@@ -109,7 +109,7 @@ func (this *GenerateInline) genFileHeader(cursor, parent clang.Cursor) {
 	if false {
 		log.Printf("%s:%d:%d @%s\n", file.Name(), line, col, file.Time().String())
 	}
-	this.cp.APf("header", "// %s", file.Name())
+	this.cp.APf("header", "// %s", fix_inc_name(file.Name()))
 	this.cp.APf("header", "#ifndef protected")        // for combile source code, so with #ifdef
 	this.cp.APf("header", "#define protected public") // for protected function call
 	// this.cp.APf("header", "#define private public") // not used for now
@@ -390,7 +390,7 @@ func (this *GenerateInline) genMethodHeader(cursor, parent clang.Cursor) {
 	}
 
 	file, lineno, _, _ := cursor.Location().FileLocation()
-	this.cp.APf("main", "// %s:%d", file.Name(), lineno)
+	this.cp.APf("main", "// %s:%d", fix_inc_name(file.Name()), lineno)
 	this.cp.APf("main", "// [%d] %s %s",
 		cursor.ResultType().SizeOf(), cursor.ResultType().Spelling(), cursor.DisplayName())
 }
