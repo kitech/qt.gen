@@ -154,7 +154,7 @@ func (this *GenerateGo) genFileHeader(cursor, parent clang.Cursor) {
 	}
 
 	this.cp.APf("header", "package %s", modName)
-	this.cp.APf("header", "// %s", file.Name())
+	this.cp.APf("header", "// %s", fix_inc_name(file.Name()))
 	this.cp.APf("header", "// #include <%s>", filepath.Base(file.Name()))
 	this.cp.APf("header", "// #include <%s>", fullModname)
 	this.cp.APf("header", "")
@@ -260,6 +260,9 @@ func (this *GenerateGo) genClassDef(cursor, parent clang.Cursor) {
 	bcs := find_base_classes(cursor)
 	bcs = this.filter_base_classes(bcs)
 
+	this.cp.APf("body", "\n/*")
+	this.cp.APf("body", "%s", queryComment(cursor))
+	this.cp.APf("body", "*/")
 	// genTypeStruct
 	this.cp.APf("body", "type %s struct {", cursor.Spelling())
 	if len(bcs) == 0 {
@@ -382,7 +385,7 @@ func (this *GenerateGo) groupMethods() [][]clang.Cursor {
 func (this *GenerateGo) genMethodHeader(cursor, parent clang.Cursor, midx int) {
 	file, lineno, _, _ := cursor.Location().FileLocation()
 	fileName := strings.Replace(file.Name(), os.Getenv("HOME"), "/home/me", -1)
-	this.cp.APf("body", "// %s:%d", fileName, lineno)
+	this.cp.APf("body", "// %s:%d", fix_inc_name(fileName), lineno)
 	this.cp.APf("body", "// index:%d", midx)
 
 	qualities := make([]string, 0)
@@ -410,6 +413,9 @@ func (this *GenerateGo) genMethodHeader(cursor, parent clang.Cursor, midx int) {
 		cursor.ResultType().Spelling(), strings.Replace(cursor.DisplayName(), "class ", "", -1),
 		gopp.IfElseStr(cursor.CXXMethod_IsConst(), " const", ""))
 
+	this.cp.APf("body", "\n/*")
+	this.cp.APf("body", "%s", queryComment(cursor))
+	this.cp.APf("body", "*/")
 }
 
 func (this *GenerateGo) genMethodInit(cursor, parent clang.Cursor) {
@@ -1377,6 +1383,11 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 		} else if rety.Spelling() == "qreal" {
 			this.cp.APf("body", "    return qtrt.Cretval2go(\"%s\", rv).(%s) // 1111",
 				this.tyconver.toDest(rety, cursor), this.tyconver.toDest(rety, cursor))
+		} else if TypeIsCharPtr(rety.CanonicalType()) {
+			this.cp.APf("body", "    return qtrt.GoStringI(rv)")
+			// TODO iterator is pointer, don't convert to string
+		} else if TypeIsPtr(rety.CanonicalType()) {
+			this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
 		} else {
 			this.cp.APf("body", "    return %s(rv) // 222", this.tyconver.toDest(rety, cursor))
 		}
@@ -1507,13 +1518,19 @@ func (this *GenerateGo) genArgCGOSign(cursor, parent clang.Cursor, idx int) {
 func (this *GenerateGo) genEnums(cursor, parent clang.Cursor) {
 	// log.Println("yyyyyyyy", cursor.DisplayName(), parent.DisplayName())
 	for _, enum := range this.enums {
+		comment := queryComment(enum)
+		pcomment, elems := extractEnumElem(comment)
 		this.cp.APf("body", "")
+		this.cp.APf("body", "/*")
+		this.cp.APf("body", "%s", pcomment)
+		this.cp.APf("body", "*/")
 		// must use uint, because on android
 		this.cp.APf("body", "type %s__%s = int", cursor.DisplayName(), enum.DisplayName())
 		enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
 			switch c1.Kind() {
 			case clang.Cursor_EnumConstantDecl:
 				log.Println("yyyyyyyyy", c1.EnumConstantDeclValue(), c1.DisplayName(), p1.DisplayName(), cursor.DisplayName())
+				this.cp.APf("body", "// %s", elems[c1.DisplayName()])
 				this.cp.APf("body", "const %s__%s %s__%s = %d",
 					cursor.DisplayName(), c1.DisplayName(),
 					cursor.DisplayName(), p1.DisplayName(),
@@ -1535,13 +1552,20 @@ func (this *GenerateGo) genEnumsGlobal(cursor, parent clang.Cursor) {
 			enum.DisplayName() == "future_statu" || enum.DisplayName() == "launch" {
 			continue
 		}
+
+		comment := queryComment(enum)
+		pcomment, elems := extractEnumElem(comment)
 		qtmod := get_decl_mod(enum)
 		this.cp.APf("body", "")
+		this.cp.APf("body", "/*")
+		this.cp.APf("body", "%s", pcomment)
+		this.cp.APf("body", "*/")
 		this.cp.APUf("body", "type %s__%s = int // %s", "Qt", enum.DisplayName(), qtmod)
 		enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
 			switch c1.Kind() {
 			case clang.Cursor_EnumConstantDecl:
 				log.Println("yyyyyyyyy", c1.EnumConstantDeclValue(), c1.DisplayName(), p1.DisplayName(), cursor.DisplayName())
+				this.cp.APUf("body", "// %s", elems[c1.DisplayName()])
 				this.cp.APUf("body", "const %s__%s %s__%s = %d",
 					"Qt", c1.DisplayName(),
 					"Qt", p1.DisplayName(),

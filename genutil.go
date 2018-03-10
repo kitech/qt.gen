@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/go-clang/v3.9/clang"
 	funk "github.com/thoas/go-funk"
 )
@@ -299,6 +300,7 @@ func TypeIsBoolPtr(ty clang.Type) bool {
 func TypeIsVoidPtr(ty clang.Type) bool {
 	return ty.Kind() == clang.Type_Pointer && ty.PointeeType().Kind() == clang.Type_Void
 }
+func TypeIsPtr(ty clang.Type) bool { return ty.Kind() == clang.Type_Pointer }
 func TypeIsIntPtr(ty clang.Type) bool {
 	return ty.Kind() == clang.Type_Pointer && ty.PointeeType().Kind() == clang.Type_Int
 }
@@ -525,4 +527,106 @@ func sinceVer2Hex(since string) string {
 	src := []byte{byte(gopp.MustInt(parts[0])), byte(gopp.MustInt(parts[1]))}
 	hv := hex.EncodeToString(src)
 	return fmt.Sprintf("0x%s00", hv)
+}
+
+var goqdocs = map[string]*goquery.Document{}
+
+// 查询方法/函数的注释，从doc/.html中
+func queryComment(c clang.Cursor) string {
+	mod := get_decl_mod(c)
+	bfp, _, _, _ := c.Location().FileLocation()
+	parts := strings.Split(bfp.Name(), "/")
+	htmlFile := fmt.Sprintf("/home/me/Qt5.10.1/Docs/Qt-5.10.1/qt%s/%stml", mod, parts[len(parts)-1])
+	log.Println(bfp.Name(), "=>", htmlFile)
+
+	switch c.Kind() {
+	case clang.Cursor_CXXMethod, clang.Cursor_Constructor, clang.Cursor_Destructor,
+		clang.Cursor_FunctionDecl:
+		sltor := fmt.Sprintf("h3#%s.fn", c.Spelling())
+		return queryCommentFromFile(htmlFile, c.Spelling(), sltor)
+	case clang.Cursor_EnumDecl:
+		sltor := fmt.Sprintf("h3#%s-enum.fn", c.Spelling())
+		comment := queryCommentFromFile(htmlFile, c.Spelling(), sltor)
+		if comment == "" {
+			htmlFile = "/home/me/Qt5.10.1/Docs/Qt-5.10.1/qtcore/qt.html"
+			comment = queryCommentFromFile(htmlFile, c.Spelling(), sltor)
+		}
+		return comment
+	case clang.Cursor_ClassDecl, clang.Cursor_StructDecl:
+		sltor := fmt.Sprintf("div#details")
+		return queryCommentFromFile(htmlFile, c.Spelling(), sltor)
+	}
+	return "nonono"
+}
+
+func queryCommentFromFile(htmlFile string, name string, sltor string) string {
+	if gopp.FileExist(htmlFile) {
+		var doco *goquery.Document
+		if doco_, ok := goqdocs[htmlFile]; ok {
+			doco = doco_
+		} else {
+			fp, err := os.Open(htmlFile)
+			gopp.ErrPrint(err, htmlFile)
+			doc, err := goquery.NewDocumentFromReader(fp)
+			gopp.ErrPrint(err)
+			fp.Close()
+			doco = doc
+		}
+
+		slts := doco.Find(sltor)
+		// log.Println(slts.Length(), sltor)
+		if slts.Length() > 0 {
+			n := slts.First().Nodes[0]
+			comment := ""
+			for n != nil {
+				nn := n.NextSibling
+				// log.Printf("%s, %+v\n", nn.Data, nn)
+				// log.Println(goquery.NewDocumentFromNode(nn).Text())
+				// log.Println(name, len(nn.Data), nn.Data)
+				isdivtab := false
+				for _, attr := range nn.Attr {
+					if attr.Key == "class" && attr.Val == "table" {
+						isdivtab = true
+					}
+				}
+
+				if nn.Data == "p" || nn.Data == "pre" || nn.Data == "ul" {
+					comment += "\n\n" + goquery.NewDocumentFromNode(nn).Text()
+				} else if nn.Data == "div" && isdivtab {
+					// omit table text
+					comment += "\n\n" + goquery.NewDocumentFromNode(nn).Text()
+				} else if strings.TrimSpace(nn.Data) != "" {
+					break
+				}
+
+				n = nn
+			}
+			log.Println(name, ":", len(comment), comment)
+			comment = strings.TrimSpace(comment)
+			comment = strings.Replace(comment, "/*", "\\/*", -1)
+			comment = strings.Replace(comment, "*/", "*\\/", -1)
+			return comment
+		}
+	}
+
+	return ""
+}
+
+func extractEnumElem(comment string) (pureComment string, elems map[string]string) {
+	elems = map[string]string{}
+	lines := strings.Split(comment, "\n")
+	exp := `(.+)::(.+)([0-9]+)(.+)`
+	reg := regexp.MustCompile(exp)
+	for _, line := range lines {
+		if line == "ConstantValueDescription" {
+			continue
+		}
+		if reg.MatchString(line) {
+			mats := reg.FindAllStringSubmatch(line, -1)
+			elems[mats[0][2]] = mats[0][4]
+			continue
+		}
+		pureComment += line + "\n"
+	}
+	return
 }
