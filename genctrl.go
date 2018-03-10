@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/go-clang/v3.9/clang"
 	funk "github.com/thoas/go-funk"
@@ -60,6 +61,12 @@ func (this *GenCtrl) main() {
 		log.Fatalln("must suply a lang to gen, usage: qt.gen <c|go|rs>")
 	}
 
+	btime := time.Now()
+	qdi.load()
+	log.Println(time.Now().Sub(btime))
+	if true {
+		// os.Exit(0)
+	}
 	this.setupLang()
 	this.setupEnv()
 	this.createTU()

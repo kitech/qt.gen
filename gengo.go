@@ -322,6 +322,8 @@ func (this *GenerateGo) genMethods(cursor, parent clang.Cursor) {
 		// case x
 		for idx, cursor := range cursors {
 			parent := cursor.SemanticParent()
+			funco, found := qdi.findCoMethodObj(cursor)
+			_, _ = funco, found
 			// log.Println(idx, cursor.Kind().String(), cursor.DisplayName())
 			switch cursor.Kind() {
 			case clang.Cursor_Constructor:
@@ -407,6 +409,7 @@ func (this *GenerateGo) genMethodHeader(cursor, parent clang.Cursor, midx int) {
 	this.cp.APf("body", "// [%d] %s %s%s", cursor.ResultType().SizeOf(),
 		cursor.ResultType().Spelling(), strings.Replace(cursor.DisplayName(), "class ", "", -1),
 		gopp.IfElseStr(cursor.CXXMethod_IsConst(), " const", ""))
+
 }
 
 func (this *GenerateGo) genMethodInit(cursor, parent clang.Cursor) {

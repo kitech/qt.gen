@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"gopp"
 	"log"
@@ -458,4 +459,70 @@ func has_default_value(arg clang.Cursor) (string, bool) {
 	s = strings.TrimSpace(s)
 	log.Println(arg.DisplayName(), arg.SemanticParent().Spelling(), hasdv, s)
 	return s, hasdv
+}
+
+func getOrOpenCursorFile(c clang.Cursor) *os.File {
+	bfp, _, _, _ := c.Location().FileLocation()
+
+	var fph *os.File
+	if fph_, ok := fileCache[bfp.Name()]; ok {
+		fph = fph_
+	} else {
+		fph_, err := os.Open(bfp.Name())
+		gopp.ErrPrint(err, bfp.Name())
+		fph = fph_
+		fileCache[bfp.Name()] = fph
+	}
+	if fph == nil {
+		log.Fatalln("wtf", bfp.Name(), c.Spelling())
+	}
+	return fph
+}
+
+// support class/method/function cursor
+// 从c的起始点往前推，找到第一段comment，当然不超过另一个c的定义（怎么判断？分号吗？可能有多个终止符号）
+// 突然发现安装后的头文件中并没有注释，注释在cpp文件中的。
+func readComment(c clang.Cursor) string {
+	bfp, _, _, boffset := c.Location().FileLocation()
+
+	var fph *os.File
+	if fph_, ok := fileCache[bfp.Name()]; ok {
+		fph = fph_
+	} else {
+		fph_, err := os.Open(bfp.Name())
+		gopp.ErrPrint(err, bfp.Name())
+		fph = fph_
+		fileCache[bfp.Name()] = fph
+	}
+	if fph == nil {
+		log.Fatalln("wtf", bfp.Name())
+	}
+
+	comment := ""
+	buf := make([]byte, 0)
+	ch := make([]byte, 1)
+	log.Println("looping read comment:", boffset, c.Spelling(), bfp.Name())
+	for off := boffset - 1; off >= 0; off-- {
+		fph.ReadAt(ch, int64(off))
+		if ch[0] == ';' {
+			break
+		}
+		buf = append([]byte{ch[0]}, buf...)
+		if len(buf) >= 2 {
+			if buf[0] == '/' && buf[1] == '*' {
+				comment = string(buf)
+				log.Println("found comment:", c.Spelling(), len(comment))
+				break
+			}
+		}
+	}
+	return comment
+}
+
+// since format: x.y
+func sinceVer2Hex(since string) string {
+	parts := strings.Split(since, ".")
+	src := []byte{byte(gopp.MustInt(parts[0])), byte(gopp.MustInt(parts[1]))}
+	hv := hex.EncodeToString(src)
+	return fmt.Sprintf("0x%s00", hv)
 }

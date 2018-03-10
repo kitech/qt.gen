@@ -169,7 +169,9 @@ func (this *GenerateInline) genTydefTmplInstClses() {
 			log.Println(tmplClsName, tmplElmClsName)
 
 			this.cp = NewCodePager()
-			this.genFileHeader(undcs, undcs.SemanticParent())
+			clsctx := &GenClassContext{}
+			clsctx.clscs = undcs
+			this.genFileHeader(clsctx, undcs, undcs.SemanticParent())
 			// this.genImports(tmplcls, tmplcls.SemanticParent())
 			this.genTemplateInterface(tmplcls, clsinst)
 			mod := get_decl_mod(tmplcls)
@@ -178,7 +180,7 @@ func (this *GenerateInline) genTydefTmplInstClses() {
 			}
 
 			this.cp = NewCodePager()
-			this.genFileHeader(undcs, undcs.SemanticParent())
+			this.genFileHeader(clsctx, undcs, undcs.SemanticParent())
 			// this.genImports(specls, specls.SemanticParent())
 			this.genTemplateInstant(tmplcls, clsinst)
 			mod = get_decl_mod(undcs)

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/go-clang/v3.9/clang"
+	"github.com/therecipe/qt/internal/binding/parser"
 	funk "github.com/thoas/go-funk"
 )
 
@@ -62,13 +63,19 @@ func (this *GenerateInline) genClass(cursor, parent clang.Cursor) {
 	if false {
 		log.Printf("%s:%d:%d @%s\n", file.Name(), line, col, file.Time().String())
 	}
+	clsctx := &GenClassContext{}
+	clsctx.clscs = cursor
+	clso, found := qdi.findClass(cursor.Spelling())
+	if found {
+		clsctx.clso = clso
+	}
 
 	this.isPureVirtualClass = false
-	this.genFileHeader(cursor, parent)
-	this.walkClass(cursor, parent)
-	this.genProtectedCallbacks(cursor, parent)
-	this.genProxyClass(cursor, parent)
-	this.genMethods(cursor, parent)
+	this.genFileHeader(clsctx, cursor, parent)
+	this.walkClass(clsctx, cursor, parent)
+	this.genProtectedCallbacks(clsctx, cursor, parent)
+	this.genProxyClass(clsctx, cursor, parent)
+	this.genMethods(clsctx, cursor, parent)
 	this.final(cursor, parent)
 }
 
@@ -104,10 +111,13 @@ func (this *GenerateInline) saveCodeToFile(modname, file string) {
 
 }
 
-func (this *GenerateInline) genFileHeader(cursor, parent clang.Cursor) {
+func (this *GenerateInline) genFileHeader(clsctx *GenClassContext, cursor, parent clang.Cursor) {
 	file, line, col, _ := cursor.Location().FileLocation()
 	if false {
 		log.Printf("%s:%d:%d @%s\n", file.Name(), line, col, file.Time().String())
+	}
+	if clsctx.clso != nil && clsctx.clso.Since != "" {
+		this.cp.APf("header", "// since %s", sinceVer2Hex(clsctx.clso.Since))
 	}
 	this.cp.APf("header", "// %s", fix_inc_name(file.Name()))
 	this.cp.APf("header", "#ifndef protected")        // for combile source code, so with #ifdef
@@ -126,7 +136,7 @@ func (this *GenerateInline) genFileHeader(cursor, parent clang.Cursor) {
 	this.cp.APf("header", "")
 }
 
-func (this *GenerateInline) walkClass(cursor, parent clang.Cursor) {
+func (this *GenerateInline) walkClass(clsctx *GenClassContext, cursor, parent clang.Cursor) {
 	pureVirt := false
 	methods := make([]clang.Cursor, 0)
 
@@ -167,7 +177,7 @@ func (this *GenerateInline) walkClass(cursor, parent clang.Cursor) {
 	this.methods = methods
 }
 
-func (this *GenerateInline) genProtectedCallbacks(cursor, parent clang.Cursor) {
+func (this *GenerateInline) genProtectedCallbacks(clsctx *GenClassContext, cursor, parent clang.Cursor) {
 	log.Println("process class:", len(this.methods), cursor.Spelling())
 	for _, cursor := range this.methods {
 		parent := cursor.SemanticParent()
@@ -181,7 +191,7 @@ func (this *GenerateInline) genProtectedCallbacks(cursor, parent clang.Cursor) {
 	this.cp.APf("main", "")
 }
 
-func (this *GenerateInline) genProxyClass(cursor, parent clang.Cursor) {
+func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, parent clang.Cursor) {
 	this.hasVirtualProtected = false
 	if is_deleted_class(cursor) {
 		return
@@ -329,28 +339,28 @@ func (this *GenerateInline) genProxyClass(cursor, parent clang.Cursor) {
 	if this.hasVirtualProtected && cursor.Spelling() == "QVariant" {
 		this.hasVirtualProtected = false
 	}
-	this.genMethodsProxyed(proxyedMethods)
+	this.genMethodsProxyed(clsctx, proxyedMethods)
 }
 
-func (this *GenerateInline) genMethodsProxyed(methods []clang.Cursor) {
+func (this *GenerateInline) genMethodsProxyed(clsctx *GenClassContext, methods []clang.Cursor) {
 	for midx, method := range methods {
-		this.genMethodProxyed(method, midx)
+		this.genMethodProxyed(clsctx, method, midx)
 	}
 }
 
-func (this *GenerateInline) genMethodProxyed(cursor clang.Cursor, midx int) {
+func (this *GenerateInline) genMethodProxyed(clsctx *GenClassContext, cursor clang.Cursor, midx int) {
 
-	this.genMethodHeader(cursor, cursor.SemanticParent())
+	this.genMethodHeader(clsctx, cursor, cursor.SemanticParent())
 	// this.cp.APf("main", "")
 
 	if !cursor.CXXMethod_IsPureVirtual() {
 		parentSelector := ""
 		parentSelector = fmt.Sprintf("%s::", cursor.SemanticParent().Spelling())
-		this.genNonStaticMethod(cursor, cursor.SemanticParent(), parentSelector)
+		this.genNonStaticMethod(clsctx, cursor, cursor.SemanticParent(), parentSelector)
 	}
 }
 
-func (this *GenerateInline) genMethods(cursor, parent clang.Cursor) {
+func (this *GenerateInline) genMethods(clsctx *GenClassContext, cursor, parent clang.Cursor) {
 	this.cp.APf("header", "// %s has virtual projected: %v", cursor.Spelling(), this.hasVirtualProtected)
 	log.Println("process class:", len(this.methods), cursor.Spelling())
 
@@ -362,18 +372,18 @@ func (this *GenerateInline) genMethods(cursor, parent clang.Cursor) {
 			continue
 		}
 
-		this.genMethodHeader(cursor, parent)
+		this.genMethodHeader(clsctx, cursor, parent)
 		switch cursor.Kind() {
 		case clang.Cursor_Constructor:
-			this.genCtor(cursor, parent)
+			this.genCtor(clsctx, cursor, parent)
 		case clang.Cursor_Destructor:
 			seeDtor = true
-			this.genDtor(cursor, parent)
+			this.genDtor(clsctx, cursor, parent)
 		default:
 			if cursor.CXXMethod_IsStatic() {
-				this.genStaticMethod(cursor, parent)
+				this.genStaticMethod(clsctx, cursor, parent)
 			} else {
-				this.genNonStaticMethod(cursor, parent, "")
+				this.genNonStaticMethod(clsctx, cursor, parent, "")
 			}
 		}
 	}
@@ -383,10 +393,18 @@ func (this *GenerateInline) genMethods(cursor, parent clang.Cursor) {
 }
 
 // TODO move to base
-func (this *GenerateInline) genMethodHeader(cursor, parent clang.Cursor) {
+func (this *GenerateInline) genMethodHeader(clsctx *GenClassContext, cursor, parent clang.Cursor) {
 	qualities := this.getFuncQulities(cursor)
 	if len(qualities) > 0 {
 		this.cp.APf("main", "// %s", strings.Join(qualities, " "))
+	}
+
+	funco, found := (*parser.Function)(nil), false
+	if clsctx.clso != nil {
+		funco, found = qdi.findMethod(clsctx.clso, cursor)
+		if found && funco.Since != "" {
+			this.cp.APf("main", "// since %s", funco.Since)
+		}
 	}
 
 	file, lineno, _, _ := cursor.Location().FileLocation()
@@ -395,7 +413,7 @@ func (this *GenerateInline) genMethodHeader(cursor, parent clang.Cursor) {
 		cursor.ResultType().SizeOf(), cursor.ResultType().Spelling(), cursor.DisplayName())
 }
 
-func (this *GenerateInline) genCtor(cursor, parent clang.Cursor) {
+func (this *GenerateInline) genCtor(clsctx *GenClassContext, cursor, parent clang.Cursor) {
 	// log.Println(this.mangler.convTo(cursor))
 	this.genArgs(cursor, parent)
 	argStr := strings.Join(this.argDesc, ", ")
@@ -409,6 +427,14 @@ func (this *GenerateInline) genCtor(cursor, parent clang.Cursor) {
 
 	pureVirtRetstr := gopp.IfElseStr(this.isPureVirtualClass, "0; //", "")
 
+	funco, found := (*parser.Function)(nil), false
+	if clsctx.clso != nil {
+		funco, found = qdi.findMethod(clsctx.clso, cursor)
+	}
+
+	if found && funco.Since != "" {
+		this.cp.APf("main", "#if QT_VERSION >= %s", sinceVer2Hex(funco.Since))
+	}
 	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
 	this.cp.APf("main", "void* %s(%s) {", this.mangler.convTo(cursor), argStr)
 	pxyclsp := ""
@@ -426,11 +452,14 @@ func (this *GenerateInline) genCtor(cursor, parent clang.Cursor) {
 	} else {
 		this.cp.APf("main", "  return %s new %s%s(%s);", pureVirtRetstr, pxyclsp, parent.Spelling(), paramStr)
 	}
-
 	this.cp.APf("main", "}")
+	if found && funco.Since != "" {
+		this.cp.APf("main", "#endif // QT_VERSION >= %s", sinceVer2Hex(funco.Since))
+	}
+	this.cp.APf("main", "")
 }
 
-func (this *GenerateInline) genDtor(cursor, parent clang.Cursor) {
+func (this *GenerateInline) genDtor(clsctx *GenClassContext, cursor, parent clang.Cursor) {
 	pparent := parent.SemanticParent()
 
 	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
@@ -458,7 +487,7 @@ func (this *GenerateInline) genDtorNotsee(cursor, parent clang.Cursor) {
 	this.cp.APf("main", "}")
 }
 
-func (this *GenerateInline) genNonStaticMethod(cursor, parent clang.Cursor, withParentSelector string) {
+func (this *GenerateInline) genNonStaticMethod(clsctx *GenClassContext, cursor, parent clang.Cursor, withParentSelector string) {
 	this.genArgs(cursor, parent)
 	argStr := strings.Join(this.argDesc, ", ")
 	this.genParams(cursor, parent)
@@ -497,6 +526,14 @@ func (this *GenerateInline) genNonStaticMethod(cursor, parent clang.Cursor, with
 		}
 	}
 
+	funco, found := (*parser.Function)(nil), false
+	if clsctx.clso != nil {
+		funco, found = qdi.findMethod(clsctx.clso, cursor)
+	}
+
+	if found && funco.Since != "" {
+		this.cp.APf("main", "#if QT_VERSION >= %s", sinceVer2Hex(funco.Since))
+	}
 	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
 	this.cp.APf("main", "%s %s(void *this_%s) {", retstr, this.mangler.convTo(cursor), argStr)
 	log.Println(rety.Spelling(), rety.Declaration().Spelling(), rety.IsPODType())
@@ -528,10 +565,13 @@ func (this *GenerateInline) genNonStaticMethod(cursor, parent clang.Cursor, with
 		}
 	}
 	this.cp.APf("main", "}")
+	if found && funco.Since != "" {
+		this.cp.APf("main", "#endif // QT_VERSION >= %s", sinceVer2Hex(funco.Since))
+	}
 	this.cp.APf("main", "")
 }
 
-func (this *GenerateInline) genStaticMethod(cursor, parent clang.Cursor) {
+func (this *GenerateInline) genStaticMethod(clsctx *GenClassContext, cursor, parent clang.Cursor) {
 	this.genArgs(cursor, parent)
 	argStr := strings.Join(this.argDesc, ", ")
 	this.genParams(cursor, parent)
@@ -563,6 +603,14 @@ func (this *GenerateInline) genStaticMethod(cursor, parent clang.Cursor) {
 		}
 	}
 
+	funco, found := (*parser.Function)(nil), false
+	if clsctx.clso != nil {
+		funco, found = qdi.findMethod(clsctx.clso, cursor)
+	}
+
+	if found && funco.Since != "" {
+		this.cp.APf("main", "#if QT_VERSION >= %s", sinceVer2Hex(funco.Since))
+	}
 	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
 	this.cp.APf("main", "%s %s(%s) {", retstr, this.mangler.convTo(cursor), argStr)
 	if cursor.ResultType().Kind() == clang.Type_Void {
@@ -590,6 +638,10 @@ func (this *GenerateInline) genStaticMethod(cursor, parent clang.Cursor) {
 		}
 	}
 	this.cp.APf("main", "}")
+	if found && funco.Since != "" {
+		this.cp.APf("main", "#endif // QT_VERSION >= %s", sinceVer2Hex(funco.Since))
+	}
+	this.cp.APf("main", "")
 }
 
 func (this *GenerateInline) genProtectedCallback(cursor, parent clang.Cursor) {
@@ -913,7 +965,8 @@ func (this *GenerateInline) genFunction(cursor clang.Cursor, olidx int) {
 		this.cp.APf("main", "#ifndef Q_OS_DARWIN")
 	}
 	overloadSuffix := gopp.IfElseStr(olidx == 0, "", fmt.Sprintf("_%d", olidx))
-	this.genMethodHeader(cursor, cursor.SemanticParent())
+	clsctx := &GenClassContext{}
+	this.genMethodHeader(clsctx, cursor, cursor.SemanticParent())
 	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
 	this.cp.APf("main", "%s %s%s(%s) {", retstr,
 		this.mangler.convTo(cursor), overloadSuffix, argStr)

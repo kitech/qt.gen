@@ -37,6 +37,7 @@ func (this *GenFilterBase) skipClass(cursor, parent clang.Cursor) bool {
 	return skip > 0
 }
 
+// TODO  拆分成多个小的过滤函数
 func (this *GenFilterBase) skipClassImpl(cursor, parent clang.Cursor) int {
 	cname := cursor.Spelling()
 	prefixes := []string{
