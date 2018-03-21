@@ -784,6 +784,9 @@ func isPrimitiveType(ty clang.Type) bool {
 	case clang.Type_RValueReference:
 		return false
 	case clang.Type_Elaborated:
+		if ty.Spelling() == "QMetaObject::Connection" {
+			return false
+		}
 		return true
 	case clang.Type_Enum:
 		return true
