@@ -34,18 +34,23 @@
 #include <QtQuickWidgets>
 #endif
 
+// webengines
+#ifdef GEN_GO_QT_WEBENGINECORE_LIB
+#include <QtPositioning>
+#endif
+#ifdef GEN_GO_QT_WEBCHANNEL_LIB
+#include <QtWebChannel>
+#endif
 #ifdef GEN_GO_QT_WEBENGINECORE_LIB
 #include <QtWebEngineCore>
 #endif
 #ifdef GEN_GO_QT_WEBENGINE_LIB
 #include <QtWebEngine>
 #endif
-#ifdef GEN_GO_QT_WEBCHANNEL_LIB
-#include <QtWebChannel>
-#endif
 #ifdef GEN_GO_QT_WEBENGINEWIDGETS_LIB
 #include <QtWebEngineWidgets>
 #endif
+
 #ifdef GEN_GO_QT_SQL_LIB
 #include <QtSql>
 #endif

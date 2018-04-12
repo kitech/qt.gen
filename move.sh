@@ -21,6 +21,8 @@ function mvgosrc()
     # ~/oss/qt.go/ must be a soft link of $GOPATH/src/github.com/kitech/qt.go/
     mkdir -p ~/oss/qt.go/{qt5,qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}
     rm -f ~/oss/qt.go/{qt5,qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}/q*.go
+    mkdir -p ~/oss/qt.go/{qtpositioning,qtwebchannel,qtwebenginecore,qtwebengine,qtwebenginewidgets}
+    rm -f ~/oss/qt.go/{qtpositioning,qtwebchannel,qtwebenginecore,qtwebengine,qtwebenginewidgets}/q*.go
 
     # cp -a src/qtrt/*.go ~/oss/qt.go/qtrt/
     cp -a src/core/*.go ~/oss/qt.go/qtcore/
@@ -34,6 +36,13 @@ function mvgosrc()
     cp -a src/androidextras/*.go ~/oss/qt.go/qtandroidextras/
     cp -a src/winextras/*.go ~/oss/qt.go/qtwinextras/
     cp -a src/macextras/*.go ~/oss/qt.go/qtmacextras/
+
+    # webengines
+    cp -a src/positioning/*.go ~/oss/qt.go/qtpositioning/
+    cp -a src/webchannel/*.go ~/oss/qt.go/qtwebchannel/
+    cp -a src/webenginecore/*.go ~/oss/qt.go/qtwebenginecore/
+    cp -a src/webengine/*.go ~/oss/qt.go/qtwebengine/
+    cp -a src/webenginewidgets/*.go ~/oss/qt.go/qtwebenginewidgets/
 }
 
 function mvbymd5()
@@ -83,6 +92,13 @@ function mvqil()
     mvbymd5 cxx src/quickcontrols2 ~/oss/qt.inline/src/quickcontrols2
     mvbymd5 cxx src/quickwidgets ~/oss/qt.inline/src/quickwidgets
 
+    ### webengines
+    mvbymd5 cxx src/positioning ~/oss/qt.inline/src/positioning
+    mvbymd5 cxx src/webchannel ~/oss/qt.inline/src/webchannel
+    mvbymd5 cxx src/webenginecore ~/oss/qt.inline/src/webenginecore
+    mvbymd5 cxx src/webengine ~/oss/qt.inline/src/webengine
+    mvbymd5 cxx src/webenginewidgets ~/oss/qt.inline/src/webenginewidgets
+
     #cp -a src/core/*.cxx ~/oss/qt.inline/src/core/
     #cp -a src/gui/*.cxx ~/oss/qt.inline/src/gui/
     #cp -a src/widgets/*.cxx ~/oss/qt.inline/src/widgets/
@@ -105,6 +121,7 @@ function mvrssrc()
     cp -a src/network/*.rs ~/oss/qt.rs/src/network/
     cp -a src/qml/*.rs ~/oss/qt.rs/src/qml/
     cp -a src/quick/*.rs ~/oss/qt.rs/src/quick/
+
 }
 
 cmd=$1

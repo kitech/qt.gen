@@ -317,7 +317,8 @@ func (this *GenFilterBase) skipReturnImpl(ty clang.Type, cursor clang.Cursor) in
 		"QPlatformPixmap", "QPlatformScreen", "QPlatformSurface", "QTextDocumentPrivate",
 		"QTextEngine", "QPlatformWindow", "QVulkanInstance", "QGraphicsEffectSource",
 		"QGraphicsObject", "QPlatformMenu", "QPlatformMenuBar",
-		"QOpenGLFramebufferObject", "QOpenGLShaderProgram"}
+		"QOpenGLFramebufferObject", "QOpenGLShaderProgram",
+		"QQmlWebChannelAttached"}
 	for _, tn := range skips {
 		log.Println(ty.Spelling(), cursor.Spelling(), ty.CanonicalType().Spelling(), ty.PointeeType().CanonicalType().Spelling(), ty.PointeeType().Declaration().Type().Spelling())
 		if ty.Spelling() == tn || ty.PointeeType().Spelling() == tn ||
@@ -341,6 +342,9 @@ func (this *GenFilterBase) skipReturnImpl(ty clang.Type, cursor clang.Cursor) in
 			// strings.HasSuffix(bareSpell, "List") ||
 			// strings.HasSuffix(bareSpell, "Set") ||
 			strings.HasSuffix(bareSpell, "Hash") {
+			return 2
+		}
+		if strings.HasPrefix(bareSpell, "QList<") {
 			return 2
 		}
 	}

@@ -112,6 +112,8 @@ func (this *GenCtrl) setupEnv() {
 		"QtX11Extras",     // 这个包没生成出来什么代码,
 		"QtWinExtras",     // 缺少QtWinExtracsDepened头文件,link qt-opensource-linux.bin installs to gcc_64
 		"QtMacExtras",     // 缺少QtMacExtracsDepened头文件
+		// webengines
+		"QtPositioning", "QtWebChannel", "QtWebEngineCore", "QtWebEngine", "QtWebEngineWidgets",
 	}
 
 	cmdlines := []string{

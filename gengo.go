@@ -1220,6 +1220,9 @@ func (this *GenerateGo) genArgConvFFIDv(cursor, parent clang.Cursor, midx, aidx 
 		this.cp.APf("body", "    var convArg%d unsafe.Pointer", aidx)
 	} else if funk.Contains([]clang.TypeKind{clang.Type_Enum, clang.Type_Elaborated}, argty.Kind()) {
 		this.cp.APf("body", "    %s := 0", this.genParamRefName(cursor, parent, aidx))
+	} else if argty.Kind() == clang.Type_LValueReference &&
+		funk.Contains([]clang.TypeKind{clang.Type_Enum, clang.Type_Elaborated}, argty.PointeeType().Kind()) {
+		this.cp.APf("body", "    %s := 0", this.genParamRefName(cursor, parent, aidx))
 	} else if funk.Contains([]clang.TypeKind{clang.Type_Int, clang.Type_Long, clang.Type_ULong, clang.Type_LongLong, clang.Type_Double, clang.Type_UShort, clang.Type_Float}, argty.Kind()) {
 		if strings.HasPrefix(argdv, "Qt::") || argdv == "Type" ||
 			(strings.HasPrefix(argdv, "Q") && strings.Contains(argdv, "::")) {

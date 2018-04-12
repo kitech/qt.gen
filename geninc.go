@@ -199,7 +199,9 @@ func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, paren
 
 	this.cp.APf("main", "class Q_DECL_EXPORT My%s : public %s {", cursor.Spelling(), cursor.Type().Spelling())
 	this.cp.APf("main", "public:")
-	this.cp.APf("main", "  virtual ~My%s() {}", cursor.Spelling())
+	if !is_protected_dtor_class(cursor) {
+		this.cp.APf("main", "  virtual ~My%s() {}", cursor.Spelling())
+	}
 
 	proxyedMethods := []clang.Cursor{} // 这个要生成相应的公开调用封装函数
 	for _, mcs := range this.methods {
@@ -883,9 +885,10 @@ func (this *GenerateInline) genFunctions(cursor, parent clang.Cursor) {
 		this.cp = NewCodePager()
 		// write code
 		for _, mod := range modDeps[qtmod] {
-			this.cp.APf("header", "#include <Qt%s>", strings.Title(mod))
+			incmod := getIncludeNameByModule(mod)
+			this.cp.APf("header", "#include <Qt%s>", incmod)
 		}
-		this.cp.APf("header", "#include <Qt%s>", strings.Title(qtmod))
+		this.cp.APf("header", "#include <Qt%s>", getIncludeNameByModule(qtmod))
 		this.cp.APf("header", "#include \"hidden_symbols.h\"")
 
 		sort.Slice(funcs, func(i int, j int) bool {

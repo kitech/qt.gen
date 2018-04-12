@@ -34,6 +34,7 @@ func fix_inc_name(name string) string {
 }
 
 // # like core without qt prefix
+func get_decl_mod_lower(cursor clang.Cursor) string { return get_decl_mod(cursor) }
 func get_decl_mod(cursor clang.Cursor) string {
 	loc := cursor.Location()
 	file, _, _, _ := loc.FileLocation()
@@ -66,6 +67,9 @@ func get_decl_mod(cursor clang.Cursor) string {
 
 	return dmod
 }
+
+// camal case
+func get_decl_mod_norm(cursor clang.Cursor) string { return get_decl_mod(cursor) }
 
 // 计算包名补全
 func calc_package_prefix(curc, refc clang.Cursor) string {
@@ -254,6 +258,7 @@ func is_protected_dtor_class(cursor clang.Cursor) bool {
 	protectedDtors := map[string]int{
 		"QTextCodec": 1, "QAccessibleInterface": 1, "QTextBlockGroup": 1,
 		"QTextObject": 1, "QAccessibleWidget": 1,
+		"QWebEngineSettings": 1, "QWebEngineHistory": 1, "QWebEngineUrlRequestInfo": 1,
 	}
 	_, ok := protectedDtors[cursor.Spelling()]
 	return ok
@@ -629,4 +634,14 @@ func extractEnumElem(comment string) (pureComment string, elems map[string]strin
 		pureComment += line + "\n"
 	}
 	return
+}
+
+func getIncludeNameByModule(mod string) string {
+	for name, _ := range modDepsAll {
+		if strings.ToLower(mod) == strings.ToLower(name) &&
+			strings.ToLower(mod) != name {
+			return name
+		}
+	}
+	return mod
 }
