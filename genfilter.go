@@ -244,7 +244,10 @@ func (this *GenFilterBase) skipArgImpl(cursor, parent clang.Cursor) int {
 		return 1
 	}
 	if strings.HasSuffix(argTyBare.Spelling(), "Function") {
-		return 2
+		if argTyBare.Spelling() == "QImageCleanupFunction" {
+		} else {
+			return 2
+		}
 	}
 	if strings.HasSuffix(argTyBare.Spelling(), "Func") {
 		return 3
@@ -261,6 +264,7 @@ func (this *GenFilterBase) skipArgImpl(cursor, parent clang.Cursor) int {
 			reg := regexp.MustCompile(`^Q.+::.*Flags$`)
 			if reg.MatchString(argTyBare.Spelling()) {
 			} else if argTyBare.Kind() == clang.Type_Typedef && strings.HasPrefix(argTyBare.CanonicalType().Spelling(), "QFlags<") {
+			} else if argTyBare.Spelling() == "QImageCleanupFunction" {
 			} else {
 				log.Println(argTyBare.Spelling(), argTyBare.Kind().String(), argTyBare.CanonicalType().Spelling(), "skiped by skiped class")
 				return 6
@@ -337,6 +341,8 @@ func (this *GenFilterBase) skipReturnImpl(ty clang.Type, cursor clang.Cursor) in
 	bareSpell = strings.Replace(bareSpell, "&", "", -1)
 	bareSpell = strings.TrimSpace(bareSpell)
 
+	isQListx := strings.HasPrefix(bareSpell, "QList<") &&
+		funk.ContainsString([]string{"QUrl", "QSize"}, strings.TrimRight(bareSpell[6:], ">"))
 	if strings.HasPrefix(bareSpell, "Q") {
 		if strings.HasSuffix(bareSpell, "Map") ||
 			// strings.HasSuffix(bareSpell, "List") ||
@@ -345,13 +351,19 @@ func (this *GenFilterBase) skipReturnImpl(ty clang.Type, cursor clang.Cursor) in
 			return 2
 		}
 		if strings.HasPrefix(bareSpell, "QList<") {
-			return 2
+			if isQListx {
+			} else {
+				return 5
+			}
 		}
 	}
 
 	switch ty.Kind() {
 	case clang.Type_Unexposed:
-		return 3
+		if isQListx {
+		} else {
+			return 3
+		}
 	//case clang.Type_Pointer:
 	case clang.Type_Void:
 	default:

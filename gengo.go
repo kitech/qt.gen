@@ -1195,6 +1195,7 @@ func (this *GenerateGo) genArgConvFFIDv(cursor, parent clang.Cursor, midx, aidx 
 	argdv, _ := has_default_value(cursor)
 	argty := cursor.Type()
 	barety := get_bare_type(argty)
+	undty := barety.Declaration().TypedefDeclUnderlyingType()
 
 	argdvs := map[string]string{
 		"SH_Default":       "QStyleHintReturn__SH_Default",
@@ -1209,9 +1210,9 @@ func (this *GenerateGo) genArgConvFFIDv(cursor, parent clang.Cursor, midx, aidx 
 	}
 	_ = argdvs
 
-	this.cp.APf("body", "    // arg: %d, %s=%s, %s=%s, %s", aidx,
+	this.cp.APf("body", "    // arg: %d, %s=%s, %s=%s, %s, %s", aidx,
 		argty.Spelling(), argty.Kind().String(), barety.Spelling(), barety.Kind().String(),
-		barety.Declaration().TypedefDeclUnderlyingType().Spelling())
+		undty.Spelling(), undty.Kind().String())
 
 	if TypeIsCharPtrPtr(argty) {
 		this.cp.APf("body", "    var convArg%d = qtrt.StringSliceToCCharPP(%s)", aidx,
@@ -1247,7 +1248,9 @@ func (this *GenerateGo) genArgConvFFIDv(cursor, parent clang.Cursor, midx, aidx 
 		this.cp.APf("body", "    var %s unsafe.Pointer", this.genParamRefName(cursor, parent, aidx))
 	} else if TypeIsQFlags(argty) {
 		this.cp.APf("body", "    %s := 0", this.genParamRefName(cursor, parent, aidx))
-	} else if is_qt_class(argty) && funk.ContainsString([]string{"QString", "QByteArray", "QVariant", "QModelIndex", "QUrl"}, get_bare_type(argty).Spelling()) {
+	} else if is_qt_class(argty) &&
+		funk.ContainsString([]string{"QString", "QByteArray", "QVariant", "QModelIndex", "QUrl",
+			"QSize", "QAbstractState", "QScreen", "QAction"}, get_bare_type(argty).Spelling()) {
 		usemod := get_decl_mod(cursor)
 		pkgPref := gopp.IfElseStr(usemod == "core", "", "qtcore.")
 		this.cp.APf("body", "    var convArg%d = %sNew%s()", aidx, pkgPref, get_bare_type(argty).Spelling())
@@ -1273,9 +1276,11 @@ func (this *GenerateGo) genArgConvFFIDv(cursor, parent clang.Cursor, midx, aidx 
 		}
 	} else if argty.Spelling() == "WId" {
 		this.cp.APf("body", "    var %s unsafe.Pointer ", this.genParamRefName(cursor, parent, aidx))
+	} else if barety.Kind() == clang.Type_Typedef && TypeIsFuncPointer(undty) {
+		this.cp.APf("body", "    var %s unsafe.Pointer ", this.genParamRefName(cursor, parent, aidx))
 	} else { // no convert needed
 		// log.Fatalln("wtf", argty.Kind(), argty.Spelling(), parent.Spelling())
-		this.cp.APf("body", "    // var %s unsafe.Pointer ", this.genParamRefName(cursor, parent, aidx))
+		this.cp.APf("body", "    // var %s unsafe.Pointer // 111", this.genParamRefName(cursor, parent, aidx))
 	}
 }
 
@@ -1477,8 +1482,16 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 		this.cp.APf("body", "    return int(rv)")
 	case clang.Type_Elaborated:
 		this.cp.APf("body", "    return int(rv)")
+	case clang.Type_Unexposed:
+		if strings.HasPrefix(rety.Spelling(), "QList<") {
+			this.cp.APf("body", "    rv2 := %sNew%sListFromPointer(unsafe.Pointer(uintptr(rv))) //5552",
+				pkgPrefix, strings.TrimRight(rety.Spelling()[6:], ">"))
+			this.cp.APf("body", "    return rv2")
+		} else {
+			this.cp.APf("body", "    return rv/*-222*/")
+		}
 	default:
-		this.cp.APf("body", "    return rv")
+		this.cp.APf("body", "    return rv/*-111*/")
 	}
 }
 

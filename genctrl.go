@@ -114,6 +114,8 @@ func (this *GenCtrl) setupEnv() {
 		"QtMacExtras",     // 缺少QtMacExtracsDepened头文件
 		// webengines
 		"QtPositioning", "QtWebChannel", "QtWebEngineCore", "QtWebEngine", "QtWebEngineWidgets",
+		// multimedia
+		// "QtSvg", "QtMultimedia",
 	}
 
 	cmdlines := []string{

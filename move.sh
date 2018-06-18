@@ -81,6 +81,7 @@ function mvqil()
 {
     mkdir -p ~/oss/qt.inline/src/{qt5,core,gui,widgets,network,qml,quick,quickcontrols2,quickwidgets}
     # rm -f ~/oss/qt.inline/src/{qt5,core,gui,widgets,network,qml,quick}/q*.cxx
+    mkdir -p ~/oss/qt.inline/src/androidextras
 
     set +x
     mvbymd5 cxx src/core ~/oss/qt.inline/src/core
@@ -98,6 +99,9 @@ function mvqil()
     mvbymd5 cxx src/webenginecore ~/oss/qt.inline/src/webenginecore
     mvbymd5 cxx src/webengine ~/oss/qt.inline/src/webengine
     mvbymd5 cxx src/webenginewidgets ~/oss/qt.inline/src/webenginewidgets
+
+    ### extras
+    mvbymd5 cxx src/androidextras ~/oss/qt.inline/src/androidextras
 
     #cp -a src/core/*.cxx ~/oss/qt.inline/src/core/
     #cp -a src/gui/*.cxx ~/oss/qt.inline/src/gui/

@@ -84,6 +84,33 @@
 // #include <explicit_instantiate_templates.h>
 // template class QFlags<int>;
 
+typedef QList<QUrl> QUrlList;
+typedef QList<QAbstractState*> QAbstractStateList;
+typedef QList<QAccessibleInterface*> QAccessibleInterfaceList;
+typedef QList<QSize> QSizeList;
+typedef QList<QImageTextKeyLang> QImageTextKeyLangList;
+typedef QList<QPolygonF> QPolygonFList;
+typedef QList<QScreen *> QScreenList;
+typedef QList<QStandardItem*> QStandardItemList;
+typedef QList<QGlyphRun> QGlyphRunList;
+typedef QList<QTextBlock> QTextBlockList;
+typedef QList<QTextFrame *> QTextFrameList;
+typedef QList<qreal>  qrealList;
+typedef QList<QAction*> QActionList;
+typedef QList<QKeySequence> QKeySequenceList;
+typedef QList<QGraphicsWidget *> QGraphicsWidgetList;
+typedef QList<QAbstractButton*> QAbstractButtonList;
+typedef QList<int> intList;
+typedef QList<QGesture *> QGestureList;
+typedef QList<QGraphicsItem *> QGraphicsItemList;
+typedef QList<QGraphicsTransform *> QGraphicsTransformList;
+typedef QList<QListWidgetItem*> QListWidgetItemList;
+typedef QList<QDockWidget*> QDockWidgetList;
+typedef QList<QMdiSubWindow *> QMdiSubWindowList;
+typedef QList<QScroller *> QScrollerList;
+typedef QList<QTreeWidgetItem*> QTreeWidgetItemList;
+typedef QList<QUndoStack*> QUndoStackList;
+
 /*
 template class QHash<QString, QVariant>;
 template class QMap<QString, QVariant>;

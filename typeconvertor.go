@@ -496,6 +496,14 @@ func (this *TypeConvertGo) toDest(ty clang.Type, cursor clang.Cursor) string {
 		return "int16"
 	case clang.Type_Void:
 		return "void"
+	case clang.Type_Unexposed:
+		if strings.HasPrefix(ty.Spelling(), "QList<") {
+			// QList<Qxxx> => QxxxList
+			return fmt.Sprintf("*%sList", strings.TrimRight(ty.Spelling()[6:], ">"))
+		} else {
+			log.Fatalln(ty.Spelling(), ty.Kind().Spelling(),
+				cursor.SemanticParent().DisplayName(), cursor.DisplayName())
+		}
 	default:
 		log.Fatalln(ty.Spelling(), ty.Kind().Spelling(),
 			cursor.SemanticParent().DisplayName(), cursor.DisplayName())

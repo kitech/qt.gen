@@ -1,6 +1,6 @@
 all:
-	go build -v
+	go build -v -i
 
 run:
-	go build -v
+	go build -v -i
 	./qt.gen

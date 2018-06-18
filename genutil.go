@@ -87,7 +87,9 @@ func is_qt_class(ty clang.Type) bool {
 	if len(name) < 2 {
 		return false
 	}
-	if name[0:1] == "Q" && strings.ToUpper(name[1:2]) == name[1:2] && !strings.Contains(name, "::") {
+	// QImageCleanupFunction
+	if name[0:1] == "Q" && strings.ToUpper(name[1:2]) == name[1:2] &&
+		!strings.Contains(name, "::") && !strings.HasSuffix(name, "Function") {
 		return true
 	}
 	return false
@@ -102,6 +104,9 @@ func is_private_method(c clang.Cursor) bool {
 func get_bare_type(ty clang.Type) clang.Type {
 	switch ty.Kind() {
 	case clang.Type_LValueReference, clang.Type_Pointer:
+		if ty.PointeeType().Kind() == clang.Type_Void {
+			// return ty
+		}
 		return get_bare_type(ty.PointeeType())
 	}
 

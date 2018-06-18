@@ -525,6 +525,10 @@ func (this *GenerateInline) genNonStaticMethod(clsctx *GenClassContext, cursor, 
 		} else if rety.Kind() == clang.Type_Typedef &&
 			rety.CanonicalType().Kind() == clang.Type_Record {
 			retstr = fmt.Sprintf("%s*", rety.Spelling())
+		} else if rety.Kind() == clang.Type_Unexposed && strings.HasPrefix(rety.Spelling(), "QList<") {
+			retstr = rety.Spelling() + "*"
+		} else {
+			log.Println(rety.Kind().String(), rety.Spelling())
 		}
 	}
 
@@ -560,6 +564,8 @@ func (this *GenerateInline) genNonStaticMethod(clsctx *GenClassContext, cursor, 
 			} else if rety.Kind() == clang.Type_Typedef &&
 				rety.CanonicalType().Kind() == clang.Type_Record {
 				// QModelIndexList
+				this.cp.APf("main", "return new %s(rv);", rety.Spelling())
+			} else if rety.Kind() == clang.Type_Unexposed && strings.HasPrefix(rety.Spelling(), "QList<") {
 				this.cp.APf("main", "return new %s(rv);", rety.Spelling())
 			} else {
 				this.cp.APf("main", "/*return rv;*/")
