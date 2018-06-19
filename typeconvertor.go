@@ -492,6 +492,8 @@ func (this *TypeConvertGo) toDest(ty clang.Type, cursor clang.Cursor) string {
 			return "[]string"
 		}
 		return "[]interface{}"
+	case clang.Type_ConstantArray:
+		return "unsafe.Pointer"
 	case clang.Type_Char16:
 		return "int16"
 	case clang.Type_Void:
@@ -499,7 +501,10 @@ func (this *TypeConvertGo) toDest(ty clang.Type, cursor clang.Cursor) string {
 	case clang.Type_Unexposed:
 		if strings.HasPrefix(ty.Spelling(), "QList<") {
 			// QList<Qxxx> => QxxxList
-			return fmt.Sprintf("*%sList", strings.TrimRight(ty.Spelling()[6:], ">"))
+			defmod := get_decl_mod(get_bare_type(ty).Declaration())
+			usemod := get_decl_mod(cursor)
+			pkgPref := gopp.IfElseStr(defmod != usemod, fmt.Sprintf("qt%s.", defmod), "")
+			return fmt.Sprintf("*%s%sList /*lll*/", pkgPref, strings.TrimRight(ty.Spelling()[6:], ">"))
 		} else {
 			log.Fatalln(ty.Spelling(), ty.Kind().Spelling(),
 				cursor.SemanticParent().DisplayName(), cursor.DisplayName())

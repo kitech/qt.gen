@@ -101,6 +101,7 @@ func is_private_method(c clang.Cursor) bool {
 }
 
 // 去掉reference和pointer,并查找其定义类型名，不带const
+// QCameraFocusZoneList => QList???
 func get_bare_type(ty clang.Type) clang.Type {
 	switch ty.Kind() {
 	case clang.Type_LValueReference, clang.Type_Pointer:
@@ -115,7 +116,7 @@ func get_bare_type(ty clang.Type) clang.Type {
 
 func is_go_keyword(s string) bool {
 	keywords := map[string]int{"match": 1, "type": 1, "move": 1, "select": 1, "map": 1,
-		"range": 1, "var": 1, "len": 1, "fmt": 1}
+		"range": 1, "var": 1, "len": 1, "fmt": 1, "err": 1}
 	_, ok := keywords[s]
 	return ok
 }

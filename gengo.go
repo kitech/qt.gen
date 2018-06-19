@@ -463,10 +463,10 @@ func (this *GenerateGo) genMethodSignature(cursor, parent clang.Cursor, midx int
 		retPlace := "interface{}"
 		retPlace = this.tyconver.toDest(cursor.ResultType(), cursor)
 		if is_qstring_cls(retPlace) {
-			retPlace = "string"
+			retPlace = "string" /*444*/
 		}
 		if cursor.ResultType().Kind() == clang.Type_Void {
-			retPlace = ""
+			retPlace = "" /*333*/
 		}
 		mthname := gopp.IfElseStr(strings.HasPrefix(cursor.Spelling(), "operator"),
 			rewriteOperatorMethodName(cursor.Spelling()), cursor.Spelling())
@@ -1090,9 +1090,10 @@ func (this *GenerateGo) genArgDest(cursor, parent clang.Cursor, idx int, asitf b
 		if cursor.Type().Kind() == clang.Type_IncompleteArray {
 			this.destArgDesc = append(this.destArgDesc, fmt.Sprintf("%s %s", argName, destTy))
 		} else if cursor.Type().Kind() == clang.Type_ConstantArray {
-			idx := strings.Index(cursor.Type().Spelling(), " [")
-			this.destArgDesc = append(this.destArgDesc, fmt.Sprintf("%s %s %s",
-				cursor.Type().Spelling()[0:idx], argName, cursor.Type().Spelling()[idx+1:]))
+			this.destArgDesc = append(this.destArgDesc, fmt.Sprintf("%s %s", argName, destTy))
+			// idx := strings.Index(cursor.Type().Spelling(), " [")
+			// this.destArgDesc = append(this.destArgDesc, fmt.Sprintf("%s %s %s",
+			// 	cursor.Type().Spelling()[0:idx], argName, cursor.Type().Spelling()[idx+1:]))
 		} else {
 			this.destArgDesc = append(this.destArgDesc, fmt.Sprintf("%s %s", argName, destTy))
 		}
@@ -1250,7 +1251,7 @@ func (this *GenerateGo) genArgConvFFIDv(cursor, parent clang.Cursor, midx, aidx 
 		this.cp.APf("body", "    %s := 0", this.genParamRefName(cursor, parent, aidx))
 	} else if is_qt_class(argty) &&
 		funk.ContainsString([]string{"QString", "QByteArray", "QVariant", "QModelIndex", "QUrl",
-			"QSize", "QAbstractState", "QScreen", "QAction"}, get_bare_type(argty).Spelling()) {
+			"QSize", "QAbstractState" /*"QScreen", "QAction"*/}, get_bare_type(argty).Spelling()) {
 		usemod := get_decl_mod(cursor)
 		pkgPref := gopp.IfElseStr(usemod == "core", "", "qtcore.")
 		this.cp.APf("body", "    var convArg%d = %sNew%s()", aidx, pkgPref, get_bare_type(argty).Spelling())
@@ -1355,10 +1356,19 @@ func (this *GenerateGo) genParamFFI(cursor, parent clang.Cursor, idx int) {
 
 func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 	rety := cursor.ResultType()
-	refmod := get_decl_mod(get_bare_type(rety.CanonicalType()).Declaration())
+	retybare := get_bare_type(rety.CanonicalType()).Declaration()
+	defmod := get_decl_mod(retybare)
+	if retybare.Spelling() == "QList" {
+		defmod = get_decl_mod(rety.Declaration())
+		if defmod == "stdglobal" {
+			if strings.Contains(rety.Spelling(), "QObjectList") {
+				defmod = "core"
+			}
+		}
+	}
 	usemod := get_decl_mod(cursor)
-	log.Println("hhhhh use ==? ref", refmod, usemod, rety.Spelling(), cursor.DisplayName(), parent.Spelling())
-	pkgPrefix := gopp.IfElseStr(refmod == usemod, "/*==*/", fmt.Sprintf("qt%s.", refmod))
+	log.Println("hhhhh use ==? ref", retybare.Spelling(), defmod, usemod, rety.Spelling(), cursor.DisplayName(), parent.Spelling())
+	pkgPrefix := gopp.IfElseStr(defmod == usemod, "/*==*/", fmt.Sprintf("qt%s.", defmod))
 
 	switch rety.Kind() {
 	case clang.Type_Void:
@@ -1374,9 +1384,10 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 		} else if is_qt_class(rety.CanonicalType()) &&
 			(rety.Spelling() == "QObjectList" || rety.Spelling() == "QModelIndexList" ||
 				rety.Spelling() == "QFileInfoList" || rety.Spelling() == "QVariantList" ||
-				rety.Spelling() == "QWindowList" || rety.Spelling() == "QWidgetList") {
+				rety.Spelling() == "QWindowList" || rety.Spelling() == "QWidgetList" ||
+				rety.Spelling() == "QCameraFocusZoneList" || rety.Spelling() == "QMediaResourceList") {
 			if strings.HasPrefix(rety.Spelling(), "QWidget") {
-				pkgPrefix = ""
+				pkgPrefix = "/*222*/"
 			}
 			this.cp.APf("body", "    rv2 := %sNew%sFromPointer(unsafe.Pointer(uintptr(rv))) //5551",
 				pkgPrefix, rety.Spelling())
@@ -1451,9 +1462,9 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 		} else if is_qt_class(rety) {
 			if _, ok := privClasses[rety.PointeeType().Spelling()]; ok {
 				this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
-			} else if usemod == "core" && refmod == "widgets" {
+			} else if usemod == "core" && defmod == "widgets" {
 				this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
-			} else if usemod == "gui" && refmod == "widgets" {
+			} else if usemod == "gui" && defmod == "widgets" {
 				this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
 			} else {
 				barety := get_bare_type(rety)

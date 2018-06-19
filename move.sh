@@ -23,6 +23,8 @@ function mvgosrc()
     rm -f ~/oss/qt.go/{qt5,qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}/q*.go
     mkdir -p ~/oss/qt.go/{qtpositioning,qtwebchannel,qtwebenginecore,qtwebengine,qtwebenginewidgets}
     rm -f ~/oss/qt.go/{qtpositioning,qtwebchannel,qtwebenginecore,qtwebengine,qtwebenginewidgets}/q*.go
+    mkdir -p ~/oss/qt.go/{qtsvg,qtmultimedia}
+    rm -f ~/oss/qt.go/{qtsvg,qtmultimedia}/q*.go
 
     # cp -a src/qtrt/*.go ~/oss/qt.go/qtrt/
     cp -a src/core/*.go ~/oss/qt.go/qtcore/
@@ -43,6 +45,10 @@ function mvgosrc()
     cp -a src/webenginecore/*.go ~/oss/qt.go/qtwebenginecore/
     cp -a src/webengine/*.go ~/oss/qt.go/qtwebengine/
     cp -a src/webenginewidgets/*.go ~/oss/qt.go/qtwebenginewidgets/
+
+    # multimedia
+    cp -a src/multimedia/*.go ~/oss/qt.go/qtmultimedia/
+    cp -a src/svg/*.go ~/oss/qt.go/qtsvg/
 }
 
 function mvbymd5()
@@ -82,8 +88,10 @@ function mvqil()
     mkdir -p ~/oss/qt.inline/src/{qt5,core,gui,widgets,network,qml,quick,quickcontrols2,quickwidgets}
     # rm -f ~/oss/qt.inline/src/{qt5,core,gui,widgets,network,qml,quick}/q*.cxx
     mkdir -p ~/oss/qt.inline/src/androidextras
+    mkdir -p ~/oss/qt.inline/src/{svg,multimedia}
 
     set +x
+
     mvbymd5 cxx src/core ~/oss/qt.inline/src/core
     mvbymd5 cxx src/gui ~/oss/qt.inline/src/gui
     mvbymd5 cxx src/widgets ~/oss/qt.inline/src/widgets
@@ -102,6 +110,10 @@ function mvqil()
 
     ### extras
     mvbymd5 cxx src/androidextras ~/oss/qt.inline/src/androidextras
+
+    ### multimedia
+    mvbymd5 cxx src/svg ~/oss/qt.inline/src/svg
+    mvbymd5 cxx src/multimedia ~/oss/qt.inline/src/multimedia
 
     #cp -a src/core/*.cxx ~/oss/qt.inline/src/core/
     #cp -a src/gui/*.cxx ~/oss/qt.inline/src/gui/

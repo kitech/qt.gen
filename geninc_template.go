@@ -182,8 +182,10 @@ func (this *GenerateInline) genTydefTmplInstClses() {
 			this.cp = NewCodePager()
 			this.genFileHeader(clsctx, undcs, undcs.SemanticParent())
 			this.cp.APf("header", "#ifndef %sList", undcs.Spelling())
+			this.cp.APf("header", "#ifndef %sLIST_H", strings.ToUpper(undcs.Spelling()))
 			this.cp.APf("header", "typedef QList<%s> %sList;",
 				undty.TemplateArgumentAsType(0).Spelling(), undcs.Spelling())
+			this.cp.APf("header", "#endif")
 			this.cp.APf("header", "#endif")
 			// this.genImports(specls, specls.SemanticParent())
 			this.genTemplateInstant(tmplcls, clsinst)

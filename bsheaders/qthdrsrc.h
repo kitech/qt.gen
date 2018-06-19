@@ -57,6 +57,9 @@
 #ifdef GEN_GO_QT_MULTIMEDIA_LIB
 #include <QtMultimedia>
 #endif
+#ifdef GEN_GO_QT_SVG_LIB
+#include <QtSvg>
+#endif
 #ifdef GEN_GO_QT_MULTIMEDIAWIDGETS_LIB
 #include <QtMultimediaWidgets>
 #endif
@@ -110,6 +113,13 @@ typedef QList<QMdiSubWindow *> QMdiSubWindowList;
 typedef QList<QScroller *> QScrollerList;
 typedef QList<QTreeWidgetItem*> QTreeWidgetItemList;
 typedef QList<QUndoStack*> QUndoStackList;
+typedef QList<QNetworkConfiguration> QNetworkConfigurationList;
+#ifdef QT_MULTIMEDIA_LIB
+typedef QList<QCameraFocusZone> QCameraFocusZoneList;
+typedef QList<QMediaResource> QMediaResourceList;
+typedef QList<QCameraViewfinderSettings> QCameraViewfinderSettingsList;
+typedef QList<QMediaContent> QMediaContentList;
+#endif
 
 /*
 template class QHash<QString, QVariant>;

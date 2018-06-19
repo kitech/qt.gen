@@ -751,12 +751,14 @@ func (this *GenerateInline) genArg(cursor, parent clang.Cursor, idx int) {
 		} else if (cursor.Type().Kind() == clang.Type_IncompleteArray ||
 			cursor.Type().Kind() == clang.Type_ConstantArray) &&
 			cursor.Type().ElementType().Kind() == clang.Type_Pointer {
-			this.argDesc = append(this.argDesc, fmt.Sprintf("void** %s", argName))
-			this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("void**"))
+			tybarename := cursor.Type().ElementType().PointeeType().Spelling()
+			this.argDesc = append(this.argDesc, fmt.Sprintf("%s** %s", tybarename, argName))
+			this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("%s**", tybarename))
 		} else if cursor.Type().Kind() == clang.Type_IncompleteArray ||
 			cursor.Type().Kind() == clang.Type_ConstantArray {
-			this.argDesc = append(this.argDesc, fmt.Sprintf("void* %s", argName))
-			this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("void*"))
+			tybarename := cursor.Type().ElementType().Spelling()
+			this.argDesc = append(this.argDesc, fmt.Sprintf("%s* %s", tybarename, argName))
+			this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("%s*", tybarename))
 			// idx := strings.Index(cursor.Type().Spelling(), " [")
 			// this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s %s",
 			//	cursor.Type().Spelling()[0:idx], cursor.Spelling(), cursor.Type().Spelling()[idx+1:]))
