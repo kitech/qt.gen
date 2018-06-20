@@ -213,14 +213,16 @@ func is_trivial_class(cursor clang.Cursor) bool {
 	return hasDefaultCtor && !hasVirtMethod && !hasVirtBaseCls
 }
 
+// TODO auto detect
 func is_deleted_class(cursor clang.Cursor) bool {
 	deleted := false
 	arr := map[string]int{"QClipboard": 1, "QInputMethod": 1, "QSessionManager": 1,
 		"QPaintDevice": 1, "QPagedPaintDevice": 1, "QScroller": 1, "QStandardPaths": 1,
-		"QLoggingCategory": 1}
+		"QLoggingCategory": 1, "QCameraExposure": 1, "QCameraFocus": 1, "QCameraImageProcessing": 1}
 	if _, ok := arr[cursor.Spelling()]; ok {
 		return true
 	}
+	// go-clang not detect deleted feature now.
 	cursor.Visit(func(c, p clang.Cursor) clang.ChildVisitResult {
 		switch c.Kind() {
 		case clang.Cursor_Destructor:
@@ -244,7 +246,7 @@ func getOverloadedIndex(cursor clang.Cursor, cursors []clang.Cursor) int {
 	return idx
 }
 
-// TODO
+// TODO auto detect
 func is_qt_private_class(cursor clang.Cursor) bool {
 	loc := cursor.Type().Declaration().Definition().Location()
 	file, _, _, _ := loc.FileLocation()
@@ -260,13 +262,30 @@ func is_qt_inner_class(cursor clang.Cursor) bool {
 	return false
 }
 
+// TODO auto detect
+// param cursor should be a class cursor
 func is_protected_dtor_class(cursor clang.Cursor) bool {
 	protectedDtors := map[string]int{
 		"QTextCodec": 1, "QAccessibleInterface": 1, "QTextBlockGroup": 1,
 		"QTextObject": 1, "QAccessibleWidget": 1,
 		"QWebEngineSettings": 1, "QWebEngineHistory": 1, "QWebEngineUrlRequestInfo": 1,
+		"QCameraExposure": 1, "QCameraFocus": 1, "QCameraImageProcessing": 1,
 	}
 	_, ok := protectedDtors[cursor.Spelling()]
+	ok2 := false
+	cursor.Visit(func(c, p clang.Cursor) clang.ChildVisitResult {
+		switch c.Kind() {
+		case clang.Cursor_Destructor:
+			if c.AccessSpecifier() == clang.AccessSpecifier_Protected {
+				ok2 = true
+				return clang.ChildVisit_Break
+			}
+		}
+		return clang.ChildVisit_Recurse
+	})
+	if ok2 != ok {
+		log.Println("differenct detect result: ", ok, ok2, cursor.Spelling())
+	}
 	return ok
 }
 
@@ -274,6 +293,7 @@ func is_qt_global_func(cursor clang.Cursor) bool {
 	// qputenv,qsrand,qCompress
 	reg := regexp.MustCompile(`q[A-Z].+`) // 需要生成的全局函数名正则规范
 	reg = regexp.MustCompile(`q.+`)       // 需要生成的全局函数名正则规范
+	// and is stdglobal scope?
 	return reg.MatchString(cursor.Spelling())
 }
 

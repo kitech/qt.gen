@@ -342,7 +342,7 @@ func (this *GenFilterBase) skipReturnImpl(ty clang.Type, cursor clang.Cursor) in
 	bareSpell = strings.TrimSpace(bareSpell)
 
 	isQListx := strings.HasPrefix(bareSpell, "QList<") &&
-		funk.ContainsString([]string{"QUrl", "QSize"}, strings.TrimRight(bareSpell[6:], ">"))
+		funk.ContainsString([]string{"QUrl", "QSize", "QCameraInfo"}, strings.TrimRight(bareSpell[6:], ">"))
 	if strings.HasPrefix(bareSpell, "Q") {
 		if strings.HasSuffix(bareSpell, "Map") ||
 			// strings.HasSuffix(bareSpell, "List") ||

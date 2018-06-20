@@ -503,6 +503,9 @@ func (this *TypeConvertGo) toDest(ty clang.Type, cursor clang.Cursor) string {
 			// QList<Qxxx> => QxxxList
 			defmod := get_decl_mod(get_bare_type(ty).Declaration())
 			usemod := get_decl_mod(cursor)
+			if strings.Contains(ty.Spelling(), "QCameraInfo") {
+				defmod = "multimedia"
+			}
 			pkgPref := gopp.IfElseStr(defmod != usemod, fmt.Sprintf("qt%s.", defmod), "")
 			return fmt.Sprintf("*%s%sList /*lll*/", pkgPref, strings.TrimRight(ty.Spelling()[6:], ">"))
 		} else {

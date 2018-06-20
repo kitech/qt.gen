@@ -115,7 +115,7 @@ func (this *GenCtrl) setupEnv() {
 		// webengines
 		"QtPositioning", "QtWebChannel", "QtWebEngineCore", "QtWebEngine", "QtWebEngineWidgets",
 		// multimedia
-		// "QtSvg", "QtMultimedia",
+		"QtSvg", "QtMultimedia",
 	}
 
 	cmdlines := []string{

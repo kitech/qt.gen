@@ -91,7 +91,7 @@ typedef QList<QUrl> QUrlList;
 typedef QList<QAbstractState*> QAbstractStateList;
 typedef QList<QAccessibleInterface*> QAccessibleInterfaceList;
 typedef QList<QSize> QSizeList;
-typedef QList<QImageTextKeyLang> QImageTextKeyLangList;
+// typedef QList<QImageTextKeyLang> QImageTextKeyLangList;
 typedef QList<QPolygonF> QPolygonFList;
 typedef QList<QScreen *> QScreenList;
 typedef QList<QStandardItem*> QStandardItemList;
@@ -119,6 +119,7 @@ typedef QList<QCameraFocusZone> QCameraFocusZoneList;
 typedef QList<QMediaResource> QMediaResourceList;
 typedef QList<QCameraViewfinderSettings> QCameraViewfinderSettingsList;
 typedef QList<QMediaContent> QMediaContentList;
+typedef QList<QCameraInfo> QCameraInfoList;
 #endif
 
 /*

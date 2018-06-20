@@ -120,7 +120,7 @@ func (this *GenerateGo) genTemplateMethod(cursor, parent clang.Cursor, argClsCur
 	this.cp.APf("body", "func (this *%s) %s_%d() %s {",
 		clsName, strings.Title(validMethodName), midx, retytxt)
 	this.cp.APf("body", "    // %s_%s_%d()", clsName, validMethodName, midx)
-	this.cp.APf("body", "    rv, err := qtrt.InvokeQtFunc6(\"%s_%s_%d\", qtrt.FFI_TYPE_POINTER, this.Cthis)", clsName, validMethodName, midx)
+	this.cp.APf("body", "    rv, err := qtrt.InvokeQtFunc6(\"C_%s_%s_%d\", qtrt.FFI_TYPE_POINTER, this.Cthis)", clsName, validMethodName, midx)
 	this.cp.APf("body", "    qtrt.ErrPrint(err, rv)")
 
 	switch rety.Kind() {

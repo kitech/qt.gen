@@ -1365,6 +1365,9 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 				defmod = "core"
 			}
 		}
+		if strings.Contains(rety.Spelling(), "QCameraInfo") {
+			defmod = "multimedia"
+		}
 	}
 	usemod := get_decl_mod(cursor)
 	log.Println("hhhhh use ==? ref", retybare.Spelling(), defmod, usemod, rety.Spelling(), cursor.DisplayName(), parent.Spelling())

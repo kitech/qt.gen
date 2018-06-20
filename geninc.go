@@ -527,6 +527,8 @@ func (this *GenerateInline) genNonStaticMethod(clsctx *GenClassContext, cursor, 
 			retstr = fmt.Sprintf("%s*", rety.Spelling())
 		} else if rety.Kind() == clang.Type_Unexposed && strings.HasPrefix(rety.Spelling(), "QList<") {
 			retstr = rety.Spelling() + "*"
+		} else if rety.Kind() == clang.Type_Typedef && rety.Spelling() == "jobject" {
+			retstr = rety.Spelling()
 		} else {
 			log.Println(rety.Kind().String(), rety.Spelling())
 		}
@@ -567,7 +569,10 @@ func (this *GenerateInline) genNonStaticMethod(clsctx *GenClassContext, cursor, 
 				this.cp.APf("main", "return new %s(rv);", rety.Spelling())
 			} else if rety.Kind() == clang.Type_Unexposed && strings.HasPrefix(rety.Spelling(), "QList<") {
 				this.cp.APf("main", "return new %s(rv);", rety.Spelling())
+			} else if rety.Kind() == clang.Type_Typedef && rety.Spelling() == "jobject" {
+				this.cp.APf("main", "return rv;")
 			} else {
+				log.Println("TODO, unknown return:", rety.Kind().String(), rety.Spelling())
 				this.cp.APf("main", "/*return rv;*/")
 			}
 		}
@@ -608,7 +613,10 @@ func (this *GenerateInline) genStaticMethod(clsctx *GenClassContext, cursor, par
 			retstr = "void*"
 		} else if rety.Kind() == clang.Type_LValueReference && !TypeIsConsted(rety) {
 			retstr = "void*"
+		} else if rety.Kind() == clang.Type_Unexposed && strings.HasPrefix(rety.Spelling(), "QList<") {
+			retstr = rety.Spelling() + "*"
 		}
+
 	}
 
 	funco, found := (*parser.Function)(nil), false
@@ -640,7 +648,12 @@ func (this *GenerateInline) genStaticMethod(clsctx *GenClassContext, cursor, par
 				this.cp.APf("main", "return new %s(rv);", unconstystr)
 			} else if rety.Kind() == clang.Type_LValueReference && !TypeIsConsted(rety) {
 				this.cp.APf("main", "return &rv;")
+			} else if rety.Kind() == clang.Type_Unexposed && strings.HasPrefix(rety.Spelling(), "QList<") {
+				this.cp.APf("main", "return new %s(rv);", rety.Spelling())
+			} else if rety.Kind() == clang.Type_Typedef && rety.Spelling() == "jobject" {
+				this.cp.APf("main", "return rv;")
 			} else {
+				log.Println("TODO, unknown return:", rety.Kind().String(), rety.Spelling())
 				this.cp.APf("main", "/*return rv;*/")
 			}
 		}
