@@ -1,0 +1,19 @@
+
+ubuntu 18.04    qt5.9.1
+ubuntu 16.04    qt5.5.1
+debian 9(Stretch)    qt5.7.1
+debian 8(Jessie)     qt5.3.2
+mint 19(tara)  qt5.9.5
+mint 18(sylvia)  qt5.6.1
+mint 17(rosa) qt4.8.5
+fedora 28   qt5.10.1
+fedora 27   qt5.9.1
+fedora 26   qt5.7.1
+opensuse tumbleweed  qt5.11.1
+opensuse 15 qt5.9.4
+kali 2018  qt5.9.2
+kali 2017  qt5.9.1
+deepin 15.6  qt5.6.1
+deepin 15.3  qt5.5.1
+
+### https://distrowatch.com/table.php?distribution=fedora

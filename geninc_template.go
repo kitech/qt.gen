@@ -61,7 +61,7 @@ func (this *GenerateInline) genPlainTmplInstCls(ptInstCls clang.Cursor) {
 			prmstr := strings.Join(this.paramDesc, ", ")
 
 			cp.APf("body", "// [%d] %s::%s", parent.Type().SizeOf(), parent.DisplayName(), cursor.DisplayName())
-			cp.APf("body", "extern \"C\"")
+			cp.APf("body", "extern \"C\" Q_DECL_EXPORT")
 			cp.APf("body", "void* %s(%s) {", this.mangler.convTo(cursor), argstr)
 			cp.APf("body", "    return new %s(%s);", parent.Type().Spelling(), prmstr)
 			cp.APf("body", "}")
@@ -73,7 +73,7 @@ func (this *GenerateInline) genPlainTmplInstCls(ptInstCls clang.Cursor) {
 				break
 			}
 			cp.APf("body", "// [%d] %s::%s", parent.Type().SizeOf(), parent.DisplayName(), cursor.DisplayName())
-			cp.APf("body", "extern \"C\"")
+			cp.APf("body", "extern \"C\" Q_DECL_EXPORT")
 			cp.APf("body", "void %s(void* this_) {", this.mangler.convTo(cursor))
 			cp.APf("body", "    delete((%s*)this_);", parent.Type().Spelling())
 			cp.APf("body", "}")
@@ -131,7 +131,7 @@ func (this *GenerateInline) genPlainTmplInstCls(ptInstCls clang.Cursor) {
 			this.genParams(cursor, parent)
 			prmstr := strings.Join(this.paramDesc, ", ")
 			cp.APf("body", "// [%d] %s %s::%s", cursor.ResultType().SizeOf(), cursor.ResultType().Spelling(), parent.DisplayName(), cursor.DisplayName())
-			cp.APf("body", "extern \"C\"")
+			cp.APf("body", "extern \"C\" Q_DECL_EXPORT")
 			cp.APf("body", "%s %s(void* this_ %s) {", retstr, this.mangler.convTo(cursor), argstr)
 			cp.APf("body", "   %s ((%s*)this_)->%s(%s);",
 				retassign, parent.Type().Spelling(), cursor.Spelling(), prmstr)
@@ -285,7 +285,7 @@ func (this *GenerateInline) genTemplateMethod(cursor, parent clang.Cursor, instC
 
 	validMethodName := rewriteOperatorMethodName(cursor.Spelling())
 	this.cp.APf("body", "// [%d] %s %s", cursor.ResultType().SizeOf(), cursor.ResultType().Spelling(), cursor.DisplayName())
-	this.cp.APf("body", "extern \"C\"")
+	this.cp.APf("body", "extern \"C\" Q_DECL_EXPORT")
 	this.cp.APf("body", "%s C_%s_%s_%d(void* this_ %s) {",
 		retytxt, clsName, validMethodName, midx, argsDesc)
 	this.cp.APf("body", "    // %s_%s_%d()", clsName, validMethodName, midx)
