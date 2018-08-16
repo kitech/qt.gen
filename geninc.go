@@ -30,8 +30,9 @@ type GenerateInline struct {
 	GenBase
 }
 
-func NewGenerateInline() *GenerateInline {
+func NewGenerateInline(qtdir, qtver string) *GenerateInline {
 	this := &GenerateInline{}
+	this.qtdir, this.qtver = qtdir, qtver
 	this.filter = &GenFilterInc{}
 	this.mangler = NewIncMangler()
 	this.tyconver = NewTypeConvertGo()

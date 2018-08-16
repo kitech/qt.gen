@@ -563,11 +563,11 @@ func sinceVer2Hex(since string) string {
 var goqdocs = map[string]*goquery.Document{}
 
 // 查询方法/函数的注释，从doc/.html中
-func queryComment(c clang.Cursor) string {
+func queryComment(c clang.Cursor, qtdir, qtver string) string {
 	mod := get_decl_mod(c)
 	bfp, _, _, _ := c.Location().FileLocation()
 	parts := strings.Split(bfp.Name(), "/")
-	htmlFile := fmt.Sprintf("/home/me/Qt5.10.1/Docs/Qt-5.10.1/qt%s/%stml", mod, parts[len(parts)-1])
+	htmlFile := fmt.Sprintf("%s/Docs/Qt-%s/qt%s/%stml", qtdir, qtver, mod, parts[len(parts)-1])
 	log.Println(bfp.Name(), "=>", htmlFile)
 
 	switch c.Kind() {
@@ -579,7 +579,7 @@ func queryComment(c clang.Cursor) string {
 		sltor := fmt.Sprintf("h3#%s-enum.fn", c.Spelling())
 		comment := queryCommentFromFile(htmlFile, c.Spelling(), sltor)
 		if comment == "" {
-			htmlFile = "/home/me/Qt5.10.1/Docs/Qt-5.10.1/qtcore/qt.html"
+			htmlFile = fmt.Sprintf("%s/Docs/Qt-%s/qtcore/qt.html", qtdir, qtver)
 			comment = queryCommentFromFile(htmlFile, c.Spelling(), sltor)
 		}
 		return comment

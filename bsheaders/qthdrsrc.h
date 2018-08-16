@@ -121,6 +121,9 @@ typedef QList<QCameraViewfinderSettings> QCameraViewfinderSettingsList;
 typedef QList<QMediaContent> QMediaContentList;
 typedef QList<QCameraInfo> QCameraInfoList;
 #endif
+#ifdef GEN_GO_QT_QML_LIB
+typedef QList<QQuickItem*> QQuickItemList;
+#endif
 
 /*
 template class QHash<QString, QVariant>;

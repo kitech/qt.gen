@@ -32,8 +32,9 @@ type GenerateGo struct {
 	GenBase
 }
 
-func NewGenerateGo() *GenerateGo {
+func NewGenerateGo(qtdir, qtver string) *GenerateGo {
 	this := &GenerateGo{}
+	this.qtdir, this.qtver = qtdir, qtver
 	this.filter = &GenFilterGo{}
 	this.mangler = NewGoMangler()
 	this.tyconver = NewTypeConvertGo()
@@ -261,7 +262,7 @@ func (this *GenerateGo) genClassDef(cursor, parent clang.Cursor) {
 	bcs = this.filter_base_classes(bcs)
 
 	this.cp.APf("body", "\n/*")
-	this.cp.APf("body", "%s", queryComment(cursor))
+	this.cp.APf("body", "%s", queryComment(cursor, this.qtdir, this.qtver))
 	this.cp.APf("body", "*/")
 	// genTypeStruct
 	this.cp.APf("body", "type %s struct {", cursor.Spelling())
@@ -414,7 +415,7 @@ func (this *GenerateGo) genMethodHeader(cursor, parent clang.Cursor, midx int) {
 		gopp.IfElseStr(cursor.CXXMethod_IsConst(), " const", ""))
 
 	this.cp.APf("body", "\n/*")
-	this.cp.APf("body", "%s", queryComment(cursor))
+	this.cp.APf("body", "%s", queryComment(cursor, this.qtdir, this.qtver))
 	this.cp.APf("body", "*/")
 }
 
@@ -1367,6 +1368,10 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 		}
 		if strings.Contains(rety.Spelling(), "QCameraInfo") {
 			defmod = "multimedia"
+		} else if strings.Contains(rety.Spelling(), "QGraphicsItem") {
+			defmod = "widgets"
+		} else if strings.Contains(rety.Spelling(), "QQuickItem") {
+			defmod = "quick"
 		}
 	}
 	usemod := get_decl_mod(cursor)
@@ -1389,7 +1394,7 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 				rety.Spelling() == "QFileInfoList" || rety.Spelling() == "QVariantList" ||
 				rety.Spelling() == "QWindowList" || rety.Spelling() == "QWidgetList" ||
 				rety.Spelling() == "QCameraFocusZoneList" || rety.Spelling() == "QMediaResourceList") {
-			if strings.HasPrefix(rety.Spelling(), "QWidget") {
+			if strings.HasPrefix(rety.Spelling(), "QWidget") || strings.HasPrefix(rety.Spelling(), "QGraphicsItem") {
 				pkgPrefix = "/*222*/"
 			}
 			this.cp.APf("body", "    rv2 := %sNew%sFromPointer(unsafe.Pointer(uintptr(rv))) //5551",
@@ -1499,7 +1504,7 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 	case clang.Type_Unexposed:
 		if strings.HasPrefix(rety.Spelling(), "QList<") {
 			this.cp.APf("body", "    rv2 := %sNew%sListFromPointer(unsafe.Pointer(uintptr(rv))) //5552",
-				pkgPrefix, strings.TrimRight(rety.Spelling()[6:], ">"))
+				pkgPrefix, strings.TrimRight(rety.Spelling()[6:], " *>"))
 			this.cp.APf("body", "    return rv2")
 		} else {
 			this.cp.APf("body", "    return rv/*-222*/")
@@ -1548,7 +1553,7 @@ func (this *GenerateGo) genArgCGOSign(cursor, parent clang.Cursor, idx int) {
 func (this *GenerateGo) genEnums(cursor, parent clang.Cursor) {
 	// log.Println("yyyyyyyy", cursor.DisplayName(), parent.DisplayName())
 	for _, enum := range this.enums {
-		comment := queryComment(enum)
+		comment := queryComment(enum, this.qtdir, this.qtver)
 		pcomment, elems := extractEnumElem(comment)
 		this.cp.APf("body", "")
 		this.cp.APf("body", "/*")
@@ -1583,7 +1588,7 @@ func (this *GenerateGo) genEnumsGlobal(cursor, parent clang.Cursor) {
 			continue
 		}
 
-		comment := queryComment(enum)
+		comment := queryComment(enum, this.qtdir, this.qtver)
 		pcomment, elems := extractEnumElem(comment)
 		qtmod := get_decl_mod(enum)
 		this.cp.APf("body", "")

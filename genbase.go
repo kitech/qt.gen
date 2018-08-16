@@ -38,6 +38,9 @@ func init() {
 type GenBase struct {
 	tu *clang.TranslationUnit
 
+	qtdir string
+	qtver string
+
 	methods            []clang.Cursor
 	funcs              []clang.Cursor
 	tmplclses          []clang.Cursor

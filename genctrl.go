@@ -51,7 +51,9 @@ func NewGenCtrl() *GenCtrl {
 	return this
 }
 
-var genLang string = "" // c(c binding), go (go binding), rs (rust binding)
+var genLang string = ""  // c(c binding), go (go binding), rs (rust binding)
+var genQtdir string = "" // format: /home/me/Qt5.10.1 or /usr
+var genQtver string = "" // format: 5.10.1
 
 func (this *GenCtrl) main() {
 	if len(os.Args) > 1 {
@@ -61,8 +63,9 @@ func (this *GenCtrl) main() {
 		log.Fatalln("must suply a lang to gen, usage: qt.gen <c|go|rs>")
 	}
 
+	this.setupQtinfo()
 	btime := time.Now()
-	qdi.load()
+	qdi.load(genQtdir, genQtver)
 	log.Println(time.Now().Sub(btime))
 	if true {
 		// os.Exit(0)
@@ -79,29 +82,49 @@ func (this *GenCtrl) setupLang() {
 	switch genLang {
 	case "c":
 		this.filter = &GenFilterInc{}
-		this.genor = NewGenerateInline()
-		this.qtenumgen = NewGenerateInline()
-		this.qtfuncgen = NewGenerateInline()
-		this.qttmplgen = NewGenerateInline()
-		this.qtconstgen = NewGenerateInline()
+		this.genor = NewGenerateInline(genQtdir, genQtver)
+		this.qtenumgen = NewGenerateInline(genQtdir, genQtver)
+		this.qtfuncgen = NewGenerateInline(genQtdir, genQtver)
+		this.qttmplgen = NewGenerateInline(genQtdir, genQtver)
+		this.qtconstgen = NewGenerateInline(genQtdir, genQtver)
 	case "go":
 		this.filter = &GenFilterGo{}
-		this.genor = NewGenerateGo()
-		this.qtenumgen = NewGenerateGo()
-		this.qtfuncgen = NewGenerateGo()
-		this.qttmplgen = NewGenerateGo()
-		this.qtconstgen = NewGenerateGo()
+		this.genor = NewGenerateGo(genQtdir, genQtver)
+		this.qtenumgen = NewGenerateGo(genQtdir, genQtver)
+		this.qtfuncgen = NewGenerateGo(genQtdir, genQtver)
+		this.qttmplgen = NewGenerateGo(genQtdir, genQtver)
+		this.qtconstgen = NewGenerateGo(genQtdir, genQtver)
 	case "rs":
 		fallthrough
 	default:
-		log.Fatalln("not supported or not impled:", genLang)
+		log.Fatalln("not supported or not impled:", genLang, genQtdir, genQtver)
 	}
+}
+
+func (this *GenCtrl) setupQtinfo() {
+	qtdir := gopp.IfElseStr(os.Getenv("QT_DIR") == "", "/usr", os.Getenv("QT_DIR"))
+	qtver := ""
+	if qtdir == "/usr" {
+	} else if strings.HasPrefix(qtdir, "qtheaders") {
+	} else {
+		log.Println(qtdir)
+		reg := `Qt([0-9.]+)`
+		exp := regexp.MustCompile(reg)
+		mats := exp.FindAllStringSubmatch(qtdir, -1)
+		log.Println(mats)
+		qtver = mats[0][1]
+	}
+	genQtdir, genQtver = qtdir, qtver
+	log.Println("qt info:", qtdir, qtver, os.Getenv("QT_DIR"))
 }
 
 func (this *GenCtrl) setupEnv() {
 	cidx := clang.NewIndex(0, 1)
 	// defer cidx.Dispose()
 
+	// 预先处理头文件, cd gcc_64/include/ && ln -sv ../../android_x86/include/QtAndroidExtras
+	// 预先处理头文件, cd gcc_64/include/ && ln -sv ../../Src/qtwinextras/include/QtWinExtras
+	// 预先处理头文件, cd gcc_64/include/ && ln -sv ../../Src/qtmacextras/include/QtMacExtras
 	// 这是要生成的模块表
 	modules := []string{
 		"QtCore", "QtGui", "QtWidgets",
@@ -130,21 +153,17 @@ func (this *GenCtrl) setupEnv() {
 		return nil
 	})
 
-	qtdir := gopp.IfElseStr(os.Getenv("QT_DIR") == "", "/usr", os.Getenv("QT_DIR"))
-	qtver := ""
+	// this.setupQtinfo()
+	qtdir, qtver := genQtdir, genQtver
 	if qtdir == "/usr" {
 		args = append(args, fmt.Sprintf("-I%s/include/qt", qtdir))
 	} else if strings.HasPrefix(qtdir, "qtheaders") {
 		args = append(args, fmt.Sprintf("-I./qtheaders/include"))
 	} else {
 		log.Println(qtdir)
-		reg := `Qt([0-9.]+)`
-		exp := regexp.MustCompile(reg)
-		mats := exp.FindAllStringSubmatch(qtdir, -1)
-		log.Println(mats)
-		qtver = mats[0][1]
 		args = append(args, fmt.Sprintf("-I%s/%s/gcc_64/include", qtdir, qtver))
 	}
+	log.Println("qt info:", qtdir, qtver, os.Getenv("QT_DIR"))
 
 	gopp.Domap(modules, func(e interface{}) interface{} {
 		args = append(args, fmt.Sprintf("-DQT_%s_LIB", strings.ToUpper(e.(string)[2:])))
