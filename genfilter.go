@@ -419,6 +419,11 @@ type GenFilterInc struct {
 	GenFilterBase
 }
 
+func NewGenFilterInc() *GenFilterInc {
+	this := &GenFilterInc{}
+	return this
+}
+
 func (this *GenFilterInc) skipMethod(cursor, parent clang.Cursor) bool {
 	bskip := this.GenFilterBase.skipMethod(cursor, parent)
 	return bskip

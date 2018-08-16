@@ -126,7 +126,7 @@ func is_go_keyword(s string) bool {
 func is_pure_virtual_class(cursor clang.Cursor) bool {
 	// pure virtual class check
 	pure_virtual_class := false
-	extraPureClses := map[string]int{"QAnimationGroup": 1}
+	extraPureClses := map[string]int{"QAnimationGroup": 1, "QAccessibleObject": 1}
 	if _, ok := extraPureClses[cursor.Spelling()]; ok {
 		return true
 	}
@@ -214,11 +214,13 @@ func is_trivial_class(cursor clang.Cursor) bool {
 }
 
 // TODO auto detect
+// non explicit ctor by user. ctor is not public
 func is_deleted_class(cursor clang.Cursor) bool {
 	deleted := false
 	arr := map[string]int{"QClipboard": 1, "QInputMethod": 1, "QSessionManager": 1,
 		"QPaintDevice": 1, "QPagedPaintDevice": 1, "QScroller": 1, "QStandardPaths": 1,
-		"QLoggingCategory": 1, "QCameraExposure": 1, "QCameraFocus": 1, "QCameraImageProcessing": 1}
+		"QLoggingCategory": 1, "QCameraExposure": 1, "QCameraFocus": 1, "QCameraImageProcessing": 1,
+		"QOpenGLPaintDevice": 1}
 	if _, ok := arr[cursor.Spelling()]; ok {
 		return true
 	}
@@ -230,6 +232,47 @@ func is_deleted_class(cursor clang.Cursor) bool {
 		return clang.ChildVisit_Recurse
 	})
 	return deleted
+}
+
+var _cmgl = NewIncMangler()
+
+// TODO auto detect
+// like end with: = delete;
+func is_deleted_method(cursor, parent clang.Cursor) bool {
+	mths := map[string]int{
+		"_ZN18QAbstractItemModelaSERKS_": 1, "_ZN18QAbstractAnimationaSERKS_": 1,
+		"_ZN15QAnimationGroupaSERKS_": 1, "_ZN18QAbstractListModelaSERKS_": 1,
+		"_ZN26QAbstractNativeEventFilteraSERKS_": 1, "_ZN19QAbstractProxyModelaSERKS_": 1,
+		"_ZN14QAbstractStateaSERKS_": 1, "_ZN19QAbstractTableModelaSERKS_": 1,
+		"_ZN19QAbstractTransitionaSERKS_": 1, "_ZN7QBufferaSERKS_": 1,
+		"_ZN18QCommandLineParseraSERKS_": 1, "_ZNK16QLoggingCategoryclEv": 1,
+		"_ZN11QDataStreamrsER8qfloat16": 1, // because of qfloat16 class
+		"_ZN11QDataStreamlsE8qfloat16":  1,
+		"_ZN18QSemaphoreReleaserC2EOS_": 1, "_ZN18QSemaphoreReleaseraSEOS_": 1,
+		"_ZN14QSignalBlockeraSEOS_": 1, "_ZN14QSignalBlockerC2EOS_": 1,
+		"_ZN18QOpenGLPaintDeviceaSERKS_": 1, "_ZN15QGraphicsObjectC2EP13QGraphicsItem": 1,
+
+		"_ZN16QOpenGLFunctions14glShaderSourceEjiPPKcPKi":                              1,
+		"_ZNK23QOperatingSystemVersion11isAnyOfTypeESt16initializer_listINS_6OSTypeEE": 1,
+	}
+	mname := _cmgl.origin(cursor)
+	if _, ok := mths[mname]; ok {
+		return true
+	}
+	return false
+}
+
+func is_pure_virtual_method(cursor, parent clang.Cursor) bool {
+	return cursor.CXXMethod_IsPureVirtual()
+}
+
+// copy ctor is deleted
+func is_nocopy_class(cursor clang.Cursor) bool {
+	arr := map[string]int{"AbstractComparatorFunction": 1}
+	if _, ok := arr[cursor.Spelling()]; ok {
+		return true
+	}
+	return false
 }
 
 func getOverloadedIndex(cursor clang.Cursor, cursors []clang.Cursor) int {
@@ -259,6 +302,10 @@ func is_qt_private_class(cursor clang.Cursor) bool {
 
 // TODO
 func is_qt_inner_class(cursor clang.Cursor) bool {
+	return false
+}
+
+func in_namespace(cursor clang.Cursor) bool {
 	return false
 }
 

@@ -57,7 +57,7 @@ var genQtver string = "" // format: 5.10.1
 
 func (this *GenCtrl) main() {
 	if len(os.Args) > 1 {
-		genLang = os.Args[1]
+		genLang = os.Args[len(os.Args)-1]
 	}
 	if genLang == "" {
 		log.Fatalln("must suply a lang to gen, usage: qt.gen <c|go|rs>")
@@ -81,7 +81,7 @@ func (this *GenCtrl) setupLang() {
 
 	switch genLang {
 	case "c":
-		this.filter = &GenFilterInc{}
+		this.filter = NewGenFilterInc()
 		this.genor = NewGenerateInline(genQtdir, genQtver)
 		this.qtenumgen = NewGenerateInline(genQtdir, genQtver)
 		this.qtfuncgen = NewGenerateInline(genQtdir, genQtver)
