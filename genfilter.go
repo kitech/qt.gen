@@ -10,10 +10,12 @@ import (
 	funk "github.com/thoas/go-funk"
 )
 
-var filterClass string
+// any comment on this???
+// see blow init func
+var specifyClass string
 
 func init() {
-	flag.StringVar(&filterClass, "fclass", filterClass, "set only one class")
+	flag.StringVar(&specifyClass, "gclass", specifyClass, "specify need generate one class")
 }
 
 type GenFilter interface {
@@ -117,7 +119,7 @@ func (this *GenFilterBase) skipClassImpl(cursor, parent clang.Cursor) int {
 	if cname != "QCoreApplication" {
 		// return true
 	}
-	if len(filterClass) > 0 && cname != filterClass {
+	if len(specifyClass) > 0 && cname != specifyClass {
 		return 10
 	}
 
@@ -415,25 +417,188 @@ func (this *GenFilterBase) skipTypeImpl(ty clang.Type, cursor clang.Cursor) int 
 	return 0
 }
 
+/////
+/*
+base中过滤的项：
+* 模板类声明
+* 模板函数声明
+* 模板方法声明
+* QtPrivate::类，这个变动太大，要过滤掉
+* 内部临时函数
+*/
+// 过滤原因的返回
+type GenFilterBase2 struct{}
+
+func (this *GenFilterBase2) skipClass(cursor, parent clang.Cursor) bool {
+	skipn := this.skipClassImpl(cursor, parent)
+	log.Println(skipn, cursor.Spelling(), parent.Spelling())
+	return skipn > 0
+}
+
+// TODO  拆分成多个小的过滤函数
+func (this *GenFilterBase2) skipClassImpl(cursor, parent clang.Cursor) int {
+	cname := cursor.Spelling()
+	prefixes := []string{
+		"QMetaTypeId", "QTypeInfo", "QQmlTypeInfo", "QIntegerForSize",
+		// "QOpenGLFunctions",
+		// "QOpenGLExtraFunctions", "QOpenGLVersion", "QOpenGL",
+		// "QAbstract-", "QPrivate",
+	}
+	equals := []string{
+		"QAbstractOpenGLFunctionsPrivate",
+		"QOpenGLFunctionsPrivate",
+		"QOpenGLExtraFunctionsPrivate",
+		"QOpenGLVersionFunctionsStorage",
+		// "QAnimationGroup-",
+		// "QMetaType",
+		// "QAtomicOpsSupport",
+	}
+
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(cname, prefix) {
+			return 1
+		}
+	}
+	for _, equal := range equals {
+		if equal == cname {
+			return 2
+		}
+	}
+
+	// 这个也许是因为qt有bug，也许是因为arch上的qt包有问题。QT_OPENGL_ES_2相关。
+	if strings.HasPrefix(cname, "QOpenGLFunctions_") &&
+		strings.Contains(cname, "CoreBackend") {
+		// return 3
+	}
+	if strings.HasPrefix(cname, "QOpenGLFunctions_") &&
+		strings.Contains(cname, "DeprecatedBackend") {
+		// return 4
+	}
+
+	if !cursor.IsCursorDefinition() {
+		// log.Println("filtered by not definition", cursor.Spelling())
+		return 5
+	}
+	// pure virtual class check
+	pure_virtual_class := is_pure_virtual_class(cursor)
+	if pure_virtual_class {
+		// return true
+	}
+
+	// if cursor.kind == clidx.CursorKind.CLASS_TEMPLATE: return True
+	if cursor.SpecializedCursorTemplate().IsNull() == false {
+		// return 6
+	}
+	// inner class
+	if cursor.SemanticParent().Kind() == clang.Cursor_StructDecl {
+		// return 7
+	}
+	if cursor.SemanticParent().Kind() == clang.Cursor_StructDecl {
+		// return 8
+	}
+	// test
+	fixclasses := []string{
+		// "QDebug", "QNoDebug", "QDebugStateSaver", // "QFileDevice",
+		// "QLibraryInfo", "QInternal", "QAccessibleObject", "QAccessibleActionInterface",
+		// "QGraphicsObject",
+	}
+	for _, c := range fixclasses {
+		if cursor.Spelling() == c {
+			return 9
+		}
+	}
+	if cname != "QString" {
+		// return true
+	}
+	if cname != "QStringRef" {
+		// return true
+	}
+	if cname != "QSysInfo" {
+		// return true
+	}
+	if cname != "QCoreApplication" {
+		// return true
+	}
+	if len(specifyClass) > 0 && cname != specifyClass {
+		return 10
+	}
+	if parent.Spelling() == "QtPrivate" || parent.Spelling() == "QtMetaTypePrivate" {
+		return 11
+	}
+
+	return 0
+}
+
+func (this *GenFilterBase2) skipMethod(cursor, parent clang.Cursor) bool {
+	skipn := this.skipMethodImpl(cursor, parent)
+	log.Println(skipn, cursor.Spelling(), parent.Spelling(), _cmgl.origin(cursor))
+	return skipn > 0
+}
+func (this *GenFilterBase2) skipMethodImpl(cursor, parent clang.Cursor) int {
+	if cursor.AccessSpecifier() == clang.AccessSpecifier_Invalid ||
+		cursor.AccessSpecifier() == clang.AccessSpecifier_Private {
+		return 1
+	}
+	if is_deleted_method(cursor, parent) {
+		return 2
+	}
+
+	cname := cursor.Spelling()
+	metamths := []string{
+		// "qt_metacall", "qt_metacast",
+		"qt_check_for_",
+	}
+	for _, mm := range metamths {
+		if strings.HasPrefix(cname, mm) {
+			return 2
+		}
+	}
+
+	return 0
+}
+
+func (this *GenFilterBase2) skipArg(cursor, parent clang.Cursor) bool {
+	return false
+}
+func (this *GenFilterBase2) skipFunc(cursor clang.Cursor) bool {
+	return false
+}
+
+/////
 type GenFilterInc struct {
-	GenFilterBase
+	fltb *GenFilterBase2
 }
 
 func NewGenFilterInc() *GenFilterInc {
 	this := &GenFilterInc{}
+	this.fltb = &GenFilterBase2{}
 	return this
 }
 
-func (this *GenFilterInc) skipMethod(cursor, parent clang.Cursor) bool {
-	bskip := this.GenFilterBase.skipMethod(cursor, parent)
+func (this *GenFilterInc) skipClass(cursor, parent clang.Cursor) bool {
+	bskip := this.fltb.skipClass(cursor, parent)
 	return bskip
 }
 
+func (this *GenFilterInc) skipMethod(cursor, parent clang.Cursor) bool {
+	bskip := this.fltb.skipMethod(cursor, parent)
+	return bskip
+}
+
+func (this *GenFilterInc) skipArg(cursor, parent clang.Cursor) bool {
+	bskip := this.fltb.skipArg(cursor, parent)
+	return bskip
+}
+func (this *GenFilterInc) skipFunc(cursor clang.Cursor) bool {
+	bskip := this.fltb.skipFunc(cursor)
+	return bskip
+}
+
+/////
 type GenFilterGo struct {
 	GenFilterBase
 }
 
-// 过滤更多
 func (this *GenFilterGo) skipMethod(cursor, parent clang.Cursor) bool {
 	bskip := this.GenFilterBase.skipMethod(cursor, parent)
 	return bskip

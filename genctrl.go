@@ -144,6 +144,7 @@ func (this *GenCtrl) setupEnv() {
 	cmdlines := []string{
 		"-x c++ -std=c++11 -D__CODE_GENERATOR__ -D_GLIBCXX_USE_CXX11ABI=1",
 		"-DQT_NO_DEBUG -D_GNU_SOURCE -pipe -fno-exceptions -O2 -march=x86-64 -mtune=generic -O2 -pipe -fstack-protector-strong -std=c++11 -Wall -W -D_REENTRANT -fPIC",
+		"-DQT_OPENGL_ES_2",
 		// "-DQ_CLANG_QDOC", // 开启QDOC，竟然会出错
 		"-I./bsheaders", "-I/usr/include/wine/windows/", // fix cross platform generate, win/mac
 	}

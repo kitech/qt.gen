@@ -17,6 +17,14 @@ func (this *GenerateInline) genPlainTmplInstClses() {
 
 	for i, icls := range this.plaintmplinstclses {
 		log.Println(i, icls.Spelling(), icls.DisplayName())
+		if icls.Spelling() == "QStringBuilder" ||
+			icls.Spelling() == "QFuture" ||
+			icls.Spelling() == "QFutureInterface" ||
+			icls.Spelling() == "QFutureWatcher" ||
+			icls.Spelling() == "QConcatenable" ||
+			icls.Spelling() == "QListSpecialMethods" {
+			continue // lind symbol redefined
+		}
 		qtmod := get_decl_mod(icls)
 		if qtmod == "stdglobal" {
 			continue
