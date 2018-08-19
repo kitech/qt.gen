@@ -123,7 +123,7 @@ func (this *GenerateInline) genFileHeader(clsctx *GenClassContext, cursor, paren
 	this.cp.APf("header", "// %s", fix_inc_name(file.Name()))
 	this.cp.APf("header", "#ifndef protected")        // for combile source code, so with #ifdef
 	this.cp.APf("header", "#define protected public") // for protected function call
-	// this.cp.APf("header", "#define private public") // not used for now
+	this.cp.APf("header", "#define private public")   // macos clang++ happy this
 	this.cp.APf("header", "#endif")
 	hbname := filepath.Base(file.Name())
 	if strings.HasSuffix(hbname, "_impl.h") {

@@ -451,7 +451,7 @@ func (this *GenFilterBase2) skipClassImpl(cursor, parent clang.Cursor) int {
 		"QOpenGLVersionFunctionsStorage",
 		// "QAnimationGroup-",
 		// "QMetaType",
-		// "QAtomicOpsSupport",
+		"QAtomicOpsSupport",
 	}
 
 	for _, prefix := range prefixes {
