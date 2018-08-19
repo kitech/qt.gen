@@ -292,6 +292,7 @@ func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, paren
 		}
 		prmStr4 := strings.Join(prms, ", ")
 
+		// TODO if anyway to know the binding peer if override a protected method, then can improve it
 		constfix := gopp.IfElseStr(mcs.CXXMethod_IsConst(), "const", "")
 		rety := mcs.ResultType()
 		this.cp.APf("main", "  virtual %s %s(%s) %s{", mcs.ResultType().Spelling(), mcs.Spelling(), argStr, constfix)
@@ -762,6 +763,10 @@ func (this *GenerateInline) genArg(cursor, parent clang.Cursor, idx int) {
 				this.argDesc = append(this.argDesc, fmt.Sprintf("%s* %s", csty.PointeeType().Declaration().Type().Spelling(), argName))
 				this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("%s*", csty.PointeeType().Declaration().Type().Spelling()))
 			}
+		} else if csty.Kind() == clang.Type_LValueReference &&
+			csty.PointeeType().Kind() == clang.Type_Unexposed { // should be QList/QMap/QHash/QSet...
+			this.argDesc = append(this.argDesc, fmt.Sprintf("%s* %s", csty.PointeeType().Declaration().Type().Spelling(), argName))
+			this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("%s*", csty.PointeeType().Declaration().Type().Spelling()))
 		} else if TypeIsFuncPointer(cursor.Type()) {
 			this.argDesc = append(this.argDesc,
 				strings.Replace(cursor.Type().Spelling(), "(*)",
@@ -869,6 +874,9 @@ func (this *GenerateInline) genParam(cursor, parent clang.Cursor, idx int) {
 		forceConvStr = "*"
 	} else if csty.Kind() == clang.Type_LValueReference &&
 		csty.PointeeType().Kind() == clang.Type_Record {
+		forceConvStr = "*"
+	} else if csty.Kind() == clang.Type_LValueReference &&
+		csty.PointeeType().Kind() == clang.Type_Unexposed { // should be QList/QMap/QHash/QSet...
 		forceConvStr = "*"
 	} else if TypeIsCharPtrPtr(csty) {
 		// forceConvStr = "(char**)"
