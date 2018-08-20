@@ -119,8 +119,6 @@ func (this *GenCtrl) setupQtinfo() {
 }
 
 func (this *GenCtrl) setupEnv() {
-	cidx := clang.NewIndex(0, 1)
-	// defer cidx.Dispose()
 
 	// 预先处理头文件, cd gcc_64/include/ && ln -sv ../../android_x86/include/QtAndroidExtras
 	// 预先处理头文件, cd gcc_64/include/ && ln -sv ../../Src/qtwinextras/include/QtWinExtras
@@ -156,15 +154,20 @@ func (this *GenCtrl) setupEnv() {
 
 	// this.setupQtinfo()
 	qtdir, qtver := genQtdir, genQtver
+	qtsysdir := qtdir
 	if qtdir == "/usr" {
 		args = append(args, fmt.Sprintf("-I%s/include/qt", qtdir))
 	} else if strings.HasPrefix(qtdir, "qtheaders") {
-		args = append(args, fmt.Sprintf("-I./qtheaders/include"))
+		args = append(args, fmt.Sprintf("-I./qtheaders/include")) //depcreated self construct header tree
 	} else {
 		log.Println(qtdir)
 		args = append(args, fmt.Sprintf("-I%s/%s/gcc_64/include", qtdir, qtver))
+		qtsysdir += fmt.Sprintf("/%s/gcc_64", qtver)
 	}
 	log.Println("qt info:", qtdir, qtver, os.Getenv("QT_DIR"))
+	if !gopp.FileExist2(qtsysdir) {
+		log.Fatalln("maybe QT_DIR not exists error", qtdir, qtver, qtsysdir)
+	}
 
 	gopp.Domap(modules, func(e interface{}) interface{} {
 		args = append(args, fmt.Sprintf("-DQT_%s_LIB", strings.ToUpper(e.(string)[2:])))
@@ -192,29 +195,32 @@ func (this *GenCtrl) setupEnv() {
 	ioutil.WriteFile("bcmd.sh", []byte(fullCmd), 0755)
 	// os.Exit(0)
 
-	this.cidx = cidx
 	this.args = args
 	this.modules = modules
 }
 
 func (this *GenCtrl) createTU() {
-	cidx := this.cidx
+	cidx := clang.NewIndex(0, 1)
+	// defer cidx.Dispose()
+	this.cidx = cidx
 	args := this.args
 
 	var tu clang.TranslationUnit
 	save_ast := false
+	opts := uint32(0)
 	if _, err := os.Stat(ast_file); err == nil {
 		tu = cidx.TranslationUnit(ast_file)
 	} else {
 		save_ast = true
-		opts := uint32(0)
 		opts |= clang.TranslationUnit_DetailedPreprocessingRecord
 		opts |= clang.TranslationUnit_IncludeBriefCommentsInCodeCompletion
+		opts |= clang.TranslationUnit_CreatePreambleOnFirstParse
 		tu = cidx.ParseTranslationUnit(bshdr_file, args, nil, opts)
 		// 需要正常编译能够通过
 	}
+	// log.Println(tu.Spelling(), tu.NumDiagnostics(), tu.DefaultReparseOptions(), opts)
 	if !tu.IsValid() {
-		log.Panicln("wtf", "maybe cached qthdrsrc.ast file expired, delete and retry please.")
+		log.Panicln("wtf", "maybe cached qthdrsrc.ast file expired, delete and retry please.", tu.NumDiagnostics())
 	}
 	cursor := tu.TranslationUnitCursor()
 	if false {
@@ -232,7 +238,7 @@ func (this *GenCtrl) createTU() {
 
 func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 	{
-		log.Println(cursor.Spelling(), cursor.Kind().String(), cursor.DisplayName(), cursor.SpecializedCursorTemplate().DisplayName(), cursor.CanonicalCursor().Kind(), cursor.IsCursorDefinition())
+		log.Println(cursor.Spelling(), cursor.Kind().String(), cursor.DisplayName(), cursor.SpecializedCursorTemplate().DisplayName(), cursor.CanonicalCursor().Kind(), cursor.IsCursorDefinition(), cursor.Language(), cursor.Linkage(), cursor.HasAttrs(), cursor.Extent())
 	}
 
 	switch cursor.Kind() {
@@ -331,6 +337,9 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 	case clang.Cursor_UsingDeclaration:
 	case clang.Cursor_StaticAssert:
 	case clang.Cursor_UnexposedDecl:
+		// clang reports 'extern "C" ...' as an unexposed decl, which we definitely
+		// need to recurse into.
+		cursor.Visit(this.visfn)
 	case clang.Cursor_TypeAliasTemplateDecl:
 		log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName())
 	case clang.Cursor_MacroDefinition:
@@ -385,7 +394,9 @@ func (this *GenCtrl) collectClasses() {
 	if genLang == "go" {
 		var gg *GenerateGo = this.qtenumgen.(*GenerateGo)
 		gg.cp.APf("header", "package qtcore")
+		gg.cp.APf("header", "import \"fmt\"")
 		gg.genEnumsGlobal(cursor, cursor.SemanticParent())
+		gg.cp.APf("keep", "func make_sure_usepkg_qnamespace(){if false{fmt.Println(123)}}")
 		gg.saveCodeToFile("core", "qnamespace")
 
 		gg = this.qtconstgen.(*GenerateGo)
