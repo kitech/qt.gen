@@ -341,6 +341,19 @@ func is_qt_global_func(cursor clang.Cursor) bool {
 	reg := regexp.MustCompile(`q[A-Z].+`) // 需要生成的全局函数名正则规范
 	reg = regexp.MustCompile(`q.+`)       // 需要生成的全局函数名正则规范
 	// and is stdglobal scope?
+	pcs := cursor.SemanticParent()
+	if pcs.Kind() == clang.Cursor_Namespace &&
+		(pcs.Spelling() == "Qt" || pcs.Spelling() == "QtPrivate" || pcs.Spelling() == "QtWebEngine" ||
+			pcs.Spelling() == "QtAndroid" || pcs.Spelling() == "QtWin" || pcs.Spelling() == "QtMac") {
+		return true
+	}
+	if cursor.Kind() == clang.Cursor_FunctionDecl && cursor.IsCursorDefinition() && cursor.IsFunctionInlined() {
+		return true
+	}
+	if cursor.Kind() == clang.Cursor_FunctionDecl && !cursor.IsCursorDefinition() && !cursor.IsFunctionInlined() {
+		return true
+	}
+
 	return reg.MatchString(cursor.Spelling())
 }
 

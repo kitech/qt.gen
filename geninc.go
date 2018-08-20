@@ -944,27 +944,33 @@ func (this *GenerateInline) genFunctions(cursor, parent clang.Cursor) {
 			return funcs[i].Mangling() > funcs[j].Mangling()
 		})
 		for _, fc := range funcs {
-			log.Println(fc.Spelling(), fc.Mangling(), fc.DisplayName(), fc.IsCursorDefinition(), fc.SemanticParent().Spelling(), fc.Type().Spelling(), fc.SemanticParent().Kind().String())
+			log.Println(fc.Kind(), fc.Spelling(), fc.Mangling(), fc.DisplayName(), fc.IsCursorDefinition(), fc.SemanticParent().Spelling(), fc.Type().Spelling(), fc.SemanticParent().Kind().String(), fc.NumTemplateArguments())
 			if !is_qt_global_func(fc) {
-				log.Println("skip global function ", fc.Spelling())
+				log.Println("skip global function ", fc.Spelling(), fc.IsCursorDefinition(), this.mangler.origin(fc))
 				continue
 			}
 
-			if strings.ContainsAny(fc.DisplayName(), "<>") {
-				log.Println("skip global function ", fc.Spelling())
+			if fc.NumTemplateArguments() > 0 {
+				log.Println("skip global function ", fc.Spelling(),
+					fc.NumTemplateArguments(), fc.TemplateArgumentType(0).Spelling(),
+					fc.TemplateArgumentKind(0).Spelling(), fc.TemplateCursorKind().Spelling())
 				continue
+			}
+			if strings.ContainsAny(fc.DisplayName(), "<>") {
+				// log.Println("skip global function ", fc.Spelling())
+				// continue
 			}
 			if strings.Contains(fc.DisplayName(), "Rgba64") {
-				log.Println("skip global function ", fc.Spelling())
-				continue
+				// log.Println("skip global function ", fc.Spelling())
+				// continue
 			}
 			if strings.Contains(fc.ResultType().Spelling(), "Rgba64") {
-				log.Println("skip global function ", fc.Spelling())
-				continue
+				// log.Println("skip global function ", fc.Spelling())
+				// continue
 			}
 			if hasSkipKey(fc) {
-				log.Println("skip global function ", fc.Spelling())
-				continue
+				//log.Println("skip global function ", fc.Spelling())
+				//continue
 			}
 
 			if this.filter.skipFunc(fc) {
