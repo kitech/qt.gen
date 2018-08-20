@@ -73,7 +73,7 @@ func (this *GenerateGo) genClass(cursor, parent clang.Cursor) {
 	this.genProtectedCallbacks(cursor, parent)
 	this.genClassDef(cursor, parent)
 	this.genMethods(cursor, parent)
-	this.genEnums(cursor, parent)
+	this.genClassEnums(cursor, parent)
 	this.final(cursor, parent)
 	if cursor.Spelling() == "QMimeType" {
 
@@ -1550,8 +1550,9 @@ func (this *GenerateGo) genArgCGOSign(cursor, parent clang.Cursor, idx int) {
 	this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s", tystr, argName))
 }
 
-func (this *GenerateGo) genEnums(cursor, parent clang.Cursor) {
+func (this *GenerateGo) genClassEnums(cursor, parent clang.Cursor) {
 	// log.Println("yyyyyyyy", cursor.DisplayName(), parent.DisplayName())
+	isobjty := has_qobject_base_class(cursor)
 	for _, enum := range this.enums {
 		comment := queryComment(enum, this.qtdir, this.qtver)
 		pcomment, elems := extractEnumElem(comment)
@@ -1574,6 +1575,54 @@ func (this *GenerateGo) genEnums(cursor, parent clang.Cursor) {
 
 			return clang.ChildVisit_Continue
 		})
+
+		// generate get enum item name by enum value
+		revalmap := map[int64][]string{} // reverse enum val => enum names
+		enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
+			switch c1.Kind() {
+			case clang.Cursor_EnumConstantDecl:
+				eival := c1.EnumConstantDeclValue()
+				if _, ok := revalmap[eival]; ok {
+					revalmap[eival] = append(revalmap[eival], c1.DisplayName())
+				} else {
+					revalmap[eival] = []string{c1.DisplayName()}
+				}
+			}
+
+			return clang.ChildVisit_Continue
+		})
+
+		this.cp.APf("body", "func (this *%s) %sItemName(val int) string {",
+			cursor.DisplayName(), enum.DisplayName())
+		if isobjty {
+			this.cp.APf("body", "  return qtrt.GetClassEnumItemName(this, val)")
+		} else {
+			this.cp.APf("body", "  switch val {")
+			enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
+				switch c1.Kind() {
+				case clang.Cursor_EnumConstantDecl:
+					eival := c1.EnumConstantDeclValue()
+					_, keyok := revalmap[eival]
+					commentit := gopp.IfElseStr(keyok, "", "//")
+					this.cp.APf("body", "    %s case %s__%s: // %d",
+						commentit, cursor.DisplayName(), c1.DisplayName(), eival)
+					this.cp.APf("body", "    %s return \"%s\"", commentit, strings.Join(revalmap[eival], ","))
+					if keyok {
+						delete(revalmap, eival)
+					}
+				}
+				return clang.ChildVisit_Continue
+			})
+			this.cp.APf("body", "  default: return fmt.Sprintf(\"%%d\", val)")
+			this.cp.APf("body", "}")
+		}
+		this.cp.APf("body", "}")
+		this.cp.APf("body", "func %s_%sItemName(val int) string {",
+			cursor.DisplayName(), enum.DisplayName())
+		this.cp.APf("body", "  var nilthis *%s", cursor.DisplayName())
+		this.cp.APf("body", "  return nilthis.%sItemName(val)", enum.DisplayName())
+		this.cp.APf("body", "}")
+		this.cp.APf("body", "")
 	}
 }
 
@@ -1609,6 +1658,44 @@ func (this *GenerateGo) genEnumsGlobal(cursor, parent clang.Cursor) {
 
 			return clang.ChildVisit_Continue
 		})
+
+		// generate get enum item name by enum value
+		revalmap := map[int64][]string{} // reverse enum val => enum names
+		enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
+			switch c1.Kind() {
+			case clang.Cursor_EnumConstantDecl:
+				eival := c1.EnumConstantDeclValue()
+				if _, ok := revalmap[eival]; ok {
+					revalmap[eival] = append(revalmap[eival], c1.DisplayName())
+				} else {
+					revalmap[eival] = []string{c1.DisplayName()}
+				}
+			}
+
+			return clang.ChildVisit_Continue
+		})
+
+		this.cp.APf("body", "func %sItemName(val int) string {", enum.DisplayName())
+		this.cp.APf("body", "  switch val {")
+		enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
+			switch c1.Kind() {
+			case clang.Cursor_EnumConstantDecl:
+				eival := c1.EnumConstantDeclValue()
+				_, keyok := revalmap[eival]
+				commentit := gopp.IfElseStr(keyok, "", "//")
+				this.cp.APf("body", "    %s case %s__%s: // %d", commentit, "Qt", c1.DisplayName(), eival)
+				this.cp.APf("body", "    %s return \"%s\"", commentit, strings.Join(revalmap[eival], ","))
+				if keyok {
+					delete(revalmap, eival)
+				}
+			}
+			return clang.ChildVisit_Continue
+		})
+		this.cp.APf("body", "  default: return fmt.Sprintf(\"%%d\", val)")
+		this.cp.APf("body", "}")
+		this.cp.APf("body", "}")
+		this.cp.APf("body", "")
+
 	}
 }
 
