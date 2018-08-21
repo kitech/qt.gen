@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"unsafe"
 
 	"github.com/go-clang/v3.9/clang"
 	"github.com/therecipe/qt/internal/binding/parser"
@@ -170,10 +171,10 @@ func (this *GenerateInline) walkClass(clsctx *GenClassContext, cursor, parent cl
 		return clang.ChildVisit_Continue
 	})
 
-	this.isPureVirtualClass = pureVirt
 	if !pureVirt {
-		this.isPureVirtualClass = is_pure_virtual_class(cursor)
+		pureVirt = is_pure_virtual_class(cursor)
 	}
+	this.isPureVirtualClass = pureVirt
 	this.cp.APf("header", "// %s is pure virtual: %v", cursor.Spelling(), pureVirt)
 	this.methods = methods
 }
@@ -226,8 +227,9 @@ func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, paren
 			// continue
 		}
 
+		rety := mcs.ResultType()
 		this.cp.APf("main", "// %s", strings.Join(this.getFuncQulities(mcs), " "))
-		this.cp.APf("main", "// %s %s", mcs.ResultType().Spelling(), mcs.DisplayName())
+		this.cp.APf("main", "// [%d] %s %s", rety.SizeOf(), rety.Spelling(), mcs.DisplayName())
 		if mcs.Kind() == clang.Cursor_Destructor {
 			continue
 		}
@@ -294,8 +296,7 @@ func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, paren
 
 		// TODO if anyway to know the binding peer if override a protected method, then can improve it
 		constfix := gopp.IfElseStr(mcs.CXXMethod_IsConst(), "const", "")
-		rety := mcs.ResultType()
-		this.cp.APf("main", "  virtual %s %s(%s) %s{", mcs.ResultType().Spelling(), mcs.Spelling(), argStr, constfix)
+		this.cp.APf("main", "  virtual %s %s(%s) %s{", rety.Spelling(), mcs.Spelling(), argStr, constfix)
 		this.cp.APf("main", "    int handled = 0;")
 		this.cp.APf("main", "    auto irv = callbackAllInherits_fnptr((void*)this, (char*)\"%s\", &handled, %s);",
 			mcs.Spelling(), prmStr4)
@@ -305,7 +306,13 @@ func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, paren
 		case clang.Type_Record:
 			this.cp.APf("main", "    return *(%s*)(irv);", rety.Spelling())
 		case clang.Type_Elaborated, clang.Type_Enum:
-			this.cp.APf("main", "    return (%s)(int)(irv);", rety.Spelling())
+			if rety.CanonicalType().Kind() == clang.Type_Record &&
+				rety.CanonicalType().SizeOf() == int64(unsafe.Sizeof(uint64(0))) {
+				// for QAccessable::State like struct Elaborated type
+				this.cp.APf("main", "    return *(%s*)(&irv);", rety.Spelling())
+			} else {
+				this.cp.APf("main", "    return (%s)(int)(irv);", rety.Spelling())
+			}
 		case clang.Type_Typedef:
 			log.Println(rety.Spelling(), rety.CanonicalType().Kind(), rety.CanonicalType().Spelling(), rety.ClassType().Kind(), rety.ClassType().Spelling())
 			if TypeIsQFlags(rety) {
@@ -320,7 +327,7 @@ func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, paren
 		default:
 			this.cp.APf("main", "    return (%s)(irv);", rety.Spelling())
 		}
-		this.cp.APf("main", "      // %s", rety.Kind().String()+rety.CanonicalType().Kind().String()+rety.CanonicalType().Spelling())
+		this.cp.APf("main", "      // %s %s %s", rety.Kind().String(), rety.CanonicalType().Kind().String(), rety.CanonicalType().Spelling())
 		this.cp.APf("main", "    } else {")
 		// TODO check return and convert return if needed
 		ispurevirt := mcs.CXXMethod_IsPureVirtual()
@@ -332,7 +339,7 @@ func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, paren
 			}
 		} else {
 			if ispurevirt {
-				this.cp.APf("main", "    return %s{};", rety.Spelling())
+				this.cp.APf("main", "    return (%s){};", rety.Spelling())
 			} else {
 				this.cp.APf("main", "    return %s::%s(%s);", cursor.Spelling(), mcs.Spelling(), paramStr)
 			}
