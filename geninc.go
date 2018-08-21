@@ -304,7 +304,8 @@ func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, paren
 		switch rety.Kind() {
 		case clang.Type_Void:
 		case clang.Type_Record:
-			this.cp.APf("main", "    return *(%s*)(irv);", rety.Spelling())
+			this.cp.APf("main", "    if (irv == 0) { return (%s){};}", rety.Spelling())
+			this.cp.APf("main", "    auto prv = (%s*)(irv); auto orv = *prv; delete(prv); return orv;", rety.Spelling())
 		case clang.Type_Elaborated, clang.Type_Enum:
 			if rety.CanonicalType().Kind() == clang.Type_Record &&
 				rety.CanonicalType().SizeOf() == int64(unsafe.Sizeof(uint64(0))) {
@@ -323,7 +324,8 @@ func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, paren
 				this.cp.APf("main", "    return (%s)(irv);", rety.Spelling())
 			}
 		case clang.Type_Unexposed: // QList<...
-			this.cp.APf("main", "    return *(%s*)(irv);", rety.Spelling())
+			this.cp.APf("main", "    if (irv == 0) { return (%s){};}", rety.Spelling())
+			this.cp.APf("main", "    auto prv = (%s*)(irv); auto orv = *prv; delete(prv); return orv;", rety.Spelling())
 		default:
 			this.cp.APf("main", "    return (%s)(irv);", rety.Spelling())
 		}
