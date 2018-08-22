@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"gopp"
+	"gopp/gods"
 	"io/ioutil"
 	"log"
 	"path/filepath"
@@ -193,6 +194,96 @@ func (this *GenerateInline) genProtectedCallbacks(clsctx *GenClassContext, curso
 	this.cp.APf("main", "")
 }
 
+// 非静态类
+// 本类Ctor/Dtor
+// 本类protected  virtual方法
+// 本类 纯虚方法
+// 本类的所有父类 未实现的纯虚方法
+// 当然要排重，排重时注意const限定符也是检测唯一签名相关的
+func (this *GenerateInline) collectProxyMethod(clsctx *GenClassContext, cursor, parent clang.Cursor) (pxymths []clang.Cursor) {
+	mthmap := gods.NewHashMap()   // name+constflag => clang.Cursor
+	mthlst := gods.NewArrayList() // name+constflag
+	mthkey := func(c clang.Cursor) string {
+		k := c.Spelling() + fmt.Sprintf("-c%v", c.CXXMethod_IsConst())
+		for i := int32(0); i < c.NumArguments(); i++ {
+			k += "-" + c.Argument(uint32(i)).Type().Spelling()
+		}
+		return k
+	}
+	deletemth := func(c clang.Cursor) {
+		key1 := mthkey(c)
+		idx, ival := mthlst.Find(func(index int, value interface{}) bool {
+			key2 := mthkey(value.(clang.Cursor))
+			return key2 == key1
+		})
+		if ival != nil {
+			mthlst.Remove(idx)
+		} else {
+			log.Println("delete failed:", idx, key1)
+		}
+	}
+
+	bcs := find_base_classes(cursor)
+	bcs2 := append(bcs, cursor)
+	// 本类与基类的纯虚方法
+	for i := len(bcs2) - 1; i >= 0; i-- {
+		bci := bcs2[i]
+		bci.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
+			switch cursor.Kind() {
+			case clang.Cursor_CXXMethod:
+				if cursor.CXXMethod_IsStatic() {
+					break
+				}
+				key := mthkey(cursor)
+				if cursor.CXXMethod_IsPureVirtual() {
+					if c, ok := mthmap.Get(key); ok {
+						mthmap.Remove(key)
+						deletemth(c.(clang.Cursor))
+					}
+					mthmap.Put(key, cursor)
+					mthlst.Add(cursor)
+				}
+			}
+			return clang.ChildVisit_Continue
+		})
+	}
+
+	cursor.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
+		switch cursor.Kind() {
+		case clang.Cursor_CXXMethod:
+			if cursor.CXXMethod_IsStatic() {
+				break
+			}
+			key := mthkey(cursor)
+			if !cursor.CXXMethod_IsPureVirtual() {
+				if c, ok := mthmap.Get(key); ok {
+					mthmap.Remove(key)
+					deletemth(c.(clang.Cursor))
+				}
+			}
+			if cursor.CXXMethod_IsVirtual() && cursor.AccessSpecifier() == clang.AccessSpecifier_Protected {
+				if c, ok := mthmap.Get(key); ok {
+					mthmap.Remove(key)
+					deletemth(c.(clang.Cursor))
+				}
+				mthmap.Put(key, cursor)
+				mthlst.Add(cursor)
+			}
+
+		case clang.Cursor_Constructor:
+			if cursor.AccessSpecifier() == clang.AccessSpecifier_Public && !is_deleted_method(cursor, parent) {
+				mthlst.Add(cursor)
+			}
+		case clang.Cursor_Destructor: // not need
+		}
+		return clang.ChildVisit_Continue
+	})
+
+	// gopp.Assert(mthmap.Size() == mthlst.Size(), "", mthmap.Size(), mthlst.Size(), cursor.Spelling())
+	mthlst.Each(func(index int, value interface{}) { pxymths = append(pxymths, value.(clang.Cursor)) })
+	return
+}
+
 func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, parent clang.Cursor) {
 	this.hasVirtualProtected = false
 	if is_deleted_class(cursor) {
@@ -205,8 +296,10 @@ func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, paren
 		this.cp.APf("main", "  virtual ~My%s() {}", cursor.Spelling())
 	}
 
+	// override 目标，1. 让该类能够new, 2. 能够在binding端override可以override的方法
+	overrideMethods := this.collectProxyMethod(clsctx, cursor, parent)
 	proxyedMethods := []clang.Cursor{} // 这个要生成相应的公开调用封装函数
-	for _, mcs := range this.methods {
+	for _, mcs := range overrideMethods {
 		if mcs.Kind() == clang.Cursor_Constructor {
 			this.cp.APf("main", "// %s %s", mcs.ResultType().Spelling(), mcs.DisplayName())
 			this.genArgsPxy(mcs, cursor)
@@ -220,26 +313,16 @@ func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, paren
 				argStr, cursor.Type().Spelling(), paramStr)
 			continue
 		}
-		if mcs.AccessSpecifier() != clang.AccessSpecifier_Protected {
+		if funk.Contains([]string{"metaObject", "qt_metacast", "qt_metacall"}, mcs.Spelling()) {
 			continue
 		}
-		if !mcs.CXXMethod_IsVirtual() { // 是否只override virtual方法呢？
-			// continue
-		}
 
+		if mcs.AccessSpecifier() == clang.AccessSpecifier_Protected {
+			this.hasVirtualProtected = true
+		}
 		rety := mcs.ResultType()
 		this.cp.APf("main", "// %s", strings.Join(this.getFuncQulities(mcs), " "))
 		this.cp.APf("main", "// [%d] %s %s", rety.SizeOf(), rety.Spelling(), mcs.DisplayName())
-		if mcs.Kind() == clang.Cursor_Destructor {
-			continue
-		}
-		if mcs.Spelling() == "drawItems" || mcs.Spelling() == "getPaintContext" { // temporary skip this
-			continue
-		}
-		this.hasVirtualProtected = true
-		if mcs.CXXMethod_IsPureVirtual() {
-			// continue
-		}
 
 		// gen projected methods
 		proxyedMethods = append(proxyedMethods, mcs)
