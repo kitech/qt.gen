@@ -296,7 +296,8 @@ func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, paren
 
 		// TODO if anyway to know the binding peer if override a protected method, then can improve it
 		constfix := gopp.IfElseStr(mcs.CXXMethod_IsConst(), "const", "")
-		this.cp.APf("main", "  virtual %s %s(%s) %s{", rety.Spelling(), mcs.Spelling(), argStr, constfix)
+		overrided := gopp.IfElseStr(mcs.CXXMethod_IsVirtual() || mcs.CXXMethod_IsPureVirtual(), "override", "")
+		this.cp.APf("main", "  virtual %s %s(%s) %s %s {", rety.Spelling(), mcs.Spelling(), argStr, constfix, overrided)
 		this.cp.APf("main", "    int handled = 0;")
 		this.cp.APf("main", "    auto irv = callbackAllInherits_fnptr((void*)this, (char*)\"%s\", &handled, %s);",
 			mcs.Spelling(), prmStr4)
@@ -333,17 +334,27 @@ func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, paren
 		this.cp.APf("main", "    } else {")
 		// TODO check return and convert return if needed
 		ispurevirt := mcs.CXXMethod_IsPureVirtual()
+		mthhasimpl := false
+		if mcs.SemanticParent().Equal(cursor) && ispurevirt { // 当前类
+		} else if !mcs.SemanticParent().Equal(cursor) && ispurevirt { // 父类
+		} else {
+			mthhasimpl = true
+		}
 		if mcs.ResultType().Kind() == clang.Type_Void {
-			if ispurevirt {
-				this.cp.APf("main", "    // %s::%s(%s);", cursor.Spelling(), mcs.Spelling(), paramStr)
-			} else {
+			if mthhasimpl {
 				this.cp.APf("main", "    %s::%s(%s);", cursor.Spelling(), mcs.Spelling(), paramStr)
+			} else {
+				this.cp.APf("main", "    // %s::%s(%s);", cursor.Spelling(), mcs.Spelling(), paramStr)
 			}
 		} else {
-			if ispurevirt {
-				this.cp.APf("main", "    return (%s){};", rety.Spelling())
-			} else {
+			if mthhasimpl {
 				this.cp.APf("main", "    return %s::%s(%s);", cursor.Spelling(), mcs.Spelling(), paramStr)
+			} else {
+				if rety.Kind() == clang.Type_LValueReference {
+					this.cp.APf("main", "    auto orv = (%s){}; return orv;", rety.PointeeType().Spelling())
+				} else {
+					this.cp.APf("main", "    return (%s){};", rety.Spelling())
+				}
 			}
 		}
 		this.cp.APf("main", "  }")
@@ -716,6 +727,16 @@ func (this *GenerateInline) genArgPxy(cursor, parent clang.Cursor, idx int) {
 		} else if TypeIsCharPtrPtr(cursor.Type()) {
 			this.argDesc = append(this.argDesc, fmt.Sprintf("char** %s", argName))
 			this.argtyDesc = append(this.argtyDesc, "char**")
+		} else if csty.Kind() == clang.Type_ConstantArray {
+			log.Println(cursor.Spelling(), parent.Spelling(), csty.ArraySize(), csty.ArrayElementType().Spelling())
+			elemty := csty.ArrayElementType()
+			this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s[%d]", elemty.Spelling(), argName, csty.ArraySize()))
+			this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("%s[%d]", elemty.Spelling(), csty.ArraySize()))
+		} else if csty.Kind() == clang.Type_IncompleteArray {
+			log.Println(cursor.Spelling(), parent.Spelling(), csty.ArraySize(), csty.ArrayElementType().Spelling())
+			elemty := csty.ArrayElementType()
+			this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s[]", elemty.Spelling(), argName))
+			this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("%s[]", elemty.Spelling()))
 		} else if (csty.Kind() == clang.Type_IncompleteArray ||
 			csty.Kind() == clang.Type_ConstantArray) &&
 			csty.ElementType().Kind() == clang.Type_Pointer {
