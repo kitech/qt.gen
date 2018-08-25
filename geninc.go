@@ -30,6 +30,7 @@ type GenerateInline struct {
 	paramDesc []string
 
 	GenBase
+	hasMyCls bool
 }
 
 func NewGenerateInline(qtdir, qtver string) *GenerateInline {
@@ -74,6 +75,7 @@ func (this *GenerateInline) genClass(cursor, parent clang.Cursor) {
 	}
 
 	this.isPureVirtualClass = false
+	this.hasMyCls = false
 	this.genFileHeader(clsctx, cursor, parent)
 	this.walkClass(clsctx, cursor, parent)
 	this.genProtectedCallbacks(clsctx, cursor, parent)
@@ -195,7 +197,7 @@ func (this *GenerateInline) genProtectedCallbacks(clsctx *GenClassContext, curso
 }
 
 // 非静态类
-// 本类Ctor/Dtor
+// 本类Ctor
 // 本类protected  virtual方法
 // 本类 纯虚方法
 // 本类的所有父类 未实现的纯虚方法
@@ -289,7 +291,9 @@ func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, paren
 	if is_deleted_class(cursor) {
 		return
 	}
+	// 需要proxy的类：QObject的子类
 
+	this.hasMyCls = true
 	this.cp.APf("main", "class Q_DECL_EXPORT My%s : public %s {", cursor.Spelling(), cursor.Type().Spelling())
 	this.cp.APf("main", "public:")
 	if !is_protected_dtor_class(cursor) {
@@ -538,8 +542,6 @@ func (this *GenerateInline) genCtor(clsctx *GenClassContext, cursor, parent clan
 		cursor.SemanticParent().DisplayName(), cursor.LexicalParent().DisplayName(),
 		pparent.Spelling(), parent.CanonicalCursor().DisplayName())
 
-	pureVirtRetstr := gopp.IfElseStr(this.isPureVirtualClass, "0; //", "")
-
 	funco, found := (*parser.Function)(nil), false
 	if clsctx.clso != nil {
 		funco, found = qdi.findMethod(clsctx.clso, cursor)
@@ -556,6 +558,16 @@ func (this *GenerateInline) genCtor(clsctx *GenClassContext, cursor, parent clan
 		pxyclsp = "My"
 		// pxyclsp = "" // TODO
 	}
+	isobjsub := has_qobject_base_class(parent)
+	pureVirtRetstr := gopp.IfElseStr(this.isPureVirtualClass, "0; //", "")
+	pureVirtRetstr = gopp.IfElseStr(this.isPureVirtualClass || !this.hasMyCls, "0; //", "")
+	// TODO 要判断的，1,是否能加My前缀，2,不能加的情况，2-1,是否能new，2-2,不能new要加注册
+	if isobjsub && !strings.ContainsAny(parent.Type().Spelling(), "<>") &&
+		!funk.ContainsString([]string{"QAbstractEventDispatcher"}, parent.Type().Spelling()) {
+		pxyclsp = "My"
+		pureVirtRetstr = ""
+	}
+
 	if strings.HasPrefix(pparent.Spelling(), "Qt") {
 		if pxyclsp == "" {
 			this.cp.APf("main", "  return %s new %s::%s(%s);", pureVirtRetstr, pparent.Spelling(), parent.Spelling(), paramStr)

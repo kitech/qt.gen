@@ -452,6 +452,7 @@ func (this *GenFilterBase2) skipClassImpl(cursor, parent clang.Cursor) int {
 		// "QAnimationGroup-",
 		// "QMetaType",
 		"QAtomicOpsSupport",
+		// "QAbstractPlanarVideoBuffer", "QFutureWatcherBase",
 	}
 
 	for _, prefix := range prefixes {
