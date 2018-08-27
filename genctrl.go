@@ -95,7 +95,13 @@ func (this *GenCtrl) setupLang() {
 		this.qttmplgen = NewGenerateGo(genQtdir, genQtver)
 		this.qtconstgen = NewGenerateGo(genQtdir, genQtver)
 	case "rs":
-		fallthrough
+		this.filter = &GenFilterGo{}
+		this.genor = NewGenerateRs(genQtdir, genQtver)
+		this.qtenumgen = NewGenerateRs(genQtdir, genQtver)
+		this.qtfuncgen = NewGenerateRs(genQtdir, genQtver)
+		this.qttmplgen = NewGenerateRs(genQtdir, genQtver)
+		this.qtconstgen = NewGenerateRs(genQtdir, genQtver)
+		// fallthrough
 	default:
 		log.Fatalln("not supported or not impled:", genLang, genQtdir, genQtver)
 	}
@@ -126,17 +132,17 @@ func (this *GenCtrl) setupEnv() {
 	// 这是要生成的模块表
 	modules := []string{
 		"QtCore", "QtGui", "QtWidgets",
-		"QtNetwork", "QtQml", "QtQuick",
-		"QtQuickTemplates2", "QtQuickControls2", "QtQuickWidgets",
+		// "QtNetwork", "QtQml", "QtQuick",
+		// "QtQuickTemplates2", "QtQuickControls2", "QtQuickWidgets",
 		// for platform dependent modules, need copy headers if not exists
-		"QtAndroidExtras", // fatal error: 'jni.h' file not found, link /opt/android-ndk/sysroot/usr/include/jni.h -> bsheaders/jni.h
-		"QtX11Extras",     // 这个包没生成出来什么代码,
-		"QtWinExtras",     // 缺少QtWinExtracsDepened头文件,link qt-opensource-linux.bin installs to gcc_64
-		"QtMacExtras",     // 缺少QtMacExtracsDepened头文件
+		// "QtAndroidExtras", // fatal error: 'jni.h' file not found, link /opt/android-ndk/sysroot/usr/include/jni.h -> bsheaders/jni.h
+		// "QtX11Extras",     // 这个包没生成出来什么代码,
+		// "QtWinExtras",     // 缺少QtWinExtracsDepened头文件,link qt-opensource-linux.bin installs to gcc_64
+		// "QtMacExtras",     // 缺少QtMacExtracsDepened头文件
 		// webengines
-		"QtPositioning", "QtWebChannel", "QtWebEngineCore", "QtWebEngine", "QtWebEngineWidgets",
+		// "QtPositioning", "QtWebChannel", "QtWebEngineCore", "QtWebEngine", "QtWebEngineWidgets",
 		// multimedia
-		"QtSvg", "QtMultimedia",
+		// "QtSvg", "QtMultimedia",
 	}
 
 	cmdlines := []string{
@@ -238,7 +244,7 @@ func (this *GenCtrl) createTU() {
 
 func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 	{
-		log.Println(cursor.Spelling(), cursor.Kind().String(), cursor.DisplayName(), cursor.SpecializedCursorTemplate().DisplayName(), cursor.CanonicalCursor().Kind(), cursor.IsCursorDefinition(), cursor.Language(), cursor.Linkage(), cursor.HasAttrs(), cursor.Extent())
+		log.Println(cursor.Spelling(), cursor.Kind().String(), cursor.DisplayName(), cursor.SpecializedCursorTemplate().DisplayName(), cursor.CanonicalCursor().Kind(), cursor.IsCursorDefinition(), cursor.Language(), cursor.Linkage(), cursor.HasAttrs(), cursor.Extent(), parent.Spelling(), get_decl_loc(parent), cursor.SemanticParent().Spelling())
 	}
 
 	switch cursor.Kind() {
@@ -371,6 +377,24 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 func (this *GenCtrl) collectClasses() {
 	cursor := this.tuc
 
+	/*
+		cursor.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
+			file, lineno, _, _ := cursor.Location().SpellingLocation()
+			log.Println(cursor.Spelling(), cursor.Kind().String(), cursor.DisplayName(), cursor.SpecializedCursorTemplate().DisplayName(), cursor.CanonicalCursor().Kind(), cursor.IsCursorDefinition(), cursor.Language(), cursor.Linkage(), cursor.HasAttrs(), cursor.Extent(), parent.Spelling(), get_decl_loc(parent), cursor.SemanticParent().Spelling(), file, file.Name(), lineno)
+			switch cursor.Kind() {
+			case clang.Cursor_CXXMethod, clang.Cursor_Constructor, clang.Cursor_FunctionDecl:
+				return clang.ChildVisit_Continue
+			case clang.Cursor_MacroExpansion:
+				if funk.ContainsString([]string{"Q_SIGNALS", "Q_SLOTS"}, cursor.Spelling()) {
+					clts.macroExpands[file.Name()] = append(clts.macroExpands[file.Name()], cursor)
+				}
+			case clang.Cursor_CXXAccessSpecifier:
+				clts.macroExpands[file.Name()] = append(clts.macroExpands[file.Name()], cursor)
+			}
+			return clang.ChildVisit_Recurse
+		})
+	*/
+
 	cursor.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		switch cursor.Kind() {
 		case clang.Cursor_ClassDecl:
@@ -442,11 +466,16 @@ type collects struct {
 	PrivateMethodCount    int
 
 	funcParents map[string]int // got 11 elements
+
+	macroExpands map[string][]clang.Cursor // file name => macro explan, and clang.Cursor_CXXAccessSpecifier
 }
 
 var clts = &collects{funcParents: map[string]int{}}
 
-func init() { clts.ClassSizeMap = map[int64]int{} }
+func init() {
+	clts.ClassSizeMap = map[int64]int{}
+	clts.macroExpands = map[string][]clang.Cursor{}
+}
 func (this *collects) addClassSize(sz int64) {
 	if sz <= 256 {
 		return
