@@ -23,6 +23,14 @@ func get_decl_loc(cursor clang.Cursor) string {
 	return fmt.Sprintf("%s:%d", file.Name(), lineno)
 }
 
+// spell location
+func get_decl_sploc(cursor clang.Cursor) string {
+	loc := cursor.Location()
+	file, lineno, _, _ := loc.SpellingLocation()
+	// log.Println(file.Name())
+	return fmt.Sprintf("%s:%d", file.Name(), lineno)
+}
+
 // xxx/include/ => /usr/include/qt
 func fix_inc_name(name string) string {
 	if !strings.HasPrefix(name, "/usr/include/qt") {
@@ -170,6 +178,34 @@ func has_qobject_base_class(cursor clang.Cursor) bool {
 		}
 	}
 	return false
+}
+
+// for class
+func has_virtual_projected(cursor clang.Cursor, include_base bool) (has bool) {
+	cursor.Visit(func(c, p clang.Cursor) clang.ChildVisitResult {
+		switch c.Kind() {
+		case clang.Cursor_Constructor:
+		case clang.Cursor_CXXMethod:
+			if c.AccessSpecifier() == clang.AccessSpecifier_Protected &&
+				(c.CXXMethod_IsPureVirtual() || c.CXXMethod_IsPureVirtual()) {
+				has = true
+			}
+		}
+		if has {
+			return clang.ChildVisit_Break
+		}
+		return clang.ChildVisit_Continue
+	})
+	if has {
+		return
+	}
+	if include_base {
+		bcs := find_base_classes(cursor)
+		if len(bcs) > 0 {
+			return has_virtual_projected(bcs[0], include_base)
+		}
+	}
+	return
 }
 
 func has_copy_ctor(cursor clang.Cursor) bool {
@@ -694,8 +730,8 @@ func queryCommentFromFile(htmlFile string, name string, sltor string) string {
 			}
 			log.Println(name, ":", len(comment), comment)
 			comment = strings.TrimSpace(comment)
-			comment = strings.Replace(comment, "/*", "\\/*", -1)
-			comment = strings.Replace(comment, "*/", "*\\/", -1)
+			comment = strings.Replace(comment, "/*", "/-*", -1)
+			comment = strings.Replace(comment, "*/", "*-/", -1)
 			return comment
 		}
 	}
