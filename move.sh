@@ -128,15 +128,18 @@ function mvqil()
 
 function mvrssrc()
 {
-    mkdir -p ~/oss/qt.rs/src/{core,gui,widgets,network,qml,quick}
-    rm -f ~/oss/qt.rs/src/{core,gui,widgets,network,qml,quick}/q*.rs
+    set +x
 
-    cp -a src/core/*.rs ~/oss/qt.rs/src/core/
-    cp -a src/gui/*.rs ~/oss/qt.rs/src/gui/
-    cp -a src/widgets/*.rs ~/oss/qt.rs/src/widgets/
-    cp -a src/network/*.rs ~/oss/qt.rs/src/network/
-    cp -a src/qml/*.rs ~/oss/qt.rs/src/qml/
-    cp -a src/quick/*.rs ~/oss/qt.rs/src/quick/
+    mkdir -p ~/oss/qt.rs/src/{core,gui,widgets,network,qml,quick}
+    # rm -f ~/oss/qt.rs/src/{core,gui,widgets,network,qml,quick}/q*.rs
+
+    mvbymd5 rs src/core ~/oss/qt.rs/src/core
+    # cp -a src/core/*.rs ~/oss/qt.rs/src/core/
+    #cp -a src/gui/*.rs ~/oss/qt.rs/src/gui/
+    #cp -a src/widgets/*.rs ~/oss/qt.rs/src/widgets/
+    #cp -a src/network/*.rs ~/oss/qt.rs/src/network/
+    #cp -a src/qml/*.rs ~/oss/qt.rs/src/qml/
+    #cp -a src/quick/*.rs ~/oss/qt.rs/src/quick/
 
 }
 

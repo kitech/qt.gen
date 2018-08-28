@@ -262,6 +262,10 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 			che[AsGoSignature] = "*" + pkgPref + ty.Spelling() + "/*9999*/"
 			che[AsGoITF] = pkgPref + ty.Spelling() + "_ITF"
 			che[AsGoReturn] = "*" + pkgPref + ty.Spelling() + "/*9999*/"
+
+			che[ArgDesc_RS_SIGNATURE] = "usize"
+			che[AsRsCallFFITy] = "POINTER"
+
 			break
 		} else if is_qt_class(ty.CanonicalType()) {
 			refmod := get_decl_mod(ty.CanonicalType().Declaration())
@@ -272,6 +276,10 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 			che[AsGoSignature] = "*" + pkgPref + ty.Spelling() + "/*888*/"
 			che[AsGoITF] = pkgPref + ty.Spelling() + "_ITF"
 			che[AsGoReturn] = "*" + pkgPref + ty.Spelling() + "/*7777*/"
+
+			che[ArgDesc_RS_SIGNATURE] = "usize"
+			che[AsRsCallFFITy] = "POINTER"
+
 			break
 		}
 		return getTyDesc(ty.CanonicalType(), usecat, usecs)
@@ -374,7 +382,7 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 		che[AsGoSignature] = "bool"
 
 		che[ArgDesc_RS_SIGNATURE] = "bool"
-		che[AsRsCallFFITy] = "INT8"
+		che[AsRsCallFFITy] = "SINT8"
 
 	case clang.Type_Double:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.double"
@@ -462,10 +470,29 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 		che[AsGoSignature] = "/*void*/"
 
 		che[ArgDesc_RS_SIGNATURE] = "(/*void*/)"
-		che[AsRsCallFFITy] = "POINTER"
+		che[AsRsCallFFITy] = "()"
 
 	case clang.Type_Unexposed:
-		return getTyDesc(ty.CanonicalType(), usecat, usecs)
+		if ty.CanonicalType().Kind() != clang.Type_Unexposed {
+			return getTyDesc(ty.CanonicalType(), usecat, usecs)
+		} else {
+			che[ArgTyDesc_CGO_SIGNATURE] = "unsafe.Pointer  /*666*/"
+			che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "void*"
+			che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
+			che[AsCReturn] = "void*"
+			che[AsGoReturn] = "unsafe.Pointer/*666*/"
+			che[AsGoSignature] = "unsafe.Pointer"
+
+			che[ArgDesc_RS_SIGNATURE] = "usize"
+			che[AsRsCallFFITy] = "POINTER"
+
+			if isPrimitivePPType(ty) && ty.PointeeType().PointeeType().Kind() == clang.Type_Char_S {
+				// return "[]string"
+			} else if ty.PointeeType().Kind() == clang.Type_Char_S {
+				// return "string"
+			} else if is_qt_class(ty.PointeeType()) {
+			}
+		}
 	default:
 		log.Fatalln(ty.Spelling(), ty.Kind().Spelling())
 	}

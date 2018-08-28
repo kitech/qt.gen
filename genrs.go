@@ -243,9 +243,12 @@ func (this *GenerateRs) genImports(cursor, parent clang.Cursor) {
 	this.cp.APf("ext", "// import \"github.com/kitech/qt.go/qtrt\"")
 	for _, dep := range modDeps[modname] {
 		this.cp.APf("ext", "// import \"github.com/kitech/qt.go/qt%s\"", dep)
+		this.cp.APf("ext", "use super::super::%s::*;", dep)
 	}
-	this.cp.APf("ext", "// extern crate qt5::qtrt;")
-	this.cp.APf("ext", "use qt5::qtrt::*;")
+	this.cp.APf("ext", "use std::default::Default;")
+	this.cp.APf("ext", "use std::ops::Deref;")
+	this.cp.APf("ext", "use super::super::qtrt;")
+	this.cp.APf("ext", "use super::*;")
 
 	// this.cp.APf("keep", "")
 	// this.cp.APf("keep", "func init() {")
@@ -268,6 +271,7 @@ func (this *GenerateRs) genClassDef(cursor, parent clang.Cursor) {
 	this.cp.APf("body", "%s", queryComment(cursor, this.qtdir, this.qtver))
 	this.cp.APf("body", "*/")
 	// genTypeStruct
+	this.cp.APf("body", "#[derive(Default)] // class sizeof(%s)=%d", cursor.Spelling(), cursor.Type().SizeOf())
 	this.cp.APf("body", "pub struct %s {", cursor.Spelling())
 	if len(bcs) == 0 {
 		this.cp.APf("body", "  // qbase: %s,", "none")
@@ -339,6 +343,7 @@ func (this *GenerateRs) genMethods(cursor, parent clang.Cursor) {
 				// this.genCtor(cursor, parent, idx)
 				// this.genCtorDvs(cursor, parent, idx)
 				this.genImplStructCtor(cursor, parent, idx)
+				this.genNonStaticMethodDeclTrait(cursor, parent, idx)
 				this.genImplTraitCtor(cursor, parent, idx)
 			case clang.Cursor_Destructor:
 				seeDtor = true
@@ -610,25 +615,14 @@ func (this *GenerateRs) genNameLookup(cursor, parent clang.Cursor) {
 }
 
 func (this *GenerateRs) genImplStructCtor(cursor, parent clang.Cursor, midx int) {
-	/*
-	           ctx.CP.AP('body', ctx.fn_proto_cpp)
-	           ctx.CP.AP('body', "impl /struct/ %s {" % (class_name))
-	           ctx.CP.AP('body', "  pub fn %s<T: %s_%s>(value: T) -> %s {"
-	                     % (method_name, class_name, method_name, class_name))
-	           ctx.CP.AP('body', "    let rsthis = value.%s();" % (method_name))
-	           ctx.CP.AP('body', "    return rsthis;")
-	           ctx.CP.AP('body', "    // return 1;")
-	   			ctx.CP.AP('body', "  }")
-	   			ctx.CP.AP('body', "}\n")
-	*/
 
 	this.genMethodHeader(cursor, parent, midx)
 
 	this.cp.APf("body", "// %s ctx.fn_proto_cpp", cursor.DisplayName())
 	this.cp.APf("body", "impl /*struct*/ %s {", parent.Spelling())
-	this.cp.APf("body", "  pub fn %s<T: %s_%s>(value: T) -> %s {",
-		cursor.Spelling(), parent.Spelling(), cursor.Spelling(), parent.Spelling())
-	this.cp.APf("body", "    let rsthis = value.%s();", cursor.Spelling())
+	this.cp.APf("body", "  pub fn %s_%d<T: %s_%s_%d>(value: T) -> %s {",
+		cursor.Spelling(), midx, parent.Spelling(), cursor.Spelling(), midx, parent.Spelling())
+	this.cp.APf("body", "    let rsthis = value.%s_%d();", cursor.Spelling(), midx)
 	this.cp.APf("body", "    return rsthis;")
 	this.cp.APf("body", "    // return 1;")
 	this.cp.APf("body", "  }")
@@ -642,9 +636,9 @@ func (this *GenerateRs) genImplTraitCtor(cursor, parent clang.Cursor, midx int) 
 	call_params := strings.Join(this.genParamsForCall(cursor, parent), ",")
 
 	this.cp.APf("body", "// %s ctx.fn_proto_cpp", cursor.DisplayName())
-	this.cp.APf("body", "impl<'a> /*trait*/ %s_%s for (%s) {",
-		parent.Spelling(), cursor.Spelling(), trait_params)
-	this.cp.APf("body", "  fn %s(self) -> %s {", cursor.Spelling(), parent.Spelling())
+	this.cp.APf("body", "impl<'a> /*trait*/ %s_%s_%d for (%s) {",
+		parent.Spelling(), cursor.Spelling(), midx, trait_params)
+	this.cp.APf("body", "  fn %s_%d(self) -> %s {", cursor.Spelling(), midx, parent.Spelling())
 	// this.cp.APf("body", "    // let qthis: *mut c_void = unsafe{calloc(1, %s)};", (ctx.ctysz))
 	this.cp.APf("body", "    // unsafe{%s()};", this.mangler.origin(cursor))
 	// this.cp.APf("body", "    let ctysz: c_int = unsafe{%s_Class_Size()};", (ctx.flat_class_name))
@@ -834,11 +828,11 @@ func (this *GenerateRs) genDtorNoCode(cursor, parent clang.Cursor, midx int) {
 	// this.genMethodSignature(cursor, parent, midx)
 
 	this.cp.APf("body", "")
-	this.cp.APf("body", "func Delete%s(this *%s) {", cursor.Spelling(), cursor.Spelling())
-	this.cp.APf("body", "    rv, err := qtrt.InvokeQtFunc6(\"_ZN%d%sD2Ev\", qtrt.FFI_TYPE_VOID, this.GetCthis())",
+	this.cp.APf("body", "pub fn Delete%s(this :*mut %s) {", cursor.Spelling(), cursor.Spelling())
+	this.cp.APf("body", "    // rv, err := qtrt::InvokeQtFunc6(\"_ZN%d%sD2Ev\", qtrt.FFI_TYPE_VOID, this.GetCthis())",
 		len(cursor.Spelling()), cursor.Spelling())
-	this.cp.APf("body", "    qtrt.ErrPrint(err, rv)")
-	this.cp.APf("body", "    this.SetCthis(nil)")
+	this.cp.APf("body", "    // qtrt.ErrPrint(err, rv)")
+	this.cp.APf("body", "    // this.SetCthis(nil)")
 
 	this.genMethodFooterFFI(cursor, parent, midx)
 }
@@ -886,11 +880,13 @@ func (this *GenerateRs) genNonStaticImplStructMethod(cursor, parent clang.Cursor
 
 	self_code_proto := gopp.IfElseStr(cursor.CXXMethod_IsStatic(), "", "&self, ")
 	self_code_call := gopp.IfElseStr(cursor.CXXMethod_IsStatic(), "", "self")
+	mthname := rewriteOperatorMethodName(cursor.Spelling())
+	mthname = gopp.IfElseStr(is_rs_keyword(mthname), mthname+"_", mthname)
 
 	this.cp.APf("body", "impl /*struct*/ %s {", parent.Spelling())
-	this.cp.APf("body", "  pub fn %s<RetType, T: %s_%s<RetType>>(%s overload_args: T) -> RetType {",
-		cursor.Spelling(), parent.Spelling(), cursor.Spelling(), self_code_proto)
-	this.cp.APf("body", "    return overload_args.%s(%s);", cursor.Spelling(), self_code_call)
+	this.cp.APf("body", "  pub fn %s_%d<RetType, T: %s_%s_%d<RetType>>(%s overload_args: T) -> RetType {",
+		mthname, midx, parent.Spelling(), mthname, midx, self_code_proto)
+	this.cp.APf("body", "    return overload_args.%s_%d(%s);", mthname, midx, self_code_call)
 	this.cp.APf("body", "    // return 1;")
 	this.cp.APf("body", "  }")
 	this.genMethodFooterFFI(cursor, parent, midx)
@@ -900,13 +896,15 @@ func (this *GenerateRs) genNonStaticMethodDeclTrait(cursor, parent clang.Cursor,
 
 	self_code_proto := gopp.IfElseStr(cursor.CXXMethod_IsStatic(), "", fmt.Sprintf(", rsthis: & %s", parent.Spelling()))
 	// self_code_call := gopp.IfElseStr(cursor.CXXMethod_IsStatic(), "", "self")
+	mthname := rewriteOperatorMethodName(cursor.Spelling())
+	mthname = gopp.IfElseStr(is_rs_keyword(mthname), mthname+"_", mthname)
 
 	if cursor.Kind() == clang.Cursor_Constructor {
-		this.cp.APf("body", "pub trait %s_%s {", parent.Spelling(), cursor.Spelling())
-		this.cp.APf("body", "  fn %s(self) -> %s;", cursor.Spelling(), parent.Spelling())
+		this.cp.APf("body", "pub trait %s_%s_%d {", parent.Spelling(), mthname, midx)
+		this.cp.APf("body", "  fn %s_%d(self) -> %s;", mthname, midx, parent.Spelling())
 	} else {
-		this.cp.APf("body", "pub trait %s_%s<RetType> {", parent.Spelling(), cursor.Spelling())
-		this.cp.APf("body", "  fn %s(self %s) -> RetType;", cursor.Spelling(), self_code_proto)
+		this.cp.APf("body", "pub trait %s_%s_%d<RetType> {", parent.Spelling(), mthname, midx)
+		this.cp.APf("body", "  fn %s_%d(self %s) -> RetType;", mthname, midx, self_code_proto)
 	}
 	this.cp.APf("body", "}\n")
 }
@@ -920,23 +918,29 @@ func (this *GenerateRs) genNonStaticImplTraitMethod(cursor, parent clang.Cursor,
 	call_params := strings.Join(this.genParamsForCall(cursor, parent), ",")
 	retyname := getTyDesc(cursor.ResultType(), ArgDesc_RS_SIGNATURE, cursor)
 	// retstr := ""
+	mthname := rewriteOperatorMethodName(cursor.Spelling())
+	mthname = gopp.IfElseStr(is_rs_keyword(mthname), mthname+"_", mthname)
+	return_snippet := gopp.IfElseStr(cursor.ResultType().Kind() == clang.Type_Void, "", "let mut ret =")
 
 	this.cp.APf("body", "// %s ctx.fn_proto_cpp", cursor.DisplayName())
-	this.cp.APf("body", "impl<'a> /*trait*/ %s_%s<%s> for (%s) {",
-		parent.Spelling(), cursor.Spelling(), retyname, trait_params)
-	this.cp.APf("body", "  fn %s(self %s) -> %s {",
-		cursor.Spelling(), self_code_proto, retyname)
+	this.cp.APf("body", "impl<'a> /*trait*/ %s_%s_%d<%s> for (%s) {",
+		parent.Spelling(), mthname, midx, retyname, trait_params)
+	this.cp.APf("body", "  fn %s_%d(self %s) -> %s {",
+		mthname, midx, self_code_proto, retyname)
 	this.cp.APf("body", "    // let qthis: *mut c_void = unsafe{calloc(1, %s)};", "ctx.ctysz")
 	// self.generateArgConvExprs(class_name, method_name, method_cursor, ctx)
 	this.genArgConvExprs(cursor, parent)
 
-	// this.cp.APf("body", "    %s unsafe {C%s(%s)};", "return_piece_code_return",
+	// this.cp.APf("body", "    %s unsafe {C%s(%s)};", "return_snippet",
 	//	this.mangler.origin(cursor), "call_params")
-	this.cp.APf("body", "    %s = qtrt::InvokeQtFunc6(\"%s\", %s);", "return_piece_code_return",
+	this.cp.APf("body", "    %s qtrt::InvokeQtFunc6(\"%s\", %s);", return_snippet,
 		this.mangler.origin(cursor), call_params)
 
 	// if has_return: self.generateReturnForImplTrait(ctx)
 	this.cp.APf("body", "    // return 1;")
+	if cursor.ResultType().Kind() != clang.Type_Void {
+		this.cp.APf("body", "    let dret: %s = Default::default(); return dret;", retyname)
+	}
 	this.cp.APf("body", "  }")
 	this.cp.APf("body", "}\n")
 }
@@ -1183,22 +1187,22 @@ func (this *GenerateRs) genInheritEmulate(cursor, parent clang.Cursor) {
 
 	//  if ctx.has_base:
 	//    # this.cp.APf("body", '/*')
-	this.cp.APf("body", "impl Deref for %s {", cursor.Spelling())
-	this.cp.APf("body", "  type Target = %s;", cursor.Spelling()+"BASE")
-	this.cp.APf("body", "")
-	this.cp.APf("body", "  fn deref(&self) -> &%s {", cursor.Spelling()+"BASE")
-	this.cp.APf("body", "    return & self.qbase;")
-	this.cp.APf("body", "  }")
-	this.cp.APf("body", "}")
+	this.cp.APf("body", "//impl Deref for %s {", cursor.Spelling())
+	this.cp.APf("body", "//  type Target = %s;", cursor.Spelling()+"BASE")
+	this.cp.APf("body", "//")
+	this.cp.APf("body", "//  fn deref(&self) -> &%s {", cursor.Spelling()+"BASE")
+	this.cp.APf("body", "//    return & self.qbase;")
+	this.cp.APf("body", "//  }")
+	this.cp.APf("body", "//}")
 	// this.cp.APf("body", '*/\n')
 
 	// if ctx.has_base:
 	// this.cp.APf("body", '/*')
-	this.cp.APf("body", "impl AsRef<%s> for %s {", cursor.Spelling()+"BASE", cursor.Spelling())
-	this.cp.APf("body", "  fn as_ref(& self) -> & %s {", cursor.Spelling()+"BASE")
-	this.cp.APf("body", "    return & self.qbase;")
-	this.cp.APf("body", "  }")
-	this.cp.APf("body", "}")
+	this.cp.APf("body", "//impl AsRef<%s> for %s {", cursor.Spelling()+"BASE", cursor.Spelling())
+	this.cp.APf("body", "//  fn as_ref(& self) -> & %s {", cursor.Spelling()+"BASE")
+	this.cp.APf("body", "//    return & self.qbase;")
+	this.cp.APf("body", "//  }")
+	this.cp.APf("body", "//}")
 	// this.cp.APf("body", '*/\n')
 }
 
@@ -1207,10 +1211,10 @@ func (this *GenerateRs) genParamsForCall(cursor, parent clang.Cursor) (argv []st
 	for i := int32(0); i < cursor.NumArguments(); i++ {
 		argn := cursor.Argument(uint32(i))
 		tyname := getTyDesc(argn.Type(), AsRsCallFFITy, argn)
-		argv = append(argv, fmt.Sprintf("%s", tyname))
+		argv = append(argv, fmt.Sprintf("qtrt::FFITY_%s", tyname))
 	}
 	for i := cursor.NumArguments(); i < 10; i++ {
-		argv = append(argv, fmt.Sprintf("VOID"))
+		argv = append(argv, "0")
 	}
 
 	for i := int32(0); i < cursor.NumArguments(); i++ {
@@ -1811,35 +1815,36 @@ func (this *GenerateRs) genClassEnums(cursor, parent clang.Cursor) {
 			return clang.ChildVisit_Continue
 		})
 
-		this.cp.APf("body", "pub fn %s_%sItemName(val: i32) ->str {",
+		this.cp.APf("body", "pub fn %s_%sItemName(val: i32) ->String {",
 			cursor.DisplayName(), enum.DisplayName())
 		if isobjty {
-			this.cp.APf("body", "  return qtrt.GetClassEnumItemName(this, val)")
+			this.cp.APf("body", "  return qtrt::GetClassEnumItemName(\"%s\", val);", cursor.Spelling())
 		} else {
-			this.cp.APf("body", "  switch val {")
+			this.cp.APf("body", "  match val {")
 			enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
 				switch c1.Kind() {
 				case clang.Cursor_EnumConstantDecl:
 					eival := c1.EnumConstantDeclValue()
 					_, keyok := revalmap[eival]
 					commentit := gopp.IfElseStr(keyok, "", "//")
-					this.cp.APf("body", "    %s case %s__%s: // %d",
+					this.cp.APf("body", "    %s %s__%s => // %d",
 						commentit, cursor.DisplayName(), c1.DisplayName(), eival)
-					this.cp.APf("body", "    %s return \"%s\"", commentit, strings.Join(revalmap[eival], ","))
+					this.cp.APf("body", "    %s {return \"%s\";}", commentit, strings.Join(revalmap[eival], ","))
 					if keyok {
 						delete(revalmap, eival)
 					}
 				}
 				return clang.ChildVisit_Continue
 			})
-			this.cp.APf("body", "  default: return fmt.Sprintf(\"%%d\", val)")
+			this.cp.APf("body", "  _ => {return format!(\"{}\", val);}")
 			this.cp.APf("body", "}")
 		}
 		this.cp.APf("body", "}")
-		this.cp.APf("body", "pub fn %s_%sItemName(val: i32) ->str {",
+		this.cp.APf("body", "pub fn %s_%sItemName_s(val: i32) ->String {",
 			cursor.DisplayName(), enum.DisplayName())
 		this.cp.APf("body", "  //var nilthis *%s", cursor.DisplayName())
-		this.cp.APf("body", "  //return nilthis.%sItemName(val)", enum.DisplayName())
+		this.cp.APf("body", "  //return nilthis.%sItemName(val);", enum.DisplayName())
+		this.cp.APf("body", "  return \"\";")
 		this.cp.APf("body", "}")
 		this.cp.APf("body", "")
 	}
@@ -1894,23 +1899,23 @@ func (this *GenerateRs) genEnumsGlobal(cursor, parent clang.Cursor) {
 			return clang.ChildVisit_Continue
 		})
 
-		this.cp.APf("body", "pub fn %sItemName(val: i32) -> str {", enum.DisplayName())
-		this.cp.APf("body", "  switch val {")
+		this.cp.APf("body", "pub fn %sItemName(val: i32) ->String {", enum.DisplayName())
+		this.cp.APf("body", "  match val {")
 		enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
 			switch c1.Kind() {
 			case clang.Cursor_EnumConstantDecl:
 				eival := c1.EnumConstantDeclValue()
 				_, keyok := revalmap[eival]
 				commentit := gopp.IfElseStr(keyok, "", "//")
-				this.cp.APf("body", "    %s case %s__%s: // %d", commentit, "Qt", c1.DisplayName(), eival)
-				this.cp.APf("body", "    %s return \"%s\"", commentit, strings.Join(revalmap[eival], ","))
+				this.cp.APf("body", "    %s %s__%s => // %d", commentit, "Qt", c1.DisplayName(), eival)
+				this.cp.APf("body", "    %s {return \"%s\";}", commentit, strings.Join(revalmap[eival], ","))
 				if keyok {
 					delete(revalmap, eival)
 				}
 			}
 			return clang.ChildVisit_Continue
 		})
-		this.cp.APf("body", "  default: return fmt.Sprintf(\"%%d\", val)")
+		this.cp.APf("body", "  _ => { return format!(\"{}\", val);}")
 		this.cp.APf("body", "}")
 		this.cp.APf("body", "}")
 		this.cp.APf("body", "")

@@ -123,8 +123,17 @@ func get_bare_type(ty clang.Type) clang.Type {
 }
 
 func is_go_keyword(s string) bool {
-	keywords := map[string]int{"match": 1, "type": 1, "move": 1, "select": 1, "map": 1,
-		"range": 1, "var": 1, "len": 1, "fmt": 1, "err": 1}
+	keywords := map[string]int{"match": 1, "type": 1, "move": 1, "select": 1, "case": 1,
+		"map": 1, "range": 1, "var": 1, "len": 1, "fmt": 1, "err": 1, "go": 1, "func": 1,
+		"package": 1, "import": 1}
+	_, ok := keywords[s]
+	return ok
+}
+
+func is_rs_keyword(s string) bool {
+	keywords := map[string]int{"match": 1, "type": 1, "move": 1, "select": 1, "case": 1,
+		"map": 1, "range": 1, "var": 1, "len": 1, "fmt": 1, "err": 1,
+		"pub": 1, "fn": 1, "mod": 1, "use": 1, "self": 1, "super": 1}
 	_, ok := keywords[s]
 	return ok
 }
@@ -455,6 +464,9 @@ var privClasses = map[string]int{"QV8Engine": 1, "QQmlComponentAttached": 1,
 	"QQmlImageProviderBase": 1}
 
 func rewriteOperatorMethodName(name string) string {
+	if !strings.HasPrefix(name, "operator") {
+		return name
+	}
 	replaces := []string{
 		"&=", "_and_equal",
 		"^=", "_caret_equal",
