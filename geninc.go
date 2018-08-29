@@ -291,10 +291,82 @@ func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, paren
 	if is_deleted_class(cursor) {
 		return
 	}
+	isqobjcls := has_qobject_base_class(cursor)
+	_ = isqobjcls
 	// 需要proxy的类：QObject的子类
 
 	this.hasMyCls = true
+	this.cp.APf("main", "struct qt_meta_stringdata_My%s_t {", cursor.Spelling())
+	this.cp.APf("main", "  QByteArrayData data[1];")
+	this.cp.APf("main", "  char stringdata0[%d];", 2+len(cursor.Spelling())+1)
+	this.cp.APf("main", "};")
+	this.cp.APf("main", "#define QT_MOC_LITERAL(idx, ofs, len) \\")
+	this.cp.APf("main", "  Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \\")
+	this.cp.APf("main", "  qptrdiff(offsetof(qt_meta_stringdata_My%s_t, stringdata0) + ofs \\", cursor.Spelling())
+	this.cp.APf("main", "  - idx * sizeof(QByteArrayData)) \\")
+	this.cp.APf("main", "  )")
+	this.cp.APf("main", "static const qt_meta_stringdata_My%s_t qt_meta_stringdata_My%s = {", cursor.Spelling(), cursor.Spelling())
+	this.cp.APf("main", "   {")
+	this.cp.APf("main", "  QT_MOC_LITERAL(0, 0, %d), // \"My%s\"", 2+len(cursor.Spelling()), cursor.Spelling())
+	this.cp.APf("main", "  },")
+	this.cp.APf("main", "  \"My%s\"", cursor.Spelling())
+	this.cp.APf("main", "};")
+	this.cp.APf("main", "#undef QT_MOC_LITERAL")
+	this.cp.APf("main", "static const uint qt_meta_data_My%s[] = {", cursor.Spelling())
+	this.cp.APf("main", "  // content:")
+	this.cp.APf("main", "  7,       // revision")
+	this.cp.APf("main", "  0,       // classname")
+	this.cp.APf("main", "  0,   0, // classinfo")
+	this.cp.APf("main", "  0,   0, // methods")
+	this.cp.APf("main", "  0,    0, // properties")
+	this.cp.APf("main", "  0,    0, // enums/sets")
+	this.cp.APf("main", "  0,    0, // constructors")
+	this.cp.APf("main", "  0,       // flags")
+	this.cp.APf("main", "  0,       // signalCount")
+	this.cp.APf("main", "  0        // eod")
+	this.cp.APf("main", "};")
 	this.cp.APf("main", "class Q_DECL_EXPORT My%s : public %s {", cursor.Spelling(), cursor.Type().Spelling())
+	if isqobjcls {
+		this.cp.APf("main", "public: // Q_OBJECT")
+		this.cp.APf("main", "/*static*/ QMetaObject staticMetaObject = {{&%s::staticMetaObject,", cursor.Spelling())
+		this.cp.APf("main", "  qt_meta_stringdata_My%s.data,", cursor.Spelling())
+		this.cp.APf("main", "  qt_meta_data_My%s,", cursor.Spelling())
+		this.cp.APf("main", "  qt_static_metacall, nullptr, nullptr")
+		this.cp.APf("main", "}};")
+		this.cp.APf("main", "virtual const QMetaObject *metaObject() const override {")
+		this.cp.APf("main", "  int handled = 0;")
+		this.cp.APf("main", "  auto irv = callbackAllInherits_fnptr((void*)this, (char*)\"metaObject\", &handled, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);")
+		this.cp.APf("main", "   if (handled) { return (QMetaObject*)irv; }")
+		this.cp.APf("main", "  return QObject::d_ptr->metaObject ? QObject::d_ptr->dynamicMetaObject() : &staticMetaObject; ")
+		this.cp.APf("main", "}")
+		this.cp.APf("main", "virtual void *qt_metacast(const char *_clname) override {")
+		this.cp.APf("main", "  int handled = 0;")
+		this.cp.APf("main", "  auto irv = callbackAllInherits_fnptr((void*)this, (char*)\"qt_metacast\", &handled, 1, (uint64_t)_clname, 0, 0, 0, 0, 0, 0, 0, 0, 0);")
+		this.cp.APf("main", "   if (handled) { return (void*)irv; }")
+		this.cp.APf("main", "  if (!_clname) return nullptr;")
+		this.cp.APf("main", "  if (!strcmp(_clname, qt_meta_stringdata_My%s.stringdata0))", cursor.Spelling())
+		this.cp.APf("main", "      return static_cast<void*>(this);")
+		this.cp.APf("main", "  return %s::qt_metacast(_clname);", cursor.Spelling())
+		this.cp.APf("main", "}")
+		this.cp.APf("main", "virtual int qt_metacall(QMetaObject::Call _c, int _id, void **_a) override {")
+		this.cp.APf("main", "   _id = %s::qt_metacall(_c, _id, _a);", cursor.Spelling())
+		this.cp.APf("main", "   int handled = 0;")
+		this.cp.APf("main", "   auto irv = callbackAllInherits_fnptr((void*)this, (char*)\"qt_metacall\", &handled, 3, (uint64_t)_c, (uint64_t)_id, (uint64_t)_a, 0, 0, 0, 0, 0, 0, 0);")
+		this.cp.APf("main", "   if (handled) { return (int)irv; }")
+		this.cp.APf("main", "   return _id;")
+		this.cp.APf("main", "  }")
+		this.cp.APf("main", "/*static*/ inline QString tr(const char *s, const char *c = nullptr, int n = -1)")
+		this.cp.APf("main", "{ return staticMetaObject.tr(s, c, n); }")
+		this.cp.APf("main", "/*static*/ inline QString trUtf8(const char *s, const char *c = nullptr, int n = -1)")
+		this.cp.APf("main", " { return staticMetaObject.tr(s, c, n); }")
+		this.cp.APf("main", "Q_DECL_HIDDEN_STATIC_METACALL static void qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void **_a){")
+		this.cp.APf("main", "  int handled = 0;")
+		this.cp.APf("main", "  auto irv = callbackAllInherits_fnptr((void*)_o, (char*)\"qt_static_metacall\", &handled, 4, (uint64_t)_o, (uint64_t)_c, (uint64_t)_id, (uint64_t)_a, 0, 0, 0, 0, 0, 0);")
+		this.cp.APf("main", "}")
+		this.cp.APf("main", "private: struct QPrivateSignal {};")
+		this.cp.APf("main", "")
+	}
+
 	this.cp.APf("main", "public:")
 	if !is_protected_dtor_class(cursor) {
 		this.cp.APf("main", "  virtual ~My%s() {}", cursor.Spelling())
@@ -428,7 +500,10 @@ func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, paren
 			mthhasimpl = true
 		}
 		if mcs.ResultType().Kind() == clang.Type_Void {
-			if mthhasimpl {
+			if mcs.Spelling() == "paintEvent" && cursor.Spelling() == "QWidget" {
+				this.cp.APf("main", "    QStyleOption opt; opt.init(this); QPainter p(this);")
+				this.cp.APf("main", "    style()->drawPrimitive(QStyle::PE_Widget, &opt, &p, this);")
+			} else if mthhasimpl {
 				this.cp.APf("main", "    %s::%s(%s);", cursor.Spelling(), mcs.Spelling(), paramStr)
 			} else {
 				this.cp.APf("main", "    // %s::%s(%s);", cursor.Spelling(), mcs.Spelling(), paramStr)
