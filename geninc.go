@@ -350,6 +350,10 @@ func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, paren
 		this.cp.APf("main", "}")
 		this.cp.APf("main", "virtual int qt_metacall(QMetaObject::Call _c, int _id, void **_a) override {")
 		this.cp.APf("main", "   _id = %s::qt_metacall(_c, _id, _a);", cursor.Spelling())
+		this.cp.APf("main", "   if (_id < 0 ) return _id;")
+		this.cp.APf("main", "   if (qt_metacall_fnptr != 0) {")
+		this.cp.APf("main", "      return qt_metacall_fnptr(this, _c, _id, _a);")
+		this.cp.APf("main", "   }")
 		this.cp.APf("main", "   int handled = 0;")
 		this.cp.APf("main", "   auto irv = callbackAllInherits_fnptr((void*)this, (char*)\"qt_metacall\", &handled, 3, (uint64_t)_c, (uint64_t)_id, (uint64_t)_a, 0, 0, 0, 0, 0, 0, 0);")
 		this.cp.APf("main", "   if (handled) { return (int)irv; }")
@@ -365,6 +369,10 @@ func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, paren
 		this.cp.APf("main", "}")
 		this.cp.APf("main", "private: struct QPrivateSignal {};")
 		this.cp.APf("main", "")
+
+		this.cp.APf("main", "public:")
+		this.cp.APf("main", "  void* (*qt_metacast_fnptr)(void*, char*) = nullptr;")
+		this.cp.APf("main", "  int (*qt_metacall_fnptr)(QObject *, QMetaObject::Call, int, void **) = nullptr;")
 	}
 
 	this.cp.APf("main", "public:")
@@ -523,9 +531,22 @@ func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, paren
 		this.cp.APf("main", "  }")
 		this.cp.APf("main", "")
 	}
-
 	this.cp.APf("main", "};")
 	this.cp.APf("main", "")
+
+	if isqobjcls {
+		this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
+		this.cp.APf("main", "void C_%s_init_staticMetaObject(void* this_, void* strdat, void* dat, void* smcfn, void* mcastfn, void* mcallfn) {", cursor.Spelling())
+		this.cp.APf("main", "  My%s* qo = (My%s*)(this_);", cursor.Spelling(), cursor.Spelling())
+		this.cp.APf("main", "  QMetaObject* qmo = &qo->staticMetaObject;")
+		this.cp.APf("main", "  qmo->d.stringdata = decltype(qmo->d.stringdata)(strdat);")
+		this.cp.APf("main", "  qmo->d.data = decltype(qmo->d.data)(dat);")
+		this.cp.APf("main", "  qmo->d.static_metacall = decltype(qmo->d.static_metacall)(smcfn);")
+		this.cp.APf("main", "  qo->qt_metacast_fnptr = decltype(qo->qt_metacast_fnptr)(mcastfn);")
+		this.cp.APf("main", "  qo->qt_metacall_fnptr = decltype(qo->qt_metacall_fnptr)( mcallfn);")
+		this.cp.APf("main", "}")
+		this.cp.APf("main", "")
+	}
 
 	// a hotfix
 	if this.hasVirtualProtected && cursor.Spelling() == "QVariant" {
