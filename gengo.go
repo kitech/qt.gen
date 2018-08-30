@@ -453,13 +453,18 @@ func (this *GenerateGo) genMethodSignature(cursor, parent clang.Cursor, midx int
 	overloadSuffix := gopp.IfElseStr(midx == 0, "", fmt.Sprintf("_%d", midx))
 	switch cursor.Kind() {
 	case clang.Cursor_Constructor:
+		prms := funk.Map(this.destArgDesc, func(s string) string { return strings.Split(s, " ")[0] })
+		prmStr := strings.Join(prms.([]string), ", ")
+		this.cp.APf("body", "func (*%s) NewForInherit%s(%s) *%s {",
+			strings.Title(parent.Spelling()), overloadSuffix, argStr, parent.Spelling())
+		this.cp.APf("body", "  return New%s%s(%s)", cursor.Spelling(), overloadSuffix, prmStr)
+		this.cp.APf("body", "}")
+
 		this.cp.APf("body", "func New%s%s(%s) *%s {",
-			strings.Title(cursor.Spelling()),
-			overloadSuffix, argStr, parent.Spelling())
+			strings.Title(cursor.Spelling()), overloadSuffix, argStr, parent.Spelling())
 	case clang.Cursor_Destructor:
 		this.cp.APf("body", "func Delete%s%s(this *%s) {",
-			strings.Title(cursor.Spelling()[1:]),
-			overloadSuffix, parent.Spelling())
+			strings.Title(cursor.Spelling()[1:]), overloadSuffix, parent.Spelling())
 	default:
 		retPlace := "interface{}"
 		retPlace = this.tyconver.toDest(cursor.ResultType(), cursor)
@@ -492,9 +497,15 @@ func (this *GenerateGo) genMethodSignatureDv(cursor, parent clang.Cursor, midx i
 	overloadSuffix += gopp.IfElseStr(dvidx == 0, "_", fmt.Sprintf("_%d", dvidx))
 	switch cursor.Kind() {
 	case clang.Cursor_Constructor:
+		prms := funk.Map(this.destArgDesc, func(s string) string { return strings.Split(s, " ")[0] })
+		prmStr := strings.Join(prms.([]string), ", ")
+		this.cp.APf("body", "func (*%s) NewForInherit%s(%s) *%s {",
+			strings.Title(parent.Spelling()), overloadSuffix, argStr, parent.Spelling())
+		this.cp.APf("body", "  return New%s%s(%s)", cursor.Spelling(), overloadSuffix, prmStr)
+		this.cp.APf("body", "}")
+
 		this.cp.APf("body", "func New%s%s(%s) *%s {",
-			strings.Title(cursor.Spelling()),
-			overloadSuffix, argStr, parent.Spelling())
+			strings.Title(cursor.Spelling()), overloadSuffix, argStr, parent.Spelling())
 	case clang.Cursor_Destructor:
 	default:
 		retPlace := "interface{}"
