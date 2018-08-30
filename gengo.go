@@ -1828,8 +1828,9 @@ func (this *GenerateGo) genBareFunctionSignature(cursor, parent clang.Cursor, mi
 		if cursor.ResultType().Kind() == clang.Type_Void {
 			retPlace = ""
 		}
+		rewname := rewriteOperatorMethodName(cursor.Spelling())
 		this.cp.APf("body", "func %s%s(%s) %s {",
-			strings.Title(cursor.Spelling()), overloadSuffix, argStr, retPlace)
+			strings.Title(rewname), overloadSuffix, argStr, retPlace)
 	}
 }
 
