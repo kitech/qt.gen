@@ -43,6 +43,7 @@ type GenCtrl struct {
 	qtfuncgen  Generator // for generate global functions
 	qttmplgen  Generator // for generate template
 	qtconstgen Generator // for generate global macros
+	modlstgen  Generator
 }
 
 func NewGenCtrl() *GenCtrl {
@@ -101,6 +102,7 @@ func (this *GenCtrl) setupLang() {
 		this.qtfuncgen = NewGenerateRs(genQtdir, genQtver)
 		this.qttmplgen = NewGenerateRs(genQtdir, genQtver)
 		this.qtconstgen = NewGenerateRs(genQtdir, genQtver)
+		this.modlstgen = NewGenerateRs(genQtdir, genQtver)
 		// fallthrough
 	default:
 		log.Fatalln("not supported or not impled:", genLang, genQtdir, genQtver)
@@ -259,6 +261,9 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		log.Println(cursor.Spelling(), cursor.Kind().String(), cursor.DisplayName())
 		if !this.filter.skipClass(cursor, parent) {
 			this.genor.genClass(cursor, parent)
+			if genLang == "rs" {
+				this.modlstgen.(*GenerateRs).genModLst(cursor)
+			}
 		} else {
 			clts.SkippedClassCount += 1
 		}
@@ -434,6 +439,12 @@ func (this *GenCtrl) collectClasses() {
 				gg.saveCodeToFileWithCode(mod, "qcallbacks", cp.ExportAll())
 			}
 		*/
+	} else if genLang == "rs" {
+		var gg *GenerateRs = this.modlstgen.(*GenerateRs)
+		for modname, cp := range gg.cpcs {
+			log.Println(modname, cp.TotolLine(), cp.TotolLength())
+			gg.saveCodeToFileWithCode(modname, "mod", cp.ExportAll())
+		}
 	}
 	this.qttmplgen.genPlainTmplInstClses()
 	this.qttmplgen.genTydefTmplInstClses()

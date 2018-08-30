@@ -38,6 +38,8 @@ func NewGenerateRs(qtdir, qtver string) *GenerateRs {
 	this.mangler = NewGoMangler()
 	this.tyconver = NewTypeConvertGo()
 
+	this.cpcs = map[string]*CodePager{}
+
 	this.GenBase.funcMangles = map[string]int{}
 
 	this.initBlocks()
@@ -99,6 +101,7 @@ func (this *GenerateRs) saveCode(cursor, parent clang.Cursor) {
 	log.Println(file.Name(), modname, filepath.Dir(file.Name()), filepath.Base(filepath.Dir(file.Name())))
 
 	this.saveCodeToFile(modname, strings.ToLower(cursor.Spelling()))
+
 }
 
 func (this *GenerateRs) saveCodeToFile(modname, file string) {
@@ -138,6 +141,23 @@ func (this *GenerateRs) saveCodeToFileWithCode(modname, file string, bcc string)
 	// cmd := exec.Command("/usr/bin/rustfmt", []string{"--backup", savefile}...)
 	// err := cmd.Run()
 	// gopp.ErrPrint(err, cmd)
+}
+
+func (this *GenerateRs) genModLst(cursor clang.Cursor) {
+	file, line, col, _ := cursor.Location().FileLocation()
+	_, _ = line, col
+	modname := strings.ToLower(filepath.Base(filepath.Dir(file.Name())))[2:]
+	modname = get_decl_mod(cursor)
+
+	if _, ok := this.cpcs[modname]; !ok {
+		cp := NewCodePager()
+		cp.AddPointer("main")
+		this.cpcs[modname] = cp
+	}
+	modcp := this.cpcs[modname]
+	modcp.APUf("main", "mod %s;", strings.ToLower(cursor.Spelling()))
+	modcp.APf("main", "pub use self::%s::*;", strings.ToLower(cursor.Spelling()))
+	// log.Panicln(len(this.cpcs), this.cpcs)
 }
 
 func (this *GenerateRs) genFileHeader(cursor, parent clang.Cursor) {
@@ -906,7 +926,7 @@ func (this *GenerateRs) genNonStaticMethodDeclTrait(cursor, parent clang.Cursor,
 		this.cp.APf("body", "pub trait %s_%s_%d<RetType> {", parent.Spelling(), mthname, midx)
 		this.cp.APf("body", "  fn %s_%d(self %s) -> RetType;", mthname, midx, self_code_proto)
 	}
-	this.cp.APf("body", "}\n")
+	this.cp.APf("body", "}")
 }
 
 func (this *GenerateRs) genNonStaticImplTraitMethod(cursor, parent clang.Cursor, midx int) {
@@ -922,7 +942,6 @@ func (this *GenerateRs) genNonStaticImplTraitMethod(cursor, parent clang.Cursor,
 	mthname = gopp.IfElseStr(is_rs_keyword(mthname), mthname+"_", mthname)
 	return_snippet := gopp.IfElseStr(cursor.ResultType().Kind() == clang.Type_Void, "", "let mut ret =")
 
-	this.cp.APf("body", "// %s ctx.fn_proto_cpp", cursor.DisplayName())
 	this.cp.APf("body", "impl<'a> /*trait*/ %s_%s_%d<%s> for (%s) {",
 		parent.Spelling(), mthname, midx, retyname, trait_params)
 	this.cp.APf("body", "  fn %s_%d(self %s) -> %s {",
@@ -952,11 +971,16 @@ func (this *GenerateRs) genArgConvExprs(cursor, parent clang.Cursor) {
 }
 
 func (this *GenerateRs) genArgConvExpr(argn, cursor, parent clang.Cursor, idx int) {
-	qclsinst := ".qclsinst"
-	selfn := "self"
-	asptr := ".as_ptr()"
+	qclsinst := gopp.IfElseStr(is_qt_class(argn.Type()), "/*.qclsinst*/", "")
+	selfn := gopp.IfElseStr(cursor.NumArguments() == 1, "self", fmt.Sprintf("self.%d", idx)) // fix shit rust tuple index
+	asptr := ""
+	andop := "&"
+	if TypeIsCharPtr(argn.Type()) {
+		// asptr = ".as_ptr()"
+		andop = ""
+	}
 	astype := fmt.Sprintf("as *const %s as usize", getTyDesc(argn.Type(), ArgDesc_RS_SIGNATURE, argn))
-	this.cp.APf("body", "    let arg%d = &%s%s%s %s;", idx, selfn, qclsinst, asptr, astype)
+	this.cp.APf("body", "    let arg%d = (%s%s%s)%s %s;", idx, andop, selfn, qclsinst, asptr, astype)
 }
 
 // default argument value
@@ -1213,14 +1237,14 @@ func (this *GenerateRs) genParamsForCall(cursor, parent clang.Cursor) (argv []st
 		tyname := getTyDesc(argn.Type(), AsRsCallFFITy, argn)
 		argv = append(argv, fmt.Sprintf("qtrt::FFITY_%s", tyname))
 	}
-	for i := cursor.NumArguments(); i < 10; i++ {
+	for i := cursor.NumArguments(); i < 15; i++ {
 		argv = append(argv, "0")
 	}
 
 	for i := int32(0); i < cursor.NumArguments(); i++ {
 		argv = append(argv, fmt.Sprintf("arg%d", i))
 	}
-	for i := cursor.NumArguments(); i < 10; i++ {
+	for i := cursor.NumArguments(); i < 15; i++ {
 		_ = i
 		argv = append(argv, fmt.Sprintf("0"))
 	}
@@ -1829,7 +1853,7 @@ func (this *GenerateRs) genClassEnums(cursor, parent clang.Cursor) {
 					commentit := gopp.IfElseStr(keyok, "", "//")
 					this.cp.APf("body", "    %s %s__%s => // %d",
 						commentit, cursor.DisplayName(), c1.DisplayName(), eival)
-					this.cp.APf("body", "    %s {return \"%s\";}", commentit, strings.Join(revalmap[eival], ","))
+					this.cp.APf("body", "    %s {return String::from(\"%s\");}", commentit, strings.Join(revalmap[eival], ","))
 					if keyok {
 						delete(revalmap, eival)
 					}
@@ -1844,7 +1868,7 @@ func (this *GenerateRs) genClassEnums(cursor, parent clang.Cursor) {
 			cursor.DisplayName(), enum.DisplayName())
 		this.cp.APf("body", "  //var nilthis *%s", cursor.DisplayName())
 		this.cp.APf("body", "  //return nilthis.%sItemName(val);", enum.DisplayName())
-		this.cp.APf("body", "  return \"\";")
+		this.cp.APf("body", "  return %s_%sItemName(val);", cursor.DisplayName(), enum.DisplayName())
 		this.cp.APf("body", "}")
 		this.cp.APf("body", "")
 	}
@@ -1908,7 +1932,7 @@ func (this *GenerateRs) genEnumsGlobal(cursor, parent clang.Cursor) {
 				_, keyok := revalmap[eival]
 				commentit := gopp.IfElseStr(keyok, "", "//")
 				this.cp.APf("body", "    %s %s__%s => // %d", commentit, "Qt", c1.DisplayName(), eival)
-				this.cp.APf("body", "    %s {return \"%s\";}", commentit, strings.Join(revalmap[eival], ","))
+				this.cp.APf("body", "    %s {return String::from(\"%s\");}", commentit, strings.Join(revalmap[eival], ","))
 				if keyok {
 					delete(revalmap, eival)
 				}

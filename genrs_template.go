@@ -126,6 +126,7 @@ func (this *GenerateRs) genTemplateMethod(cursor, parent clang.Cursor, argClsCur
 	this.cp.APf("body", "    // qtrt::ErrPrint(err, rv);")
 
 	switch rety.Kind() {
+	case clang.Type_Void:
 	case clang.Type_Int:
 		this.cp.APf("body", "    return 0;")
 	case clang.Type_Bool:
@@ -134,10 +135,20 @@ func (this *GenerateRs) genTemplateMethod(cursor, parent clang.Cursor, argClsCur
 		fallthrough
 	case clang.Type_Unexposed:
 		if isSelfRef(rety.Spelling()) {
-			this.cp.APf("body", "    return self;")
+			this.cp.APf("body", "    let dret :%s = Default::default();", retytxt)
+			this.cp.APf("body", "    return dret;")
+			// this.cp.APf("body", "    return self;")
 		} else if isElemRef(rety) {
-			this.cp.APf("body", "    return &%s{};", elemClsName)
+			this.cp.APf("body", "    let dret :%s = Default::default();", retytxt)
+			this.cp.APf("body", "    return dret;")
+			// this.cp.APf("body", "    return &%s{};", elemClsName)
+		} else {
+			this.cp.APf("body", "    let dret :%s = Default::default();", retytxt)
+			this.cp.APf("body", "    return dret;")
 		}
+	default:
+		this.cp.APf("body", "    let dret :%s = Default::default();", retytxt)
+		this.cp.APf("body", "    return dret;")
 	}
 
 	this.cp.APf("body", "  }")
