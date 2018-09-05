@@ -536,7 +536,7 @@ func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, paren
 
 	if isqobjcls {
 		this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
-		this.cp.APf("main", "void C_%s_init_staticMetaObject(void* this_, void* strdat, void* dat, void* smcfn, void* mcastfn, void* mcallfn) {", cursor.Spelling())
+		this.cp.APf("main", "void* C_%s_init_staticMetaObject(void* this_, void* strdat, void* dat, void* smcfn, void* mcastfn, void* mcallfn) {", cursor.Spelling())
 		this.cp.APf("main", "  My%s* qo = (My%s*)(this_);", cursor.Spelling(), cursor.Spelling())
 		this.cp.APf("main", "  QMetaObject* qmo = &qo->staticMetaObject;")
 		this.cp.APf("main", "  qmo->d.stringdata = decltype(qmo->d.stringdata)(strdat);")
@@ -544,6 +544,7 @@ func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, paren
 		this.cp.APf("main", "  qmo->d.static_metacall = decltype(qmo->d.static_metacall)(smcfn);")
 		this.cp.APf("main", "  qo->qt_metacast_fnptr = decltype(qo->qt_metacast_fnptr)(mcastfn);")
 		this.cp.APf("main", "  qo->qt_metacall_fnptr = decltype(qo->qt_metacall_fnptr)( mcallfn);")
+		this.cp.APf("main", "  return qmo;")
 		this.cp.APf("main", "}")
 		this.cp.APf("main", "")
 	}
