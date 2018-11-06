@@ -71,16 +71,40 @@ const (
 	PrmTyDesc_FFI_INVOKE_C
 
 	// 在rust中
-	ArgDesc_RS_SIGNATURE = iota + 8
-	AsRsSignature        // 转换到go函数签名相应的类型
-	AsRsITF              // 转换到go函数签名中需要用到interface的相应的类型
-	AsRsReturn           // 转换 go函数返回值相应的类型，可能与签名中的不一样
+	ArgDesc_RS_SIGNATURE
+	AsRsSignature // 转换到go函数签名相应的类型
+	AsRsITF       // 转换到go函数签名中需要用到interface的相应的类型
+	AsRsReturn    // 转换 go函数返回值相应的类型，可能与签名中的不一样
 	ArgTyDesc_Rs_INVOKE_Rs
 	PrmTyDesc_Rs_INVOKE_Rs // 有时需要做*或者&操作或者强制类型转换
 	AsRsCallRsFConv        // 同上, FConv指的是force convert, reference/dereference
 	AsRsCallCRsFConv       // 当在一个纯go的函数中调用一个接收cgo类型参数时使用
 	AsRsCallFFITy
 	PrmTyDesc_Rs_INVOKE_CRs // 同上
+
+	// 在crystal中
+	ArgDesc_CR_SIGNATURE
+	AsCrSignature // 转换到go函数签名相应的类型
+	AsCrITF       // 转换到go函数签名中需要用到interface的相应的类型
+	AsCrReturn    // 转换 go函数返回值相应的类型，可能与签名中的不一样
+	ArgTyDesc_Cr_INVOKE_Cr
+	PrmTyDesc_Cr_INVOKE_Cr // 有时需要做*或者&操作或者强制类型转换
+	AsCrCallRsFConv        // 同上, FConv指的是force convert, reference/dereference
+	AsCrCallCRsFConv       // 当在一个纯go的函数中调用一个接收cgo类型参数时使用
+	AsCrCallFFITy
+	PrmTyDesc_Cr_INVOKE_CRs // 同上
+
+	// 在dart中
+	ArgDesc_DT_SIGNATURE
+	AsDtSignature // 转换到go函数签名相应的类型
+	AsDtITF       // 转换到go函数签名中需要用到interface的相应的类型
+	AsDtReturn    // 转换 go函数返回值相应的类型，可能与签名中的不一样
+	ArgTyDesc_Dt_INVOKE_Dt
+	PrmTyDesc_Dt_INVOKE_Dt // 有时需要做*或者&操作或者强制类型转换
+	AsDtCallRsFConv        // 同上, FConv指的是force convert, reference/dereference
+	AsDtCallCRsFConv       // 当在一个纯go的函数中调用一个接收cgo类型参数时使用
+	AsDtCallFFITy
+	PrmTyDesc_Dt_INVOKE_Dts // 同上
 
 )
 
@@ -121,6 +145,9 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 		che[ArgDesc_RS_SIGNATURE] = "i32"
 		che[AsRsCallFFITy] = "INT"
 
+		che[ArgDesc_CR_SIGNATURE] = "Int"
+		che[ArgDesc_DT_SIGNATURE] = "int"
+
 	case clang.Type_UInt:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.uint"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "unsigned int"
@@ -132,6 +159,8 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 		che[ArgDesc_RS_SIGNATURE] = "u32"
 		che[AsRsCallFFITy] = "UINT32"
 
+		che[ArgDesc_CR_SIGNATURE] = "UInt"
+		che[ArgDesc_DT_SIGNATURE] = "int"
 	case clang.Type_LongLong:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.int64_t"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "int64_t"
@@ -142,6 +171,9 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 
 		che[ArgDesc_RS_SIGNATURE] = "i64"
 		che[AsRsCallFFITy] = "SINT64"
+
+		che[ArgDesc_CR_SIGNATURE] = "Int64"
+		che[ArgDesc_DT_SIGNATURE] = "int"
 
 	case clang.Type_ULongLong:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.uint64_t"
@@ -154,6 +186,9 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 		che[ArgDesc_RS_SIGNATURE] = "u64"
 		che[AsRsCallFFITy] = "UINT64"
 
+		che[ArgDesc_CR_SIGNATURE] = "UInt64"
+		che[ArgDesc_DT_SIGNATURE] = "int"
+
 	case clang.Type_Short:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.int16_t"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "int16_t"
@@ -164,6 +199,9 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 
 		che[ArgDesc_RS_SIGNATURE] = "i16"
 		che[AsRsCallFFITy] = "SINT16"
+
+		che[ArgDesc_CR_SIGNATURE] = "Int16"
+		che[ArgDesc_DT_SIGNATURE] = "int"
 
 	case clang.Type_UShort:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.uint16_t"
@@ -176,6 +214,9 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 		che[ArgDesc_RS_SIGNATURE] = "u16"
 		che[AsRsCallFFITy] = "UINT16"
 
+		che[ArgDesc_CR_SIGNATURE] = "UInt16"
+		che[ArgDesc_DT_SIGNATURE] = "int"
+
 	case clang.Type_UChar:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.uint8_t"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "uint8_t"
@@ -186,6 +227,9 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 
 		che[ArgDesc_RS_SIGNATURE] = "u8"
 		che[AsRsCallFFITy] = "UINT8"
+
+		che[ArgDesc_CR_SIGNATURE] = "UInt8"
+		che[ArgDesc_DT_SIGNATURE] = "int"
 
 	case clang.Type_Char_S:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.int8_t"
@@ -198,6 +242,9 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 		che[ArgDesc_RS_SIGNATURE] = "i8"
 		che[AsRsCallFFITy] = "SINT8"
 
+		che[ArgDesc_CR_SIGNATURE] = "Int8"
+		che[ArgDesc_DT_SIGNATURE] = "int"
+
 	case clang.Type_SChar:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.char"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "char"
@@ -208,6 +255,9 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 
 		che[ArgDesc_RS_SIGNATURE] = "i8"
 		che[AsRsCallFFITy] = "SINT8"
+
+		che[ArgDesc_CR_SIGNATURE] = "Int8"
+		che[ArgDesc_DT_SIGNATURE] = "int"
 
 	case clang.Type_Long:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.long"
@@ -220,6 +270,9 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 		che[ArgDesc_RS_SIGNATURE] = "i64"
 		che[AsRsCallFFITy] = "SINT64"
 
+		che[ArgDesc_CR_SIGNATURE] = "Int64"
+		che[ArgDesc_DT_SIGNATURE] = "int"
+
 	case clang.Type_ULong:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.ulong"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "ulong"
@@ -230,6 +283,9 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 
 		che[ArgDesc_RS_SIGNATURE] = "u64"
 		che[AsRsCallFFITy] = "UINT64"
+
+		che[ArgDesc_CR_SIGNATURE] = "UInt64"
+		che[ArgDesc_DT_SIGNATURE] = "int"
 
 	case clang.Type_Typedef:
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
@@ -243,6 +299,8 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 
 			che[ArgDesc_RS_SIGNATURE] = "i32"
 			che[AsRsCallFFITy] = "INT"
+			che[ArgDesc_CR_SIGNATURE] = "Int"
+			che[ArgDesc_DT_SIGNATURE] = "int"
 			break
 			// typedef template classes
 		} else if strings.HasPrefix(ty.CanonicalType().Spelling(), "Q") &&
@@ -265,6 +323,8 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 
 			che[ArgDesc_RS_SIGNATURE] = "usize"
 			che[AsRsCallFFITy] = "POINTER"
+			che[ArgDesc_CR_SIGNATURE] = "UInt64"
+			che[ArgDesc_DT_SIGNATURE] = "int"
 
 			break
 		} else if is_qt_class(ty.CanonicalType()) {
@@ -279,6 +339,8 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 
 			che[ArgDesc_RS_SIGNATURE] = "usize"
 			che[AsRsCallFFITy] = "POINTER"
+			che[ArgDesc_CR_SIGNATURE] = "UInt64"
+			che[ArgDesc_DT_SIGNATURE] = "int"
 
 			break
 		}
@@ -294,12 +356,17 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 		che[ArgDesc_RS_SIGNATURE] = "usize"
 		che[AsRsCallFFITy] = "POINTER"
 
+		che[ArgDesc_CR_SIGNATURE] = "UInt64"
+		che[ArgDesc_DT_SIGNATURE] = "int"
+
 		if is_qt_class(ty) {
 			refmod := get_decl_mod(ty.Declaration())
 			usemod := get_decl_mod(usecs)
 			pkgPref := gopp.IfElseStr(refmod != usemod, fmt.Sprintf("qt%s.", refmod), "")
 			if strings.ContainsAny(get_bare_type(ty).Spelling(), "<>") {
 				log.Println(ty.Spelling(), get_bare_type(ty).Spelling())
+			} else {
+				che[ArgDesc_DT_SIGNATURE] = get_bare_type(ty).Spelling()
 			}
 			che[AsCSignature] = "*" + ty.Spelling()
 			che[AsGoSignature] = "*" + pkgPref + ty.Spelling() + "/*6666*/"
@@ -317,12 +384,15 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 
 		che[ArgDesc_RS_SIGNATURE] = "usize"
 		che[AsRsCallFFITy] = "POINTER"
+		che[ArgDesc_CR_SIGNATURE] = "UInt64"
+		che[ArgDesc_DT_SIGNATURE] = "int"
 
 		if isPrimitivePPType(ty) && ty.PointeeType().PointeeType().Kind() == clang.Type_Char_S {
-			// return "[]string"
+			che[ArgDesc_DT_SIGNATURE] = "List<String>"
 		} else if ty.PointeeType().Kind() == clang.Type_Char_S {
-			// return "string"
+			che[ArgDesc_DT_SIGNATURE] = "String"
 		} else if is_qt_class(ty.PointeeType()) {
+			che[ArgDesc_DT_SIGNATURE] = get_bare_type(ty.PointeeType()).Spelling()
 		}
 
 	case clang.Type_LValueReference: // TODO qt class
@@ -339,6 +409,8 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 
 		che[ArgDesc_RS_SIGNATURE] = "usize"
 		che[AsRsCallFFITy] = "POINTER"
+		che[ArgDesc_CR_SIGNATURE] = "UInt64"
+		che[ArgDesc_DT_SIGNATURE] = "int"
 
 	case clang.Type_RValueReference:
 		che[ArgTyDesc_CGO_SIGNATURE] = "unsafe.Pointer  /*333*/"
@@ -350,6 +422,8 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 
 		che[ArgDesc_RS_SIGNATURE] = "usize"
 		che[AsRsCallFFITy] = "POINTER"
+		che[ArgDesc_CR_SIGNATURE] = "UInt64"
+		che[ArgDesc_DT_SIGNATURE] = "int"
 
 	case clang.Type_Elaborated:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.int"
@@ -361,6 +435,8 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 
 		che[ArgDesc_RS_SIGNATURE] = "i32"
 		che[AsRsCallFFITy] = "INT"
+		che[ArgDesc_CR_SIGNATURE] = "Int"
+		che[ArgDesc_DT_SIGNATURE] = "int"
 
 	case clang.Type_Enum:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.int"
@@ -372,6 +448,8 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 
 		che[ArgDesc_RS_SIGNATURE] = "i32"
 		che[AsRsCallFFITy] = "INT"
+		che[ArgDesc_CR_SIGNATURE] = "Int"
+		che[ArgDesc_DT_SIGNATURE] = "int"
 
 	case clang.Type_Bool:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.bool"
@@ -383,6 +461,8 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 
 		che[ArgDesc_RS_SIGNATURE] = "bool"
 		che[AsRsCallFFITy] = "SINT8"
+		che[ArgDesc_CR_SIGNATURE] = "Bool"
+		che[ArgDesc_DT_SIGNATURE] = "bool"
 
 	case clang.Type_Double:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.double"
@@ -394,6 +474,8 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 
 		che[ArgDesc_RS_SIGNATURE] = "f64"
 		che[AsRsCallFFITy] = "DOUBLE"
+		che[ArgDesc_CR_SIGNATURE] = "Float64"
+		che[ArgDesc_DT_SIGNATURE] = "double"
 
 	case clang.Type_LongDouble: // TODO?
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.double"
@@ -405,6 +487,8 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 
 		che[ArgDesc_RS_SIGNATURE] = "f64"
 		che[AsRsCallFFITy] = "DOUBLE"
+		che[ArgDesc_CR_SIGNATURE] = "Float64"
+		che[ArgDesc_DT_SIGNATURE] = "double"
 
 	case clang.Type_Float:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.float"
@@ -416,6 +500,8 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 
 		che[ArgDesc_RS_SIGNATURE] = "f32"
 		che[AsRsCallFFITy] = "FLOAT"
+		che[ArgDesc_CR_SIGNATURE] = "Float32"
+		che[ArgDesc_DT_SIGNATURE] = "double"
 
 	case clang.Type_IncompleteArray:
 		// TODO xpm const char *const []
@@ -431,6 +517,8 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 
 		che[ArgDesc_RS_SIGNATURE] = "usize"
 		che[AsRsCallFFITy] = "POINTER"
+		che[ArgDesc_CR_SIGNATURE] = "UInt64"
+		che[ArgDesc_DT_SIGNATURE] = "int"
 
 	case clang.Type_ConstantArray:
 		// TODO xpm const char *const []
@@ -446,6 +534,8 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 
 		che[ArgDesc_RS_SIGNATURE] = "usize"
 		che[AsRsCallFFITy] = "POINTER"
+		che[ArgDesc_CR_SIGNATURE] = "UInt64"
+		che[ArgDesc_DT_SIGNATURE] = "int"
 
 	case clang.Type_Char16:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.int16_t"
@@ -457,6 +547,8 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 
 		che[ArgDesc_RS_SIGNATURE] = "i16"
 		che[AsRsCallFFITy] = "SINT16"
+		che[ArgDesc_CR_SIGNATURE] = "Int16"
+		che[ArgDesc_DT_SIGNATURE] = "int"
 
 	case clang.Type_Void:
 		che[ArgTyDesc_CGO_SIGNATURE] = "/*wtf*/"
@@ -471,6 +563,8 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 
 		che[ArgDesc_RS_SIGNATURE] = "(/*void*/)"
 		che[AsRsCallFFITy] = "()"
+		che[ArgDesc_CR_SIGNATURE] = "Void"
+		che[ArgDesc_DT_SIGNATURE] = "void"
 
 	case clang.Type_Unexposed:
 		if ty.CanonicalType().Kind() != clang.Type_Unexposed {
@@ -485,6 +579,8 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 
 			che[ArgDesc_RS_SIGNATURE] = "usize"
 			che[AsRsCallFFITy] = "POINTER"
+			che[ArgDesc_CR_SIGNATURE] = "UInt64"
+			che[ArgDesc_DT_SIGNATURE] = "int"
 
 			if isPrimitivePPType(ty) && ty.PointeeType().PointeeType().Kind() == clang.Type_Char_S {
 				// return "[]string"

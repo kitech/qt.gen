@@ -163,19 +163,22 @@ func (this *CodePager) RemoveLine(name, code string) {
 }
 
 // 按照names给出的顺序合并并导出代码。
-func (this *CodePager) ExportCode(names []string) string {
-	comment := "// "
+func (this *CodePager) ExportCode(names []string, comment ...string) string {
+	comment_ := "// "
+	if len(comment) > 0 {
+		comment_ = comment[0]
+	}
 	blocks := gopp.Domap(names, func(name interface{}) interface{} {
 		return fmt.Sprintf("%s %s block begin\n%s\n%s %s block end\n",
-			comment, name.(string),
+			comment_, name.(string),
 			strings.Join(this.lines[name.(string)], this.newline),
-			comment, name.(string))
+			comment_, name.(string))
 	})
 	return strings.Join(gopp.IV2Strings(blocks), this.newline)
 }
 
-func (this *CodePager) ExportAll() string {
-	return this.ExportCode(this.insert_points)
+func (this *CodePager) ExportAll(comment ...string) string {
+	return this.ExportCode(this.insert_points, comment...)
 }
 
 func (this *CodePager) TotolLength() int {

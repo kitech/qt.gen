@@ -125,7 +125,9 @@ func get_bare_type(ty clang.Type) clang.Type {
 func is_go_keyword(s string) bool {
 	keywords := map[string]int{"match": 1, "type": 1, "move": 1, "select": 1, "case": 1,
 		"map": 1, "range": 1, "var": 1, "len": 1, "fmt": 1, "err": 1, "go": 1, "func": 1,
-		"package": 1, "import": 1}
+		"package": 1, "import": 1,
+		"begin": 1, "end": 1,
+		"out": 1, "include": 1, "extern": 1, "module": 1, "require": 1}
 	_, ok := keywords[s]
 	return ok
 }
@@ -669,6 +671,10 @@ func sinceVer2Hex(since string) string {
 }
 
 var goqdocs = map[string]*goquery.Document{}
+
+func refmtComment(s string, cmch string) string {
+	return strings.Join(funk.Map(strings.Split(s, "\n"), func(s string) string { return cmch + s }).([]string), "\n")
+}
 
 // 查询方法/函数的注释，从doc/.html中
 func queryComment(c clang.Cursor, qtdir, qtver string) string {

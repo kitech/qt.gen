@@ -143,6 +143,40 @@ function mvrssrc()
 
 }
 
+function mvcrsrc()
+{
+    set +x
+
+    mkdir -p ~/oss/qt.cr/src/{qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}
+    # rm -f ~/oss/qt.cr/src/{core,gui,widgets,network,qml,quick}/q*.cr
+
+    mvbymd5 cr src/core ~/oss/qt.cr/src/qtcore
+    # cp -a src/core/*.rs ~/oss/qt.cr/src/core/
+    #cp -a src/gui/*.rs ~/oss/qt.cr/src/gui/
+    #cp -a src/widgets/*.rs ~/oss/qt.cr/src/widgets/
+    #cp -a src/network/*.rs ~/oss/qt.cr/src/network/
+    #cp -a src/qml/*.rs ~/oss/qt.cr/src/qml/
+    #cp -a src/quick/*.rs ~/oss/qt.cr/src/quick/
+
+}
+
+function mvdtsrc()
+{
+    set +x
+
+    mkdir -p ~/oss/qtdart/src/{qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}
+    # rm -f ~/oss/qtdart/src/{core,gui,widgets,network,qml,quick}/q*.dart
+
+    mvbymd5 dart src/core ~/oss/qtdart/src/qtcore
+    # cp -a src/core/*.rs ~/oss/qtdart/src/core/
+    #cp -a src/gui/*.rs ~/oss/qtdart/src/gui/
+    #cp -a src/widgets/*.rs ~/oss/qtdart/src/widgets/
+    #cp -a src/network/*.rs ~/oss/qtdart/src/network/
+    #cp -a src/qml/*.rs ~/oss/qtdart/src/qml/
+    #cp -a src/quick/*.rs ~/oss/qtdart/src/quick/
+
+}
+
 cmd=$1
 
 set -x
@@ -155,6 +189,12 @@ case $cmd in
         ;;
     rssrc)
         time mvrssrc;
+        ;;
+    crsrc)
+        time mvcrsrc;
+        ;;
+    dtsrc)
+        time mvdtsrc;
         ;;
     *)
         set +x
