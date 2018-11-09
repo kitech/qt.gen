@@ -10,46 +10,55 @@
 #ifdef GEN_GO_QT_GUI_LIB
 #include <QtGui>
 #endif
-#ifdef GEN_GO_QT_WIDGETS_LIB
-#include <QtWidgets>
-#endif
+#if QT_VERSION >= 0x050000
+    #ifdef GEN_GO_QT_WIDGETS_LIB
+    #include <QtWidgets>
+    #endif
+#endif // QT_VERSION >= 0x050000
 #ifdef GEN_GO_QT_NETWORK_LIB
 #include <QtNetwork>
 #endif
-#ifdef GEN_GO_QT_QML_LIB
-#include <QtQml>
-#endif
-#ifdef GEN_GO_QT_QUICK_LIB
-#include <QtQuick>
-#endif
+
+#if QT_VERSION >= 0x050000
+    #ifdef GEN_GO_QT_QML_LIB
+    #include <QtQml>
+    #endif
+    #ifdef GEN_GO_QT_QUICK_LIB
+    #include <QtQuick>
+    #endif
+#endif // QT_VERSION >= 0x050000
 
 // add-ons
-#ifdef GEN_GO_QT_QUICKTEMPLATES2_LIB
-#include <QtQuickTemplates2>
-#endif
-#ifdef GEN_GO_QT_QUICKCONTROLS2_LIB
-#include <QtQuickControls2>
-#endif
-#ifdef GEN_GO_QT_QUICKWIDGETS_LIB
-#include <QtQuickWidgets>
-#endif
+#if QT_VERSION >= 0x050700
+    #ifdef GEN_GO_QT_QUICKTEMPLATES2_LIB
+    #include <QtQuickTemplates2>
+    #endif
+    #ifdef GEN_GO_QT_QUICKCONTROLS2_LIB
+    #include <QtQuickControls2>
+    #endif
+    #ifdef GEN_GO_QT_QUICKWIDGETS_LIB
+    #include <QtQuickWidgets>
+    #endif
+#endif // #if QT_VERSION >= 0x050700
 
 // webengines
-#ifdef GEN_GO_QT_WEBENGINECORE_LIB
-#include <QtPositioning>
-#endif
-#ifdef GEN_GO_QT_WEBCHANNEL_LIB
-#include <QtWebChannel>
-#endif
-#ifdef GEN_GO_QT_WEBENGINECORE_LIB
-#include <QtWebEngineCore>
-#endif
-#ifdef GEN_GO_QT_WEBENGINE_LIB
-#include <QtWebEngine>
-#endif
-#ifdef GEN_GO_QT_WEBENGINEWIDGETS_LIB
-#include <QtWebEngineWidgets>
-#endif
+#if QT_VERSION >= 0x050000
+    #ifdef GEN_GO_QT_WEBENGINECORE_LIB
+    #include <QtPositioning>
+    #endif
+    #ifdef GEN_GO_QT_WEBCHANNEL_LIB
+    #include <QtWebChannel>
+    #endif
+    #ifdef GEN_GO_QT_WEBENGINECORE_LIB
+    #include <QtWebEngineCore>
+    #endif
+    #ifdef GEN_GO_QT_WEBENGINE_LIB
+    #include <QtWebEngine>
+    #endif
+    #ifdef GEN_GO_QT_WEBENGINEWIDGETS_LIB
+    #include <QtWebEngineWidgets>
+    #endif
+#endif // QT_VERSION >= 0x050000
 
 #ifdef GEN_GO_QT_SQL_LIB
 #include <QtSql>
@@ -60,24 +69,28 @@
 #ifdef GEN_GO_QT_SVG_LIB
 #include <QtSvg>
 #endif
-#ifdef GEN_GO_QT_MULTIMEDIAWIDGETS_LIB
-#include <QtMultimediaWidgets>
-#endif
 #ifdef GEN_GO_QT_TEST_LIB
 #include <QtTest>
 #endif
-#ifdef GEN_GO_QT_X11EXTRAS_LIB
-#include <QtX11Extras>
-#endif
-#ifdef GEN_GO_QT_WINEXTRAS_LIB
-#include <QtWinExtras>
-#endif
-#ifdef GEN_GO_QT_MACEXTRAS_LIB
-#include <QtMacExtras>
-#endif
-#ifdef GEN_GO_QT_ANDROIDEXTRAS_LIB
-#include <QtAndroidExtras>
-#endif
+
+#if QT_VERSION >= 0x050000
+    #ifdef GEN_GO_QT_MULTIMEDIAWIDGETS_LIB
+    #include <QtMultimediaWidgets>
+    #endif
+    
+    #ifdef GEN_GO_QT_X11EXTRAS_LIB
+    #include <QtX11Extras>
+    #endif
+    #ifdef GEN_GO_QT_WINEXTRAS_LIB
+    #include <QtWinExtras>
+    #endif
+    #ifdef GEN_GO_QT_MACEXTRAS_LIB
+    #include <QtMacExtras>
+    #endif
+    #ifdef GEN_GO_QT_ANDROIDEXTRAS_LIB
+    #include <QtAndroidExtras>
+    #endif
+#endif // QT_VERSION >= 0x050000
 
 // tools
 #ifdef GEN_GO_QT_UITOOLS_LIB
@@ -93,7 +106,6 @@ typedef QList<QAccessibleInterface*> QAccessibleInterfaceList;
 typedef QList<QSize> QSizeList;
 // typedef QList<QImageTextKeyLang> QImageTextKeyLangList;
 typedef QList<QPolygonF> QPolygonFList;
-typedef QList<QScreen *> QScreenList;
 typedef QList<QStandardItem*> QStandardItemList;
 typedef QList<QGlyphRun> QGlyphRunList;
 typedef QList<QTextBlock> QTextBlockList;
@@ -110,20 +122,26 @@ typedef QList<QGraphicsTransform *> QGraphicsTransformList;
 typedef QList<QListWidgetItem*> QListWidgetItemList;
 typedef QList<QDockWidget*> QDockWidgetList;
 typedef QList<QMdiSubWindow *> QMdiSubWindowList;
-typedef QList<QScroller *> QScrollerList;
+#if QT_VERSION >= 0x050000
+    typedef QList<QScreen *> QScreenList;
+    typedef QList<QScroller *> QScrollerList;
+#endif // QT_VERSION >= 0x050000
 typedef QList<QTreeWidgetItem*> QTreeWidgetItemList;
 typedef QList<QUndoStack*> QUndoStackList;
 typedef QList<QNetworkConfiguration> QNetworkConfigurationList;
-#ifdef QT_MULTIMEDIA_LIB
-typedef QList<QCameraFocusZone> QCameraFocusZoneList;
-typedef QList<QMediaResource> QMediaResourceList;
-typedef QList<QCameraViewfinderSettings> QCameraViewfinderSettingsList;
-typedef QList<QMediaContent> QMediaContentList;
-typedef QList<QCameraInfo> QCameraInfoList;
-#endif
-#ifdef GEN_GO_QT_QML_LIB
-typedef QList<QQuickItem*> QQuickItemList;
-#endif
+#if QT_VERSION >= 0x050000
+    #ifdef QT_MULTIMEDIA_LIB
+    typedef QList<QCameraFocusZone> QCameraFocusZoneList;
+    typedef QList<QMediaResource> QMediaResourceList;
+    typedef QList<QCameraViewfinderSettings> QCameraViewfinderSettingsList;
+    typedef QList<QMediaContent> QMediaContentList;
+    typedef QList<QCameraInfo> QCameraInfoList;
+    #endif
+
+    #ifdef GEN_GO_QT_QML_LIB
+    typedef QList<QQuickItem*> QQuickItemList;
+    #endif
+#endif // QT_VERSION >= 0x050000
 
 /*
 template class QHash<QString, QVariant>;

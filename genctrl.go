@@ -61,6 +61,7 @@ func (this *GenCtrl) main() {
 		genLang = os.Args[len(os.Args)-1]
 	}
 	if genLang == "" {
+		// log.Println("optional set QT_DIR env")
 		log.Fatalln("must suply a lang to gen, usage: qt.gen <c|go|rs>")
 	}
 
@@ -145,9 +146,12 @@ func (this *GenCtrl) setupQtinfo() {
 		mats := exp.FindAllStringSubmatch(qtdir, -1)
 		log.Println(mats)
 		qtver = mats[0][1]
+		qtver = gopp.IfElseStr(strings.HasSuffix(qtver, ".0"), qtver[:len(qtver)-2], qtver)
 	}
 	genQtdir, genQtver = qtdir, qtver
 	log.Println("qt info:", qtdir, qtver, os.Getenv("QT_DIR"))
+
+	rebuildModDepsAll(qtver)
 }
 
 func (this *GenCtrl) setupEnv() {
@@ -170,15 +174,16 @@ func (this *GenCtrl) setupEnv() {
 		// multimedia
 		"QtSvg", "QtMultimedia",
 	}
-	modules = []string{"QtCore"} // for test
+	// modules = []string{"QtCore", "QtGui", "QtWidgets"} // for test
 
 	cmdlines := []string{
 		"-x c++ -std=c++11 -D__CODE_GENERATOR__ -D_GLIBCXX_USE_CXX11ABI=1",
 		"-DQT_NO_DEBUG -D_GNU_SOURCE -pipe -fno-exceptions -O2 -march=x86-64 -mtune=generic -O2 -pipe -fstack-protector-strong -std=c++11 -Wall -W -D_REENTRANT -fPIC",
-		"-DQT_OPENGL_ES_2",
+		"-DQT_OPENGL_ES_2", "-DQT_OPENGL_ES_3",
 		// "-DQ_CLANG_QDOC", // 开启QDOC，竟然会出错
 		"-I./bsheaders", "-I/usr/include/wine/windows/", // fix cross platform generate, win/mac
 	}
+
 	args := []string{}
 	gopp.Domap(cmdlines, func(e interface{}) interface{} {
 		args = append(args, strings.Split(e.(string), " ")...)

@@ -664,7 +664,8 @@ func readComment(c clang.Cursor) string {
 
 // since format: x.y
 func sinceVer2Hex(since string) string {
-	parts := strings.Split(since, ".")
+	sepch := gopp.IfElseStr(strings.Contains(since, ","), ",", ".")
+	parts := strings.Split(since, sepch)
 	src := []byte{byte(gopp.MustInt(parts[0])), byte(gopp.MustInt(parts[1]))}
 	hv := hex.EncodeToString(src)
 	return fmt.Sprintf("0x%s00", hv)
