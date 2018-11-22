@@ -224,6 +224,10 @@ func (this *GenFilterBase) skipFunc(cursor clang.Cursor) bool {
 	if strings.Contains(cursor.Spelling(), "_destructor") {
 		return true
 	}
+	// _helper结尾的函数，基本算是内部函数，不同qt版本间变动比较大，大概有10个
+	if strings.HasSuffix(cursor.Spelling(), "_helper") && !strings.HasPrefix(cursor.Spelling(), "qt_") {
+		return true
+	}
 	if this.skipReturn(cursor.ResultType(), cursor) {
 		return true
 	}
@@ -562,6 +566,10 @@ func (this *GenFilterBase2) skipArg(cursor, parent clang.Cursor) bool {
 	return false
 }
 func (this *GenFilterBase2) skipFunc(cursor clang.Cursor) bool {
+	// _helper结尾的函数，基本算是内部函数，不同qt版本间变动比较大，大概有10个
+	if strings.HasSuffix(cursor.Spelling(), "_helper") && !strings.HasPrefix(cursor.Spelling(), "qt_") {
+		return true
+	}
 	return false
 }
 

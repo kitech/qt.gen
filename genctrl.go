@@ -61,7 +61,8 @@ func (this *GenCtrl) main() {
 		genLang = os.Args[len(os.Args)-1]
 	}
 	if genLang == "" {
-		// log.Println("optional set QT_DIR env")
+		// log.Println("optional set QTDIR env")
+		// sometimes need use ulimit -n 10240
 		log.Fatalln("must suply a lang to gen, usage: qt.gen <c|go|rs>")
 	}
 
@@ -135,7 +136,7 @@ func (this *GenCtrl) setupLang() {
 }
 
 func (this *GenCtrl) setupQtinfo() {
-	qtdir := gopp.IfElseStr(os.Getenv("QT_DIR") == "", "/usr", os.Getenv("QT_DIR"))
+	qtdir := gopp.IfElseStr(os.Getenv("QTDIR") == "", "/usr", os.Getenv("QTDIR"))
 	qtver := ""
 	if qtdir == "/usr" {
 	} else if strings.HasPrefix(qtdir, "qtheaders") {
@@ -149,7 +150,7 @@ func (this *GenCtrl) setupQtinfo() {
 		qtver = gopp.IfElseStr(strings.HasSuffix(qtver, ".0"), qtver[:len(qtver)-2], qtver)
 	}
 	genQtdir, genQtver = qtdir, qtver
-	log.Println("qt info:", qtdir, qtver, os.Getenv("QT_DIR"))
+	log.Println("qt info:", qtdir, qtver, os.Getenv("QTDIR"))
 
 	rebuildModDepsAll(qtver)
 }
@@ -202,23 +203,34 @@ func (this *GenCtrl) setupEnv() {
 		args = append(args, fmt.Sprintf("-I%s/%s/gcc_64/include", qtdir, qtver))
 		qtsysdir += fmt.Sprintf("/%s/gcc_64", qtver)
 	}
-	log.Println("qt info:", qtdir, qtver, os.Getenv("QT_DIR"))
+	log.Println("qt info:", qtdir, qtver, os.Getenv("QTDIR"))
 	if !gopp.FileExist2(qtsysdir) {
-		log.Fatalln("maybe QT_DIR not exists error", qtdir, qtver, qtsysdir)
+		log.Fatalln("maybe QTDIR not exists error", qtdir, qtver, qtsysdir)
 	}
 
+	hdrdirok := true
 	gopp.Domap(modules, func(e interface{}) interface{} {
 		args = append(args, fmt.Sprintf("-DQT_%s_LIB", strings.ToUpper(e.(string)[2:])))
 		args = append(args, fmt.Sprintf("-DGEN_GO_QT_%s_LIB", strings.ToUpper(e.(string)[2:])))
 		if qtdir == "/usr" {
 			args = append(args, fmt.Sprintf("-I/usr/include/qt/%s", e.(string)))
+			_, err := os.Stat(fmt.Sprintf("/usr/include/qt/%s", e.(string)))
+			gopp.ErrPrint(err)
+			hdrdirok = gopp.IfElse(err == nil, hdrdirok, false).(bool)
 		} else if strings.HasPrefix(qtdir, "qtheaders") {
 			args = append(args, fmt.Sprintf("-I./qtheaders/include/%s", e.(string)))
 		} else {
 			args = append(args, fmt.Sprintf("-I%s/%s/gcc_64/include/%s", qtdir, qtver, e.(string)))
+			_, err := os.Stat(fmt.Sprintf("%s/%s/gcc_64/include/%s", qtdir, qtver, e.(string)))
+			gopp.ErrPrint(err)
+			hdrdirok = gopp.IfElse(err == nil, hdrdirok, false).(bool)
 		}
 		return nil
 	})
+	if !hdrdirok {
+		log.Fatalln("Some header dir(s) not exists")
+	}
+
 	cmd := exec.Command("g++", "--print-file-name=include")
 	out, err := cmd.Output()
 	gopp.ErrPrint(err)
@@ -235,6 +247,13 @@ func (this *GenCtrl) setupEnv() {
 
 	this.args = args
 	this.modules = modules
+}
+
+func (this *GenCtrl) dryrunEnv() {
+	log.Println("sh ./bcmd.sh ...")
+	cmdo := exec.Command("sh", "./bcmd.sh")
+	output, err := cmdo.CombinedOutput()
+	gopp.ErrFatal(err, string(output))
 }
 
 func (this *GenCtrl) createTU() {

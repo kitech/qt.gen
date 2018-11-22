@@ -24,9 +24,9 @@ func (this *QDocIndex) load(qtdir, qtver string) {
 	if this.loaded {
 		return
 	}
-	// os.Setenv("QT_DIR", os.Getenv("HOME")+"/Qt5.10.1")
+	// os.Setenv("QTDIR", os.Getenv("HOME")+"/Qt5.10.1")
 	// os.Setenv("QT_VERSION", "5.10.1")
-	os.Setenv("QT_DIR", qtdir)
+	os.Setenv("QTDIR", qtdir)
 	os.Setenv("QT_VERSION", qtver)
 	parser.LoadModules()
 	this.loaded = true
