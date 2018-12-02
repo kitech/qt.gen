@@ -1668,7 +1668,7 @@ func (this *GenerateRs) genRetFFI(cursor, parent clang.Cursor, midx int) {
 	case clang.Type_Record:
 		if is_qt_class(rety) && get_bare_type(rety).Spelling() == "QString" {
 			this.cp.APf("body", "    rv2 := %sNewQStringFromPointer(unsafe.Pointer(uintptr(rv)))", pkgPrefix)
-			this.cp.APf("body", "    rv3 := rv2.ToLocal8Bit().Data()")
+			this.cp.APf("body", "    rv3 := rv2.ToUtf8().Data()")
 			this.cp.APf("body", "    %sDeleteQString(rv2)", pkgPrefix)
 			this.cp.APf("body", "    return rv3")
 		} else if is_qt_class(rety) {
@@ -1684,7 +1684,7 @@ func (this *GenerateRs) genRetFFI(cursor, parent clang.Cursor, midx int) {
 	case clang.Type_LValueReference:
 		if is_qt_class(rety) && get_bare_type(rety).Spelling() == "QString" {
 			this.cp.APf("body", "    rv2 := %sNewQStringFromPointer(unsafe.Pointer(uintptr(rv)))", pkgPrefix)
-			this.cp.APf("body", "    rv3 := rv2.ToLocal8Bit().Data()")
+			this.cp.APf("body", "    rv3 := rv2.ToUtf8().Data()")
 			this.cp.APf("body", "    %sDeleteQString(rv2)", pkgPrefix)
 			this.cp.APf("body", "    return rv3")
 		} else if is_qt_class(rety) {
@@ -1711,7 +1711,7 @@ func (this *GenerateRs) genRetFFI(cursor, parent clang.Cursor, midx int) {
 	case clang.Type_Pointer:
 		if is_qt_class(rety) && get_bare_type(rety).Spelling() == "QString" {
 			this.cp.APf("body", "    rv2 := %sNewQStringFromPointer(unsafe.Pointer(uintptr(rv)))", pkgPrefix)
-			this.cp.APf("body", "    rv3 := rv2.ToLocal8Bit().Data()")
+			this.cp.APf("body", "    rv3 := rv2.ToUtf8().Data()")
 			this.cp.APf("body", "    %sDeleteQString(rv2)", pkgPrefix)
 			this.cp.APf("body", "    return rv3")
 		} else if is_qt_class(rety) {
