@@ -450,7 +450,7 @@ func (this *GenerateGo) genMethodSignature(cursor, parent clang.Cursor, midx int
 	this.genArgsDest(cursor, parent, true)
 	argStr := strings.Join(this.destArgDesc, ", ")
 
-	overloadSuffix := gopp.IfElseStr(midx == 0, "", fmt.Sprintf("_%d", midx))
+	overloadSuffix := gopp.IfElseStr(midx == 0, "", fmt.Sprintf("%d", midx))
 	switch cursor.Kind() {
 	case clang.Cursor_Constructor:
 		prms := funk.Map(this.destArgDesc, func(s string) string { return strings.Split(s, " ")[0] })
@@ -493,8 +493,8 @@ func (this *GenerateGo) genMethodSignatureDv(cursor, parent clang.Cursor, midx i
 	argStr := strings.Join(this.destArgDesc, ", ")
 
 	// 后缀有两条下划线的都是处理默认参数的
-	overloadSuffix := gopp.IfElseStr(midx == 0, "_", fmt.Sprintf("_%d", midx))
-	overloadSuffix += gopp.IfElseStr(dvidx == 0, "_", fmt.Sprintf("_%d", dvidx))
+	overloadSuffix := gopp.IfElseStr(midx == 0, "", fmt.Sprintf("%d", midx))
+	overloadSuffix += gopp.IfElseStr(dvidx == 0, "p", fmt.Sprintf("p%d", dvidx))
 	switch cursor.Kind() {
 	case clang.Cursor_Constructor:
 		prms := funk.Map(this.destArgDesc, func(s string) string { return strings.Split(s, " ")[0] })
@@ -530,7 +530,7 @@ func (this *GenerateGo) genMethodSignatureNoThis(cursor, parent clang.Cursor, mi
 	this.genArgsDest(cursor, parent, true)
 	argStr := strings.Join(this.destArgDesc, ", ")
 
-	overloadSuffix := gopp.IfElseStr(midx == 0, "", fmt.Sprintf("_%d", midx))
+	overloadSuffix := gopp.IfElseStr(midx == 0, "", fmt.Sprintf("%d", midx))
 	switch cursor.Kind() {
 	case clang.Cursor_Constructor:
 	case clang.Cursor_Destructor:
@@ -919,7 +919,7 @@ func (this *GenerateGo) genStaticMethodNoThis(cursor, parent clang.Cursor, midx 
 
 	// this.genMethodHeaderLongName(cursor, parent, midx)
 	this.genMethodSignatureNoThis(cursor, parent, midx)
-	overloadSuffix := gopp.IfElseStr(midx == 0, "", fmt.Sprintf("_%d", midx))
+	overloadSuffix := gopp.IfElseStr(midx == 0, "", fmt.Sprintf("%d", midx))
 	mthname := gopp.IfElseStr(strings.HasPrefix(cursor.Spelling(), "operator"),
 		rewriteOperatorMethodName(cursor.Spelling()), cursor.Spelling())
 
@@ -1159,7 +1159,7 @@ func (this *GenerateGo) genArgConvFFI(cursor, parent clang.Cursor, midx, aidx in
 	} else if is_qt_class(argty) && get_bare_type(argty).Spelling() == "QString" {
 		usemod := get_decl_mod(cursor)
 		pkgPref := gopp.IfElseStr(usemod == "core", "", "qtcore.")
-		this.cp.APf("body", "    var tmpArg%d = %sNewQString_5(%s)", aidx, pkgPref,
+		this.cp.APf("body", "    var tmpArg%d = %sNewQString5(%s)", aidx, pkgPref,
 			this.genParamRefName(cursor, parent, aidx))
 		// this.cp.APf("body", "    defer %sDeleteQString(tmpArg%d)", pkgPref, aidx) // not needed
 		this.cp.APf("body", "    var convArg%d = tmpArg%d.GetCthis()", aidx, aidx)
@@ -1270,7 +1270,7 @@ func (this *GenerateGo) genArgConvFFIDv(cursor, parent clang.Cursor, midx, aidx 
 	} else if is_qt_class(argty) && get_bare_type(argty).Spelling() == "QChar" {
 		usemod := get_decl_mod(cursor)
 		pkgPref := gopp.IfElseStr(usemod == "core", "", "qtcore.")
-		this.cp.APf("body", "    var convArg%d  = %sNewQChar_8('%s')", aidx,
+		this.cp.APf("body", "    var convArg%d  = %sNewQChar8('%s')", aidx,
 			pkgPref, strings.Split(argdv, "'")[1])
 	} else if is_qt_class(argty) && !isPrimitiveType(argty.CanonicalType()) {
 		if argty.Spelling() == "QRgb" {
@@ -1826,7 +1826,7 @@ func (this *GenerateGo) genBareFunctionSignature(cursor, parent clang.Cursor, mi
 	this.genArgsDest(cursor, parent, true)
 	argStr := strings.Join(this.destArgDesc, ", ")
 
-	overloadSuffix := gopp.IfElseStr(midx == 0, "", fmt.Sprintf("_%d", midx))
+	overloadSuffix := gopp.IfElseStr(midx == 0, "", fmt.Sprintf("%d", midx))
 	switch cursor.Kind() {
 	case clang.Cursor_Constructor:
 	case clang.Cursor_Destructor:

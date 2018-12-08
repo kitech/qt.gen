@@ -117,7 +117,7 @@ func (this *GenerateGo) genTemplateMethod(cursor, parent clang.Cursor, argClsCur
 
 	validMethodName := rewriteOperatorMethodName(cursor.Spelling())
 	this.cp.APf("body", "// %s %s", cursor.ResultType().Spelling(), cursor.DisplayName())
-	this.cp.APf("body", "func (this *%s) %s_%d() %s {",
+	this.cp.APf("body", "func (this *%s) %s%d() %s {",
 		clsName, strings.Title(validMethodName), midx, retytxt)
 	this.cp.APf("body", "    // %s_%s_%d()", clsName, validMethodName, midx)
 	this.cp.APf("body", "    rv, err := qtrt.InvokeQtFunc6(\"C_%s_%s_%d\", qtrt.FFI_TYPE_POINTER, this.Cthis)", clsName, validMethodName, midx)
@@ -210,6 +210,6 @@ func (this *GenerateGo) genTemplateInterfaceSignature(cursor, parent clang.Curso
 
 	validMethodName := rewriteOperatorMethodName(cursor.Spelling())
 	this.cp.APf("body", "// %s %s", cursor.ResultType().Spelling(), cursor.DisplayName())
-	this.cp.APf("body", " %s_%d() %s ", strings.Title(validMethodName), midx, retytxt)
+	this.cp.APf("body", " %s%d() %s ", strings.Title(validMethodName), midx, retytxt)
 
 }
