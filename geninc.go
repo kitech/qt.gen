@@ -43,16 +43,13 @@ func NewGenerateInline(qtdir, qtver string) *GenerateInline {
 	this.GenBase.funcMangles = map[string]int{}
 
 	this.cp = NewCodePager()
-	blocks := []string{"header", "main", "use", "ext", "body"}
-	for _, block := range blocks {
-		this.cp.AddPointer(block)
-	}
+	this.initBlocks(this.cp)
 
 	return this
 }
 
 func (this *GenerateInline) initBlocks(cp *CodePager) {
-	blocks := []string{"header", "main", "use", "ext", "body"}
+	blocks := []string{"header", "main", "use", "ext", "body", "footer"}
 	for _, block := range blocks {
 		cp.AddPointer(block)
 		cp.APf(block, "")
@@ -89,6 +86,7 @@ func (this *GenerateInline) final(cursor, parent clang.Cursor) {
 	this.saveCode(cursor, parent)
 
 	this.cp = NewCodePager()
+	this.initBlocks(this.cp)
 }
 func (this *GenerateInline) saveCode(cursor, parent clang.Cursor) {
 	// qtx{yyy}, only yyy
@@ -121,6 +119,14 @@ func (this *GenerateInline) genFileHeader(clsctx *GenClassContext, cursor, paren
 	if false {
 		log.Printf("%s:%d:%d @%s\n", file.Name(), line, col, file.Time().String())
 	}
+
+	fullModname := filepath.Base(filepath.Dir(file.Name()))
+	ftpath := strings.ToLower(fmt.Sprintf("%s/%s", fullModname, filepath.Base(file.Name())))
+	if _, ok := clts.qtreqcfgs[ftpath]; ok {
+		this.cp.APf("header", "#ifndef QT_MINIMAL")
+		this.cp.APf("footer", "#endif // #ifndef QT_MINIMAL")
+	}
+
 	if clsctx.clso != nil && clsctx.clso.Since != "" {
 		this.cp.APf("header", "// since %s", sinceVer2Hex(clsctx.clso.Since))
 	}
@@ -135,7 +141,7 @@ func (this *GenerateInline) genFileHeader(clsctx *GenClassContext, cursor, paren
 	} else {
 		this.cp.APf("header", "#include <%s>", filepath.Base(file.Name()))
 	}
-	fullModname := filepath.Base(filepath.Dir(file.Name()))
+
 	this.cp.APf("header", "#include <%s>", fullModname)
 	this.cp.APf("header", "#include \"callback_inherit.h\"")
 	this.cp.APf("header", "")

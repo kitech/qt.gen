@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -471,6 +472,16 @@ func (this *GenCtrl) collectClasses() {
 		case clang.Cursor_StructDecl:
 		case clang.Cursor_MacroDefinition:
 			readSourceRange(cursor.Extent())
+		case clang.Cursor_MacroExpansion:
+			if strings.Contains(cursor.Spelling(), "QT_REQUIRE_CONFIG") {
+				// log.Println(cursor.Spelling(), get_decl_loc(cursor))
+				srcfile := get_decl_loc(cursor)
+				fbname := strings.Split(filepath.Base(srcfile), ":")[0]
+				fbmod := filepath.Base(filepath.Dir(srcfile))
+				fbpath := strings.ToLower(fmt.Sprintf("%s/%s", fbmod, fbname))
+				clts.qtreqcfgs[fbpath] = 1
+			}
+			// case clang.Cursor_MacroInstantiation:
 		}
 		return clang.ChildVisit_Continue
 	})
@@ -545,6 +556,7 @@ type collects struct {
 	funcParents map[string]int // got 11 elements
 
 	macroExpands map[string][]clang.Cursor // file name => macro explan, and clang.Cursor_CXXAccessSpecifier
+	qtreqcfgs    map[string]int            // file name QtWidgets/qdialog.h =>
 }
 
 var clts = &collects{funcParents: map[string]int{}}
@@ -552,6 +564,7 @@ var clts = &collects{funcParents: map[string]int{}}
 func init() {
 	clts.ClassSizeMap = map[int64]int{}
 	clts.macroExpands = map[string][]clang.Cursor{}
+	clts.qtreqcfgs = map[string]int{}
 }
 func (this *collects) addClassSize(sz int64) {
 	if sz <= 256 {

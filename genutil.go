@@ -706,53 +706,55 @@ func queryComment(c clang.Cursor, qtdir, qtver string) string {
 }
 
 func queryCommentFromFile(htmlFile string, name string, sltor string) string {
-	if gopp.FileExist(htmlFile) {
-		var doco *goquery.Document
-		if doco_, ok := goqdocs[htmlFile]; ok {
-			doco = doco_
-		} else {
-			fp, err := os.Open(htmlFile)
-			gopp.ErrPrint(err, htmlFile)
-			doc, err := goquery.NewDocumentFromReader(fp)
-			gopp.ErrPrint(err)
-			fp.Close()
-			doco = doc
-		}
+	if !gopp.FileExist(htmlFile) {
+		return ""
+	}
 
-		slts := doco.Find(sltor)
-		// log.Println(slts.Length(), sltor)
-		if slts.Length() > 0 {
-			n := slts.First().Nodes[0]
-			comment := ""
-			for n != nil {
-				nn := n.NextSibling
-				// log.Printf("%s, %+v\n", nn.Data, nn)
-				// log.Println(goquery.NewDocumentFromNode(nn).Text())
-				// log.Println(name, len(nn.Data), nn.Data)
-				isdivtab := false
-				for _, attr := range nn.Attr {
-					if attr.Key == "class" && attr.Val == "table" {
-						isdivtab = true
-					}
+	var doco *goquery.Document
+	if doco_, ok := goqdocs[htmlFile]; ok {
+		doco = doco_
+	} else {
+		fp, err := os.Open(htmlFile)
+		gopp.ErrPrint(err, htmlFile)
+		doc, err := goquery.NewDocumentFromReader(fp)
+		gopp.ErrPrint(err)
+		fp.Close()
+		doco = doc
+	}
+
+	slts := doco.Find(sltor)
+	// log.Println(slts.Length(), sltor)
+	if slts.Length() > 0 {
+		n := slts.First().Nodes[0]
+		comment := ""
+		for n != nil {
+			nn := n.NextSibling
+			// log.Printf("%s, %+v\n", nn.Data, nn)
+			// log.Println(goquery.NewDocumentFromNode(nn).Text())
+			// log.Println(name, len(nn.Data), nn.Data)
+			isdivtab := false
+			for _, attr := range nn.Attr {
+				if attr.Key == "class" && attr.Val == "table" {
+					isdivtab = true
 				}
-
-				if nn.Data == "p" || nn.Data == "pre" || nn.Data == "ul" {
-					comment += "\n\n" + goquery.NewDocumentFromNode(nn).Text()
-				} else if nn.Data == "div" && isdivtab {
-					// omit table text
-					comment += "\n\n" + goquery.NewDocumentFromNode(nn).Text()
-				} else if strings.TrimSpace(nn.Data) != "" {
-					break
-				}
-
-				n = nn
 			}
-			log.Println(name, ":", len(comment), comment)
-			comment = strings.TrimSpace(comment)
-			comment = strings.Replace(comment, "/*", "/-*", -1)
-			comment = strings.Replace(comment, "*/", "*-/", -1)
-			return comment
+
+			if nn.Data == "p" || nn.Data == "pre" || nn.Data == "ul" {
+				comment += "\n\n" + goquery.NewDocumentFromNode(nn).Text()
+			} else if nn.Data == "div" && isdivtab {
+				// omit table text
+				comment += "\n\n" + goquery.NewDocumentFromNode(nn).Text()
+			} else if strings.TrimSpace(nn.Data) != "" {
+				break
+			}
+
+			n = nn
 		}
+		log.Println(name, ":", len(comment), comment)
+		comment = strings.TrimSpace(comment)
+		comment = strings.Replace(comment, "/*", "/-*", -1)
+		comment = strings.Replace(comment, "*/", "*-/", -1)
+		return comment
 	}
 
 	return ""

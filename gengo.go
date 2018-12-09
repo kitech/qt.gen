@@ -154,6 +154,12 @@ func (this *GenerateGo) genFileHeader(cursor, parent clang.Cursor) {
 		fullModname = "QtAndroidExtras"
 	}
 
+	ftpath := strings.ToLower(fmt.Sprintf("%s/%s", modName, filepath.Base(file.Name())))
+	if _, ok := clts.qtreqcfgs[ftpath]; ok {
+		this.cp.APf("header", "// +build !minimal")
+		this.cp.APf("header", "")
+	}
+
 	this.cp.APf("header", "package %s", modName)
 	this.cp.APf("header", "// %s", fix_inc_name(file.Name()))
 	this.cp.APf("header", "// #include <%s>", filepath.Base(file.Name()))
