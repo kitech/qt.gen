@@ -1,11 +1,13 @@
 package main
 
 import (
+	"gopp"
 	"log"
 	"os"
 	"strings"
 
 	"github.com/go-clang/v3.9/clang"
+	// <=5.10 "github.com/therecipe/qt/internal/binding/parser" // a76e7081468b0d9d554349b66b4971929f036ce7
 	"github.com/therecipe/qt/internal/binding/parser"
 )
 
@@ -30,6 +32,22 @@ func (this *QDocIndex) load(qtdir, qtver string) {
 	os.Setenv("QT_VERSION", qtver)
 	parser.LoadModules()
 	this.loaded = true
+
+	if false {
+		log.Println(len(parser.State.ClassMap))
+		for _, module := range parser.GetLibs() {
+			log.Println("module class count: ", module, len(parser.SortedClassNamesForModule(module, true)), len(parser.GetLibs()), len(parser.SortedClassesForModule(module, true)))
+		}
+		log.Println(len(parser.State.ClassMap))
+	}
+	if false {
+		for _, clso := range parser.State.ClassMap {
+			log.Println(clso.Name, clso.Since)
+			for _, funco := range clso.Functions {
+				log.Println(clso.Name, funco.Name, funco.Since, len(funco.Parameters))
+			}
+		}
+	}
 }
 
 func (this *QDocIndex) run(qtdir, qtver string) {
@@ -55,9 +73,19 @@ func (this *QDocIndex) run(qtdir, qtver string) {
 	log.Println(len(clsos))
 }
 
+func (this *QDocIndex) findClass2(class string) (*parser.Class, bool) {
+	clso, ok := parser.State.ClassMap[class]
+	if ok {
+		return clso, true
+	}
+	return nil, false
+}
 func (this *QDocIndex) findClass(class string) (*parser.Class, bool) {
 	for _, module := range parser.GetLibs() {
-		log.Println("module class count: ", module, len(parser.SortedClassNamesForModule(module, true)), len(parser.GetLibs()), len(parser.SortedClassesForModule(module, true)))
+		/* log.Println("module class count: ", module,
+		len(parser.SortedClassNamesForModule(module, true)), len(parser.GetLibs()),
+		len(parser.SortedClassesForModule(module, true)))
+		*/
 		module = "Qt" + module
 
 		for _, clso := range parser.SortedClassesForModule(module, true) {
@@ -96,8 +124,9 @@ func (this *QDocIndex) findCoMethodCursor(clscs clang.Cursor, funco *parser.Func
 			for idx := int32(0); idx < cursor.NumArguments(); idx++ {
 				argod := funco.Parameters[idx]
 				argoc := cursor.Argument(uint32(idx))
-				log.Printf("%s, %+v\n", argoc.Type().Spelling(), argod)
-				if argod.Value != argoc.Type().Spelling() {
+				argdocty := gopp.IfElseStr(argod.Value != "", argod.Value, argod.Value2)
+				log.Printf("%s, %+v, %s\n", argoc.Type().Spelling(), argod, argdocty)
+				if argdocty != argoc.Type().Spelling() {
 					match = false
 					break
 				}
@@ -157,8 +186,9 @@ func (this *QDocIndex) findMethod(clso *parser.Class, mthc clang.Cursor) (funco 
 		for idx := int32(0); idx < mthc.NumArguments(); idx++ {
 			argod := funco_.Parameters[idx]
 			argoc := mthc.Argument(uint32(idx))
-			log.Printf("%s, %+v\n", argoc.Type().Spelling(), argod)
-			if argod.Value != argoc.Type().Spelling() {
+			argdocty := gopp.IfElseStr(argod.Value != "", argod.Value, argod.Value2)
+			log.Printf("idx:%d, %s, %+v, %s\n", idx, argoc.Type().Spelling(), argod, argdocty)
+			if argdocty != argoc.Type().Spelling() {
 				match = false
 				break
 			}

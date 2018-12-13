@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/hex"
 	"fmt"
 	"gopp"
 	"log"
@@ -267,7 +266,7 @@ func is_deleted_class(cursor clang.Cursor) bool {
 	arr := map[string]int{"QClipboard": 1, "QInputMethod": 1, "QSessionManager": 1,
 		"QPaintDevice": 1, "QPagedPaintDevice": 1, "QScroller": 1, "QStandardPaths": 1,
 		"QLoggingCategory": 1, "QCameraExposure": 1, "QCameraFocus": 1, "QCameraImageProcessing": 1,
-		"QOpenGLPaintDevice": 1}
+		"QOpenGLPaintDevice": 1, "QCborStreamReader": 1, "QCborStreamWriter": 1}
 	if _, ok := arr[cursor.Spelling()]; ok {
 		return true
 	}
@@ -301,6 +300,9 @@ func is_deleted_method(cursor, parent clang.Cursor) bool {
 
 		"_ZN16QOpenGLFunctions14glShaderSourceEjiPPKcPKi":                              1,
 		"_ZNK23QOperatingSystemVersion11isAnyOfTypeESt16initializer_listINS_6OSTypeEE": 1,
+
+		"_ZN17QCborStreamReaderaSERKS_": 1, "_ZN17QCborStreamWriteraSERKS_": 1,
+		"_ZN10QCborValueC2EPKv": 1,
 	}
 	mname := _cmgl.origin(cursor)
 	if _, ok := mths[mname]; ok {
@@ -662,13 +664,13 @@ func readComment(c clang.Cursor) string {
 	return comment
 }
 
-// since format: x.y
+// since format: x.y, 0x000000, Qt x.y
 func sinceVer2Hex(since string) string {
+	since = gopp.IfElseStr(strings.Contains(since, "Qt"), strings.TrimLeft(since, "Qt "), since)
 	sepch := gopp.IfElseStr(strings.Contains(since, ","), ",", ".")
 	parts := strings.Split(since, sepch)
 	src := []byte{byte(gopp.MustInt(parts[0])), byte(gopp.MustInt(parts[1]))}
-	hv := hex.EncodeToString(src)
-	return fmt.Sprintf("0x%s00", hv)
+	return fmt.Sprintf("0x%0x00", src)
 }
 
 var goqdocs = map[string]*goquery.Document{}

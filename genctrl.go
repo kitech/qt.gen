@@ -71,9 +71,8 @@ func (this *GenCtrl) main() {
 	btime := time.Now()
 	qdi.load(genQtdir, genQtver)
 	log.Println(time.Now().Sub(btime))
-	if true {
-		// os.Exit(0)
-	}
+	// log.Fatalln("test exit")
+
 	this.setupLang()
 	this.setupEnv()
 	this.createTU()
@@ -148,7 +147,11 @@ func (this *GenCtrl) setupQtinfo() {
 		mats := exp.FindAllStringSubmatch(qtdir, -1)
 		log.Println(mats)
 		qtver = mats[0][1]
-		qtver = gopp.IfElseStr(strings.HasSuffix(qtver, ".0"), qtver[:len(qtver)-2], qtver)
+		if gopp.FileExist2(fmt.Sprintf("%s/%s", qtdir, qtver)) {
+			// for 5.12.0
+		} else {
+			qtver = gopp.IfElseStr(strings.HasSuffix(qtver, ".0"), qtver[:len(qtver)-2], qtver)
+		}
 	}
 	genQtdir, genQtver = qtdir, qtver
 	log.Println("qt info:", qtdir, qtver, os.Getenv("QTDIR"))

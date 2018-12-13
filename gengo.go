@@ -1831,6 +1831,9 @@ func (this *GenerateGo) genFunction(cursor clang.Cursor, olidx int) {
 func (this *GenerateGo) genBareFunctionSignature(cursor, parent clang.Cursor, midx int) {
 	this.genArgsDest(cursor, parent, true)
 	argStr := strings.Join(this.destArgDesc, ", ")
+	if strings.Contains(argStr, "DropActions::enum_type") {
+		log.Fatalln(parent.Spelling(), cursor.DisplayName(), cursor.Spelling(), argStr)
+	}
 
 	overloadSuffix := gopp.IfElseStr(midx == 0, "", fmt.Sprintf("%d", midx))
 	switch cursor.Kind() {

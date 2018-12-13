@@ -626,6 +626,9 @@ func (this *GenerateInline) genMethodHeader(clsctx *GenClassContext, cursor, par
 			this.cp.APf("main", "// since %s", funco.Since)
 		}
 	}
+	if cursor.Spelling() == "layoutChanged" && parent.Spelling() == "QAbstractItemModel" {
+		// log.Fatalln(found, funco == nil)
+	}
 
 	file, lineno, _, _ := cursor.Location().FileLocation()
 	this.cp.APf("main", "// %s:%d", fix_inc_name(file.Name()), lineno)
@@ -777,9 +780,16 @@ func (this *GenerateInline) genNonStaticMethod(clsctx *GenClassContext, cursor, 
 		if retset {
 			this.cp.APf("main", "  return (%s)((%s%s*)this_)->%s%s(%s);", retstr, pparentstr, parent.Type().Spelling(), withParentSelector, cursor.Spelling(), paramStr)
 		} else {
+			mthname := cursor.Spelling()
+			if strings.Contains(rety.Spelling(), "const_iterator") &&
+				funk.ContainsString([]string{"QCborArray", "QCborMap"}, parent.Type().Spelling()) {
+				if funk.ContainsString([]string{"begin", "end", "find"}, mthname) {
+					mthname = "const" + strings.Title(mthname)
+				}
+			}
 			autoand := gopp.IfElseStr(rety.Kind() == clang.Type_LValueReference, "auto&", "auto")
 			this.cp.APf("main", "  %s rv = ((%s%s*)this_)->%s%s(%s);",
-				autoand, pparentstr, parent.Type().Spelling(), withParentSelector, cursor.Spelling(), paramStr)
+				autoand, pparentstr, parent.Type().Spelling(), withParentSelector, mthname, paramStr)
 
 			if cancpobj {
 				unconstystr := strings.Replace(rety.Spelling(), "const ", "", 1)
@@ -967,6 +977,7 @@ func (this *GenerateInline) genArgs(cursor, parent clang.Cursor) {
 func (this *GenerateInline) genArg(cursor, parent clang.Cursor, idx int) {
 	// log.Println(cursor.DisplayName(), cursor.Type().Spelling(), cursor.Type().Kind() == clang.Type_LValueReference, this.mangler.convTo(parent))
 	csty := cursor.Type()
+	canty := cursor.Type().CanonicalType()
 	argName := this.genParamRefName(cursor, parent, idx)
 	if cursor.Type().Kind() == clang.Type_LValueReference {
 		// 转成指针
@@ -980,8 +991,7 @@ func (this *GenerateInline) genArg(cursor, parent clang.Cursor, idx int) {
 		if csty.Kind() == clang.Type_Record {
 			this.argDesc = append(this.argDesc, fmt.Sprintf("%s* %s", cursor.Type().Spelling(), argName))
 			this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("%s*", cursor.Type().Spelling()))
-		} else if csty.Kind() == clang.Type_LValueReference &&
-			csty.PointeeType().Kind() == clang.Type_Record {
+		} else if csty.Kind() == clang.Type_LValueReference && csty.PointeeType().Kind() == clang.Type_Record {
 			if csty.PointeeType().NumTemplateArguments() > 0 {
 				this.argDesc = append(this.argDesc, fmt.Sprintf("%s* %s", csty.PointeeType().Spelling(), argName))
 				this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("%s*", csty.PointeeType().Spelling()))
@@ -997,9 +1007,12 @@ func (this *GenerateInline) genArg(cursor, parent clang.Cursor, idx int) {
 			this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("%s*", csty.PointeeType().Declaration().Type().Spelling()))
 		} else if TypeIsFuncPointer(cursor.Type()) {
 			this.argDesc = append(this.argDesc,
-				strings.Replace(cursor.Type().Spelling(), "(*)",
-					fmt.Sprintf("(*%s)", argName), 1))
+				strings.Replace(cursor.Type().Spelling(), "(*)", fmt.Sprintf("(*%s)", argName), 1))
 			this.argtyDesc = append(this.argtyDesc, cursor.Type().Spelling())
+			// } else if TypeIsFuncPointer(canty) {
+			// 	this.argDesc = append(this.argDesc,
+			// 		strings.Replace(canty.Spelling(), "(*)", fmt.Sprintf("(*%s)", argName), 1))
+			// 	this.argtyDesc = append(this.argtyDesc, cursor.Type().Spelling())
 		} else if TypeIsCharPtrPtr(cursor.Type()) {
 			this.argDesc = append(this.argDesc, fmt.Sprintf("char** %s", argName))
 			this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("char**"))
@@ -1026,11 +1039,24 @@ func (this *GenerateInline) genArg(cursor, parent clang.Cursor, idx int) {
 			// idx := strings.Index(cursor.Type().Spelling(), " [")
 			// this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s %s",
 			//	cursor.Type().Spelling()[0:idx], cursor.Spelling(), cursor.Type().Spelling()[idx+1:]))
+		} else if csty.Kind() == clang.Type_Elaborated && strings.HasPrefix(canty.Spelling(), "Qt::") &&
+			!strings.HasPrefix(cursor.Type().Spelling(), "Qt::") {
+			// for argty like DropActions::enum_type f1
+			argDesc := fmt.Sprintf("Qt::%s %s", cursor.Type().Spelling(), argName)
+			this.argDesc = append(this.argDesc, argDesc)
+			argtyDesc := fmt.Sprintf("%s", cursor.Type().Spelling())
+			this.argtyDesc = append(this.argtyDesc, argtyDesc)
+		} else if strings.Contains(csty.Spelling(), "std::initializer") ||
+			strings.Contains(csty.Spelling(), "std::function") {
+			argDesc := fmt.Sprintf("%s %s", canty.Spelling(), argName)
+			this.argDesc = append(this.argDesc, argDesc)
+			argtyDesc := fmt.Sprintf("%s", canty.Spelling())
+			this.argtyDesc = append(this.argtyDesc, argtyDesc)
 		} else {
-			this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s",
-				cursor.Type().Spelling(), argName))
-			this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("%s",
-				cursor.Type().Spelling()))
+			argDesc := fmt.Sprintf("%s %s", cursor.Type().Spelling(), argName)
+			this.argDesc = append(this.argDesc, argDesc)
+			argtyDesc := fmt.Sprintf("%s", cursor.Type().Spelling())
+			this.argtyDesc = append(this.argtyDesc, argtyDesc)
 		}
 	}
 }
@@ -1225,6 +1251,10 @@ func (this *GenerateInline) genFunction(cursor clang.Cursor, olidx int) {
 	argStr := strings.Join(this.argDesc, ", ")
 	this.genParams(cursor, cursor.SemanticParent())
 	paramStr := strings.Join(this.paramDesc, ", ")
+
+	if strings.Contains(argStr, "DropActions::enum_type") {
+		// log.Fatalln(cursor.DisplayName(), cursor.Spelling(), argStr, paramStr)
+	}
 
 	retstr := "void"
 	retset := false

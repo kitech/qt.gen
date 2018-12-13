@@ -245,7 +245,7 @@ func (this *GenFilterBase) skipArg(cursor, parent clang.Cursor) bool {
 func (this *GenFilterBase) skipArgImpl(cursor, parent clang.Cursor) int {
 	// C_ZN16QCoreApplication11aboutToQuitENS_14QPrivateSignalE(void *this_, QCoreApplication::QPrivateSignal a0)
 	argTyBare := get_bare_type(cursor.Type())
-	// log.Println(cursor.DisplayName(), cursor.DisplayName(), cursor.Type().Spelling(), is_qt_private_class(argTyBare.Declaration()), argTyBare.Spelling())
+	log.Println(cursor.DisplayName(), cursor.DisplayName(), cursor.Type().Spelling(), is_qt_private_class(argTyBare.Declaration()), argTyBare.Spelling())
 	if strings.Contains(argTyBare.Spelling(), "QPrivate") {
 		return 1
 	}
@@ -301,9 +301,12 @@ func (this *GenFilterBase) skipArgImpl(cursor, parent clang.Cursor) int {
 	if cursor.Type().Spelling() == "void (*)(void *)" {
 		return 9
 	}
+	if strings.HasPrefix(cursor.Type().Spelling(), "std::function") {
+		return 10
+	}
 
 	if this.skipType(cursor.Type(), cursor) {
-		return 10
+		return 11
 	}
 
 	return 0
@@ -559,11 +562,25 @@ func (this *GenFilterBase2) skipMethodImpl(cursor, parent clang.Cursor) int {
 		}
 	}
 
+	//
+	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
+		if this.skipArg(cursor.Argument(uint32(idx)), cursor) {
+			return 10
+		}
+	}
+
 	return 0
 }
 
 func (this *GenFilterBase2) skipArg(cursor, parent clang.Cursor) bool {
-	return false
+	skipn := this.skipArgImpl(cursor, parent)
+	return skipn > 0
+}
+func (this *GenFilterBase2) skipArgImpl(cursor, parent clang.Cursor) int {
+	if strings.Contains(cursor.Type().Spelling(), "std::function") {
+		// return 10
+	}
+	return 0
 }
 func (this *GenFilterBase2) skipFunc(cursor clang.Cursor) bool {
 	// _helper结尾的函数，基本算是内部函数，不同qt版本间变动比较大，大概有10个

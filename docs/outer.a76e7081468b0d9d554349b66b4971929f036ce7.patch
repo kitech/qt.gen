@@ -1,0 +1,60 @@
+diff --git a/internal/binding/parser/class.go b/internal/binding/parser/class.go
+index 909d36a6..cb9dc6d8 100644
+--- a/internal/binding/parser/class.go
++++ b/internal/binding/parser/class.go
+@@ -61,6 +61,9 @@ func (c *Class) derivation() {
+ }
+ 
+ func (c *Class) GetBases() []string {
++	if c == nil {
++		return make([]string, 0)
++	}
+ 	if c.Bases == "" {
+ 		return make([]string, 0)
+ 	}
+diff --git a/internal/binding/parser/function.go b/internal/binding/parser/function.go
+index 9f7be27d..2ee475a8 100644
+--- a/internal/binding/parser/function.go
++++ b/internal/binding/parser/function.go
+@@ -47,6 +47,7 @@ type Function struct {
+ type Parameter struct {
+ 	Name       string `xml:"name,attr"`
+ 	Value      string `xml:"left,attr"`
++	Value2     string `xml:"type,attr"`
+ 	Right      string `xml:"right,attr"`
+ 	Default    string `xml:"default,attr"`
+ 	PureGoType string
+diff --git a/internal/binding/parser/helper.go b/internal/binding/parser/helper.go
+index 8820ad45..f1d3b968 100644
+--- a/internal/binding/parser/helper.go
++++ b/internal/binding/parser/helper.go
+@@ -503,6 +503,7 @@ func SortedClassesForModule(module string, template bool) []*Class {
+ 		classNames = SortedClassNamesForModule(module, template)
+ 		output     = make([]*Class, len(classNames))
+ 	)
++
+ 	for i, name := range classNames {
+ 		output[i] = State.ClassMap[name]
+ 	}
+diff --git a/internal/binding/templater/helper.go b/internal/binding/templater/helper.go
+index 81a90c69..fdb5a4d8 100644
+--- a/internal/binding/templater/helper.go
++++ b/internal/binding/templater/helper.go
+@@ -7,6 +7,9 @@ import (
+ 	"github.com/therecipe/qt/internal/utils"
+ )
+ 
++func HasUnimplementedPureVirtualFunctions(className string) bool {
++	return hasUnimplementedPureVirtualFunctions(className)
++}
+ func hasUnimplementedPureVirtualFunctions(className string) bool {
+ 	for _, f := range parser.State.ClassMap[className].Functions {
+ 
+@@ -23,6 +26,7 @@ func hasUnimplementedPureVirtualFunctions(className string) bool {
+ 	return false
+ }
+ 
++func GoModule(module string) string { return goModule(module) }
+ func goModule(module string) string {
+ 	return strings.ToLower(strings.TrimPrefix(module, "Qt"))
+ }

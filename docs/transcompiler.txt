@@ -1,3 +1,25 @@
 
 CanonicalType():
     可用于typedef
+
+
+
+# TO C Language
+### *this_ 全部在proto中使用 void*
+### & 引用参数，转成指针类型
+### return RECORD, 转成指针类型
+### 如果参数为RECORD，或者RECORAD引用，考虑采用打包成某一个或者多个uint64来处理。需要一个打包解包处理。包方式为，len(1B), data。好像也不行，像QString，数据长度肯定是不固定的，数据不在类里面，有可能是指针。POD类型？
+### TODO
+* [ ] 函数参数的处理
+* [ ] iterator => const_iterator问题 
+
+# TO Go Language
+### types
+char** => []string
+uchar* => []byte
+RValue => ???
+类内类：=> ???
+
+### todos
+
+
