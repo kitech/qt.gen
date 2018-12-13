@@ -444,6 +444,10 @@ func TypeIsPtr(ty clang.Type) bool { return ty.Kind() == clang.Type_Pointer }
 func TypeIsIntPtr(ty clang.Type) bool {
 	return ty.Kind() == clang.Type_Pointer && ty.PointeeType().Kind() == clang.Type_Int
 }
+func TypeIsIter(ty clang.Type) bool {
+	return strings.Contains(ty.Spelling(), "::") &&
+		strings.Contains(strings.ToLower(ty.Spelling()), "iterator")
+}
 
 func TypeIsQFlags(ty clang.Type) bool {
 	if ty.Kind() == clang.Type_Typedef &&

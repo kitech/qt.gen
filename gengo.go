@@ -1398,8 +1398,9 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 	switch rety.Kind() {
 	case clang.Type_Void:
 	case clang.Type_Int, clang.Type_UInt, clang.Type_Long, clang.Type_ULong,
-		clang.Type_Short, clang.Type_UShort, clang.Type_Char_S, clang.Type_Char_U,
-		clang.Type_Float, clang.Type_Double, clang.Type_UChar:
+		clang.Type_Short, clang.Type_UShort,
+		clang.Type_Char_S, clang.Type_Char_U, clang.Type_UChar,
+		clang.Type_Float, clang.Type_Double, clang.Type_LongDouble:
 		this.cp.APf("body", "    return qtrt.Cretval2go(\"%s\", rv).(%s) // 1111",
 			this.tyconver.toDest(rety, cursor), this.tyconver.toDest(rety, cursor))
 		// this.cp.APf("body", "    return %s(rv) // 111", this.tyconver.toDest(rety, cursor))
@@ -1409,13 +1410,14 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 		} else if is_qt_class(rety.CanonicalType()) &&
 			(rety.Spelling() == "QObjectList" || rety.Spelling() == "QModelIndexList" ||
 				rety.Spelling() == "QFileInfoList" || rety.Spelling() == "QVariantList" ||
+				(TypeIsConsted(rety) && (strings.HasSuffix(rety.Spelling(), "QVariantList"))) ||
 				rety.Spelling() == "QWindowList" || rety.Spelling() == "QWidgetList" ||
 				rety.Spelling() == "QCameraFocusZoneList" || rety.Spelling() == "QMediaResourceList") {
 			if strings.HasPrefix(rety.Spelling(), "QWidget") || strings.HasPrefix(rety.Spelling(), "QGraphicsItem") {
 				pkgPrefix = "/*222*/"
 			}
 			this.cp.APf("body", "    rv2 := %sNew%sFromPointer(unsafe.Pointer(uintptr(rv))) //5551",
-				pkgPrefix, rety.Spelling())
+				pkgPrefix, gopp.IfElseStr(TypeIsConsted(rety), rety.Spelling()[6:], rety.Spelling()))
 			this.cp.APf("body", "    return rv2")
 		} else if is_qt_class(rety.CanonicalType()) {
 			this.cp.APf("body", "    rv2 := %sNew%sFromPointer(unsafe.Pointer(uintptr(rv))) //555",
@@ -1431,6 +1433,10 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 			this.cp.APf("body", "    return qtrt.GoStringI(rv)")
 			// TODO iterator is pointer, don't convert to string
 		} else if TypeIsPtr(rety.CanonicalType()) {
+			this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+		} else if TypeIsIter(rety.CanonicalType()) {
+			this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+		} else if strings.HasPrefix(this.tyconver.toDest(rety, cursor), "unsafe.Pointer") {
 			this.cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
 		} else {
 			this.cp.APf("body", "    return %s(rv) // 222", this.tyconver.toDest(rety, cursor))
@@ -1646,6 +1652,7 @@ func (this *GenerateGo) genClassEnums(cursor, parent clang.Cursor) {
 // enum一定要使用int类型，而不能用uint。注意-1值的处理
 func (this *GenerateGo) genEnumsGlobal(cursor, parent clang.Cursor) {
 	// log.Println("yyyyyyyy", cursor.DisplayName(), parent.DisplayName())
+	dedups := map[string]int{}
 	for _, enum := range this.enums {
 		if enum.DisplayName() == "" || enum.DisplayName() == "Uninitialized" ||
 			enum.DisplayName() == "timeout" || enum.DisplayName() == "deferred" ||
@@ -1653,6 +1660,10 @@ func (this *GenerateGo) genEnumsGlobal(cursor, parent clang.Cursor) {
 			enum.DisplayName() == "future_statu" || enum.DisplayName() == "launch" {
 			continue
 		}
+		if _, ok := dedups[enum.DisplayName()]; ok {
+			continue
+		}
+		dedups[enum.DisplayName()] = 1
 
 		comment := queryComment(enum, this.qtdir, this.qtver)
 		pcomment, elems := extractEnumElem(comment)
@@ -1666,10 +1677,14 @@ func (this *GenerateGo) genEnumsGlobal(cursor, parent clang.Cursor) {
 			switch c1.Kind() {
 			case clang.Cursor_EnumConstantDecl:
 				log.Println("yyyyyyyyy", c1.EnumConstantDeclValue(), c1.DisplayName(), p1.DisplayName(), cursor.DisplayName())
+				if _, ok := dedups[c1.DisplayName()]; ok {
+					break
+				}
+				dedups[c1.DisplayName()] = 1
+
 				this.cp.APUf("body", "// %s", elems[c1.DisplayName()])
 				this.cp.APUf("body", "const %s__%s %s__%s = %d",
-					"Qt", c1.DisplayName(),
-					"Qt", p1.DisplayName(),
+					"Qt", c1.DisplayName(), "Qt", p1.DisplayName(),
 					c1.EnumConstantDeclValue())
 			}
 
@@ -1856,6 +1871,7 @@ func (this *GenerateGo) genBareFunctionSignature(cursor, parent clang.Cursor, mi
 
 // TODO sperate to modules
 func (this *GenerateGo) genConstantsGlobal(cursor, parent clang.Cursor) {
+	dedups := map[string]int{}
 	for _, macro := range this.constants {
 		if strings.HasPrefix(macro.Spelling(), "_") {
 			continue
@@ -1871,6 +1887,11 @@ func (this *GenerateGo) genConstantsGlobal(cursor, parent clang.Cursor) {
 		if strings.ContainsAny(macroval, "()\\") {
 			continue
 		}
+		if _, ok := dedups[macro.Spelling()]; ok {
+			continue
+		}
+		dedups[macro.Spelling()] = 1
+
 		macroval = gopp.IfElseStr(strings.HasPrefix(macroty, "num"), strings.TrimRight(macroval, "ACDL"), macroval)
 
 		log.Println(qtmod, macro.Spelling(), macroval, macroty)

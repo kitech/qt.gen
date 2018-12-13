@@ -674,7 +674,9 @@ func (this *TypeConvertGo) toDest(ty clang.Type, cursor clang.Cursor) string {
 		}
 		return this.toDest(ty.CanonicalType(), cursor)
 	case clang.Type_Record:
-		if is_qt_class(ty) {
+		if strings.HasSuffix(ty.Spelling(), "QList<QVariant>") {
+			return "*qtcore.QVariantList" + "/*687*/"
+		} else if is_qt_class(ty) {
 			refmod := get_decl_mod(ty.Declaration())
 			usemod := get_decl_mod(cursor)
 			pkgPref := gopp.IfElseStr(refmod != usemod, fmt.Sprintf("qt%s.", refmod), "")

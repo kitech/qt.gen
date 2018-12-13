@@ -18,6 +18,7 @@ function help()
 
 function mvgosrc()
 {
+    mv -v ~/oss/qt.go/qtqml/qgolistmodel.go ~/oss/qt.go/qtqml/_qgolistmodel.go
     # ~/oss/qt.go/ must be a soft link of $GOPATH/src/github.com/kitech/qt.go/
     mkdir -p ~/oss/qt.go/{qt5,qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}
     rm -f ~/oss/qt.go/{qt5,qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}/q*.go
@@ -32,6 +33,8 @@ function mvgosrc()
     cp -a src/widgets/*.go ~/oss/qt.go/qtwidgets/
     cp -a src/network/*.go ~/oss/qt.go/qtnetwork/
     cp -a src/qml/*.go ~/oss/qt.go/qtqml/
+    mv -v ~/oss/qt.go/qtqml/_qgolistmodel.go ~/oss/qt.go/qtqml/qgolistmodel.go
+
     cp -a src/quick/*.go ~/oss/qt.go/qtquick/
     cp -a src/quickcontrols2/*.go ~/oss/qt.go/qtquickcontrols2/
     cp -a src/quickwidgets/*.go ~/oss/qt.go/qtquickwidgets/
