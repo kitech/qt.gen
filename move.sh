@@ -137,6 +137,8 @@ function mvrssrc()
     # rm -f ~/oss/qt.rs/src/{core,gui,widgets,network,qml,quick}/q*.rs
 
     mvbymd5 rs src/core ~/oss/qt.rs/src/core
+    mvbymd5 rs src/gui ~/oss/qt.rs/src/gui
+    mvbymd5 rs src/widgets ~/oss/qt.rs/src/widgets
     # cp -a src/core/*.rs ~/oss/qt.rs/src/core/
     #cp -a src/gui/*.rs ~/oss/qt.rs/src/gui/
     #cp -a src/widgets/*.rs ~/oss/qt.rs/src/widgets/

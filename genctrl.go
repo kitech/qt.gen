@@ -515,7 +515,7 @@ func (this *GenCtrl) collectClasses() {
 		var gg *GenerateRs = this.modlstgen.(*GenerateRs)
 		for modname, cp := range gg.cpcs {
 			log.Println(modname, cp.TotolLine(), cp.TotolLength())
-			gg.saveCodeToFileWithCode(modname, "mod", cp.ExportAll())
+			gg.saveCodeToFileWithCode(modname, "lib", cp.ExportAll())
 		}
 	} else if genLang == "jl" {
 	} else if genLang == "cr" {

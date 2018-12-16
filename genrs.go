@@ -263,11 +263,11 @@ func (this *GenerateRs) genImports(cursor, parent clang.Cursor) {
 	this.cp.APf("ext", "// import \"github.com/kitech/qt.go/qtrt\"")
 	for _, dep := range modDeps[modname] {
 		this.cp.APf("ext", "// import \"github.com/kitech/qt.go/qt%s\"", dep)
-		this.cp.APf("ext", "use super::super::%s::*;", dep)
+		this.cp.APf("ext", "use qt%s::*; // super::super::%s::*;", dep)
 	}
 	this.cp.APf("ext", "use std::default::Default;")
 	this.cp.APf("ext", "use std::ops::Deref;")
-	this.cp.APf("ext", "use super::super::qtrt;")
+	this.cp.APf("ext", "use qtrt; // super::super::qtrt;")
 	this.cp.APf("ext", "use super::*;")
 
 	// this.cp.APf("keep", "")
@@ -1237,14 +1237,14 @@ func (this *GenerateRs) genParamsForCall(cursor, parent clang.Cursor) (argv []st
 		tyname := getTyDesc(argn.Type(), AsRsCallFFITy, argn)
 		argv = append(argv, fmt.Sprintf("qtrt::FFITY_%s", tyname))
 	}
-	for i := cursor.NumArguments(); i < 15; i++ {
+	for i := cursor.NumArguments(); i < 16; i++ {
 		argv = append(argv, "0")
 	}
 
 	for i := int32(0); i < cursor.NumArguments(); i++ {
 		argv = append(argv, fmt.Sprintf("arg%d", i))
 	}
-	for i := cursor.NumArguments(); i < 15; i++ {
+	for i := cursor.NumArguments(); i < 16; i++ {
 		_ = i
 		argv = append(argv, fmt.Sprintf("0"))
 	}
