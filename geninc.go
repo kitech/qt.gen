@@ -122,8 +122,10 @@ func (this *GenerateInline) genFileHeader(clsctx *GenClassContext, cursor, paren
 
 	fullModname := filepath.Base(filepath.Dir(file.Name()))
 	ftpath := strings.ToLower(fmt.Sprintf("%s/%s", fullModname, filepath.Base(file.Name())))
-	if _, ok := clts.qtreqcfgs[ftpath]; ok {
+	if featname, ok := clts.qtreqcfgs[ftpath]; ok {
 		this.cp.APf("header", "#ifndef QT_MINIMAL")
+		this.cp.APf("header", "#if QT_CONFIG(%s)", featname)
+		this.cp.APf("footer", "#endif // #if QT_CONFIG(%s)", featname)
 		this.cp.APf("footer", "#endif // #ifndef QT_MINIMAL")
 	}
 
@@ -771,6 +773,11 @@ func (this *GenerateInline) genNonStaticMethod(clsctx *GenClassContext, cursor, 
 	if found && funco.Since != "" {
 		this.cp.APf("main", "#if QT_VERSION >= %s", sinceVer2Hex(funco.Since))
 	}
+
+	if featname := is_feated_method(cursor); featname != "" {
+		this.cp.APf("main", "#if QT_CONFIG(%s)", featname)
+	}
+
 	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
 	this.cp.APf("main", "%s %s(void *this_%s) {", retstr, this.mangler.convTo(cursor), argStr)
 	log.Println(rety.Spelling(), rety.Declaration().Spelling(), rety.IsPODType())
@@ -814,6 +821,11 @@ func (this *GenerateInline) genNonStaticMethod(clsctx *GenClassContext, cursor, 
 		}
 	}
 	this.cp.APf("main", "}")
+
+	if featname := is_feated_method(cursor); featname != "" {
+		this.cp.APf("main", "#endif // QT_CONFIG(%s)", featname)
+	}
+
 	if found && funco.Since != "" {
 		this.cp.APf("main", "#endif // QT_VERSION >= %s", sinceVer2Hex(funco.Since))
 	}
@@ -863,6 +875,11 @@ func (this *GenerateInline) genStaticMethod(clsctx *GenClassContext, cursor, par
 	if found && funco.Since != "" {
 		this.cp.APf("main", "#if QT_VERSION >= %s", sinceVer2Hex(funco.Since))
 	}
+
+	if featname := is_feated_method(cursor); featname != "" {
+		this.cp.APf("main", "#if QT_CONFIG(%s)", featname)
+	}
+
 	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
 	this.cp.APf("main", "%s %s(%s) {", retstr, this.mangler.convTo(cursor), argStr)
 	if cursor.ResultType().Kind() == clang.Type_Void {
@@ -895,6 +912,11 @@ func (this *GenerateInline) genStaticMethod(clsctx *GenClassContext, cursor, par
 		}
 	}
 	this.cp.APf("main", "}")
+
+	if featname := is_feated_method(cursor); featname != "" {
+		this.cp.APf("main", "#endif // QT_CONFIG(%s)", featname)
+	}
+
 	if found && funco.Since != "" {
 		this.cp.APf("main", "#endif // QT_VERSION >= %s", sinceVer2Hex(funco.Since))
 	}

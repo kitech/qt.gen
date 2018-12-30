@@ -482,7 +482,11 @@ func (this *GenCtrl) collectClasses() {
 				fbname := strings.Split(filepath.Base(srcfile), ":")[0]
 				fbmod := filepath.Base(filepath.Dir(srcfile))
 				fbpath := strings.ToLower(fmt.Sprintf("%s/%s", fbmod, fbname))
-				clts.qtreqcfgs[fbpath] = 1
+
+				csline := readCursorLine(cursor)
+				featname := strings.Trim(csline[len(cursor.Spelling()):], "();")
+				clts.qtreqcfgs[fbpath] = featname
+
 			}
 			// case clang.Cursor_MacroInstantiation:
 		}
@@ -559,7 +563,7 @@ type collects struct {
 	funcParents map[string]int // got 11 elements
 
 	macroExpands map[string][]clang.Cursor // file name => macro explan, and clang.Cursor_CXXAccessSpecifier
-	qtreqcfgs    map[string]int            // file name QtWidgets/qdialog.h =>
+	qtreqcfgs    map[string]string         // file name QtWidgets/qdialog.h => feature name
 }
 
 var clts = &collects{funcParents: map[string]int{}}
@@ -567,7 +571,7 @@ var clts = &collects{funcParents: map[string]int{}}
 func init() {
 	clts.ClassSizeMap = map[int64]int{}
 	clts.macroExpands = map[string][]clang.Cursor{}
-	clts.qtreqcfgs = map[string]int{}
+	clts.qtreqcfgs = map[string]string{}
 }
 func (this *collects) addClassSize(sz int64) {
 	if sz <= 256 {

@@ -415,6 +415,20 @@ func is_qstring_cls(retPlace string) bool {
 	return false
 }
 
+func is_feated_method(c clang.Cursor) string {
+	feated := map[string]string{
+		"dtlsCookieVerificationEnabled":    "dtls",
+		"setDtlsCookieVerificationEnabled": "dtls",
+		"defaultDtlsConfiguration":         "dtls",
+		"setDefaultDtlsConfiguration":      "dtls",
+	}
+
+	if featname, ok := feated[c.Spelling()]; ok {
+		return featname
+	}
+	return ""
+}
+
 func FuncHasLongDoubleArg(c clang.Cursor) bool {
 	for i := int32(0); i < c.NumArguments(); i++ {
 		if c.Argument(uint32(i)).Type().Kind() == clang.Type_LongDouble {
@@ -500,15 +514,16 @@ func rewriteOperatorMethodName(name string) string {
 	return valiname
 }
 
+///
 var fileCache = map[string]*os.File{}
 
-func readSourceRange(sr clang.SourceRange) (string, string) {
+func readSourceRange(sr clang.SourceRange) string {
 	bfp, blineno, bcol, boffset := sr.Start().ExpansionLocation()
 	efp, elineno, ecol, eoffset := sr.End().ExpansionLocation()
 	log.Println(bfp.Name(), efp.Name(), len(bfp.Name()), len(efp.Name()), blineno, bcol, boffset, elineno, ecol, eoffset)
 
 	if bfp.Name() == "" {
-		return "", ""
+		return ""
 	}
 	if bfp.Name() != efp.Name() {
 		log.Fatalln("wtf", bfp.Name())
@@ -529,9 +544,14 @@ func readSourceRange(sr clang.SourceRange) (string, string) {
 
 	fph.Seek(int64(boffset), os.SEEK_SET)
 	var buf = make([]byte, eoffset-boffset)
-	n, err := fph.ReadAt(buf, int64(boffset))
-	gopp.ErrPrint(err, n, boffset, eoffset)
-	spelling := string(buf[:n])
+	rn, err := fph.ReadAt(buf, int64(boffset))
+	gopp.ErrPrint(err, rn, boffset, eoffset)
+	spelling := string(buf[:rn])
+	return spelling
+}
+
+func readDefineRange(sr clang.SourceRange) (string, string) {
+	spelling := readSourceRange(sr)
 	pos := strings.Index(spelling, " ")
 	macroval := gopp.IfElseStr(pos > 0, spelling[pos+1:], "")
 	if len(macroval) > 0 {
@@ -543,7 +563,7 @@ func readSourceRange(sr clang.SourceRange) (string, string) {
 		} else if gopp.IsNumberic(macroval) {
 			macroty = "num10"
 		}
-		log.Println(bfp.Name(), n, spelling, len(macroval), macroval, macroty)
+		log.Println(spelling, len(macroval), macroval, macroty)
 		if macroty != "" {
 			return macroval, macroty
 		}
@@ -626,6 +646,23 @@ func getOrOpenCursorFile(c clang.Cursor) *os.File {
 		log.Fatalln("wtf", bfp.Name(), c.Spelling())
 	}
 	return fph
+}
+
+func readCursorLine(c clang.Cursor) string {
+	fph := getOrOpenCursorFile(c)
+	if fph == nil {
+		log.Fatalln("wtf", c)
+	}
+
+	_, _, _, offset := c.Location().FileLocation()
+	fph.Seek(int64(offset), os.SEEK_SET)
+	buf := make([]byte, 1024)
+	rn, err := fph.Read(buf)
+	gopp.ErrPrint(err, offset)
+	if err != nil {
+		return ""
+	}
+	return strings.Split(string(buf[:rn]), "\n")[0]
 }
 
 // support class/method/function cursor

@@ -2091,7 +2091,7 @@ func (this *GenerateRs) genConstantsGlobal(cursor, parent clang.Cursor) {
 		if qtmod == "stdglobal" {
 			continue
 		}
-		macroval, macroty := readSourceRange(macro.Extent())
+		macroval, macroty := readDefineRange(macro.Extent())
 		if macroty == "" {
 			continue
 		}
