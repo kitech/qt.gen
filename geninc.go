@@ -124,6 +124,8 @@ func (this *GenerateInline) genFileHeader(clsctx *GenClassContext, cursor, paren
 	ftpath := strings.ToLower(fmt.Sprintf("%s/%s", fullModname, filepath.Base(file.Name())))
 	if featname, ok := clts.qtreqcfgs[ftpath]; ok {
 		this.cp.APf("header", "#ifndef QT_MINIMAL")
+		this.cp.APf("header", "#include <%s/%sglobal.h>",
+			fullModname, gopp.IfElseStr(fullModname == "QtCore", "q", strings.ToLower(fullModname)))
 		this.cp.APf("header", "#if QT_CONFIG(%s)", featname)
 		this.cp.APf("footer", "#endif // #if QT_CONFIG(%s)", featname)
 		this.cp.APf("footer", "#endif // #ifndef QT_MINIMAL")
