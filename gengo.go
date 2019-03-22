@@ -793,8 +793,12 @@ func (this *GenerateGo) genNonStaticMethod(cursor, parent clang.Cursor, midx int
 	paramStr := strings.Join(this.paramDesc, ", ")
 	_ = paramStr
 
+	if cursor.IsVariadic() && cursor.NumArguments() > 0 {
+	}
 	this.genMethodHeader(cursor, parent, midx)
 	this.genMethodSignature(cursor, parent, midx)
+	if cursor.IsVariadic() && cursor.NumArguments() > 0 {
+	}
 
 	this.genArgsConvFFI(cursor, parent, midx)
 
@@ -880,8 +884,13 @@ func (this *GenerateGo) genStaticMethod(cursor, parent clang.Cursor, midx int) {
 	this.genParamsFFI(cursor, parent)
 	paramStr := strings.Join(this.paramDesc, ", ")
 
+	if cursor.IsVariadic() && cursor.NumArguments() > 0 {
+	}
 	this.genMethodHeader(cursor, parent, midx)
 	this.genMethodSignature(cursor, parent, midx)
+	if cursor.IsVariadic() && cursor.NumArguments() > 0 {
+	}
+
 	this.genArgsConvFFI(cursor, parent, midx)
 
 	this.cp.APf("body", "    rv, err := qtrt.InvokeQtFunc6(\"%s\", qtrt.FFI_TYPE_POINTER, %s)",

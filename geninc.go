@@ -780,11 +780,21 @@ func (this *GenerateInline) genNonStaticMethod(clsctx *GenClassContext, cursor, 
 		this.cp.APf("main", "#if QT_CONFIG(%s)", featname)
 	}
 
+	vaargstr := ""
+	vaprmstr := ""
+	if cursor.IsVariadic() && cursor.NumArguments() > 0 {
+		for i := 0; i < 10; i++ {
+			vaargstr += fmt.Sprintf(",void*a%d ", i)
+			vaprmstr += fmt.Sprintf(",a%d ", i)
+		}
+	}
 	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
-	this.cp.APf("main", "%s %s(void *this_%s) {", retstr, this.mangler.convTo(cursor), argStr)
+	this.cp.APf("main", "%s %s(void *this_%s%s) {", retstr, this.mangler.convTo(cursor), argStr, vaargstr)
 	log.Println(rety.Spelling(), rety.Declaration().Spelling(), rety.IsPODType())
+
 	if cursor.ResultType().Kind() == clang.Type_Void {
-		this.cp.APf("main", "  ((%s%s*)this_)->%s%s(%s);", pparentstr, parent.Type().Spelling(), withParentSelector, cursor.Spelling(), paramStr)
+		this.cp.APf("main", "  ((%s%s*)this_)->%s%s(%s%s);", pparentstr, parent.Type().Spelling(),
+			withParentSelector, cursor.Spelling(), paramStr, vaprmstr)
 	} else {
 		if retset {
 			this.cp.APf("main", "  return (%s)((%s%s*)this_)->%s%s(%s);", retstr, pparentstr, parent.Type().Spelling(), withParentSelector, cursor.Spelling(), paramStr)
@@ -797,8 +807,8 @@ func (this *GenerateInline) genNonStaticMethod(clsctx *GenClassContext, cursor, 
 				}
 			}
 			autoand := gopp.IfElseStr(rety.Kind() == clang.Type_LValueReference, "auto&", "auto")
-			this.cp.APf("main", "  %s rv = ((%s%s*)this_)->%s%s(%s);",
-				autoand, pparentstr, parent.Type().Spelling(), withParentSelector, mthname, paramStr)
+			this.cp.APf("main", "  %s rv = ((%s%s*)this_)->%s%s(%s%s);",
+				autoand, pparentstr, parent.Type().Spelling(), withParentSelector, mthname, paramStr, vaprmstr)
 
 			if cancpobj {
 				unconstystr := strings.Replace(rety.Spelling(), "const ", "", 1)
@@ -882,18 +892,28 @@ func (this *GenerateInline) genStaticMethod(clsctx *GenClassContext, cursor, par
 		this.cp.APf("main", "#if QT_CONFIG(%s)", featname)
 	}
 
+	vaargstr := ""
+	vaprmstr := ""
+	if cursor.IsVariadic() && cursor.NumArguments() > 0 {
+		for i := 0; i < 10; i++ {
+			vaargstr += fmt.Sprintf(",void*a%d ", i)
+			vaprmstr += fmt.Sprintf(",a%d ", i)
+		}
+	}
 	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
-	this.cp.APf("main", "%s %s(%s) {", retstr, this.mangler.convTo(cursor), argStr)
+	this.cp.APf("main", "%s %s(%s%s) {", retstr, this.mangler.convTo(cursor), argStr, vaargstr)
+
 	if cursor.ResultType().Kind() == clang.Type_Void {
-		this.cp.APf("main", "  %s%s::%s(%s);", pparentstr, parent.Type().Spelling(), cursor.Spelling(), paramStr)
+		this.cp.APf("main", "  %s%s::%s(%s%s);",
+			pparentstr, parent.Type().Spelling(), cursor.Spelling(), paramStr, vaprmstr)
 	} else {
 		if retset {
 			this.cp.APf("main", "  return (%s)%s%s::%s(%s);", retstr, pparentstr, parent.Type().Spelling(), cursor.Spelling(), paramStr)
 		} else {
 			// this.cp.APf("main", "  /*return*/ %s%s::%s(%s);", pparentstr, parent.Spelling(), cursor.Spelling(), paramStr)
 			autoand := gopp.IfElseStr(rety.Kind() == clang.Type_LValueReference, "auto&", "auto")
-			this.cp.APf("main", "  %s rv = %s%s::%s(%s);",
-				autoand, pparentstr, parent.Type().Spelling(), cursor.Spelling(), paramStr)
+			this.cp.APf("main", "  %s rv = %s%s::%s(%s%s);",
+				autoand, pparentstr, parent.Type().Spelling(), cursor.Spelling(), paramStr, vaprmstr)
 
 			if cancpobj {
 				unconstystr := strings.Replace(rety.Spelling(), "const ", "", 1)
@@ -1310,17 +1330,27 @@ func (this *GenerateInline) genFunction(cursor clang.Cursor, olidx int) {
 	overloadSuffix := gopp.IfElseStr(olidx == 0, "", fmt.Sprintf("_%d", olidx))
 	clsctx := &GenClassContext{}
 	this.genMethodHeader(clsctx, cursor, cursor.SemanticParent())
+
+	vaargstr := ""
+	vaprmstr := ""
+	if cursor.IsVariadic() && cursor.NumArguments() > 0 {
+		for i := 0; i < 10; i++ {
+			vaargstr += fmt.Sprintf(",void*a%d ", i)
+			vaprmstr += fmt.Sprintf(",a%d ", i)
+		}
+	}
+
 	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
-	this.cp.APf("main", "%s %s%s(%s) {", retstr,
-		this.mangler.convTo(cursor), overloadSuffix, argStr)
+	this.cp.APf("main", "%s %s%s(%s%s) {", retstr,
+		this.mangler.convTo(cursor), overloadSuffix, argStr, vaargstr)
 	if rety.Kind() == clang.Type_Void {
-		this.cp.APf("main", "  %s%s(%s);", nsfix, cursor.Spelling(), paramStr)
+		this.cp.APf("main", "  %s%s(%s%s);", nsfix, cursor.Spelling(), paramStr, vaprmstr)
 	} else {
 		if retset {
 			this.cp.APf("main", "  return (%s)%s%s(%s);", retstr, nsfix, cursor.Spelling(), paramStr)
 		} else {
 			autoand := gopp.IfElseStr(rety.Kind() == clang.Type_LValueReference, "auto&", "auto")
-			this.cp.APf("main", "  %s rv = %s%s(%s);", autoand, nsfix, cursor.Spelling(), paramStr)
+			this.cp.APf("main", "  %s rv = %s%s(%s%s);", autoand, nsfix, cursor.Spelling(), paramStr, vaprmstr)
 
 			if cancpobj {
 				unconstystr := strings.Replace(rety.Spelling(), "const ", "", 1)
