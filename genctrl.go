@@ -487,6 +487,33 @@ func (this *GenCtrl) collectClasses() {
 				featname := strings.Trim(csline[len(cursor.Spelling()):], "();")
 				clts.qtreqcfgs[fbpath] = featname
 
+			} else if strings.Contains(cursor.Spelling(), "QT_CONFIG") {
+				ctxval := 0
+				blineno, elineno := readCursorAfterLines(cursor, &ctxval, func(line string, ctx interface{}) bool {
+					valp := ctx.(*int)
+					if strings.HasPrefix(line, "#if ") {
+						*valp = *valp + 1
+						return false
+					}
+					if line == "#endif" || strings.HasPrefix(line, "#endif //") {
+						if *valp > 0 {
+							*valp = *valp - 1
+							return false
+						} else {
+							return true
+						}
+					}
+					return false
+				})
+				log.Println(cursor.Spelling(), cursor.LexicalParent().Spelling(),
+					get_decl_loc(cursor), readSourceRange(cursor.Extent()), blineno, elineno)
+
+				srcfile := get_decl_loc(cursor)
+				fbname := strings.Split(filepath.Base(srcfile), ":")[0]
+				fbmod := filepath.Base(filepath.Dir(srcfile))
+				fbpath := strings.ToLower(fmt.Sprintf("%s/%s", fbmod, fbname))
+
+				clts.qtcfgexps[fbpath] = append(clts.qtcfgexps[fbpath], &LineRange{blineno, elineno})
 			}
 			// case clang.Cursor_MacroInstantiation:
 		}
@@ -564,6 +591,7 @@ type collects struct {
 
 	macroExpands map[string][]clang.Cursor // file name => macro explan, and clang.Cursor_CXXAccessSpecifier
 	qtreqcfgs    map[string]string         // file name QtWidgets/qdialog.h => feature name
+	qtcfgexps    map[string][]*LineRange   // file name QtWidgets/qdialog.h =>
 }
 
 var clts = &collects{funcParents: map[string]int{}}
@@ -572,6 +600,7 @@ func init() {
 	clts.ClassSizeMap = map[int64]int{}
 	clts.macroExpands = map[string][]clang.Cursor{}
 	clts.qtreqcfgs = map[string]string{}
+	clts.qtcfgexps = map[string][]*LineRange{}
 }
 func (this *collects) addClassSize(sz int64) {
 	if sz <= 256 {

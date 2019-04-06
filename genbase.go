@@ -55,6 +55,7 @@ type GenBase struct {
 	isDeletedClass      bool
 	hasProjectedDtor    bool
 	hasExplictDtor      bool
+	hasNominMethod      bool
 
 	funcMangles map[string]int
 
@@ -73,6 +74,8 @@ type GenBase struct {
 	_argDesc4   []string
 	_paramDesc4 []string
 	_argtyDesc4 []string
+
+	clsidx int
 }
 
 // 这个是全局的，不能放在类内吧
@@ -163,4 +166,10 @@ func (this *GenBase) getIncNameByMod(mod string) string {
 		}
 	}
 	return ""
+}
+
+func (this *GenBase) nextclsidx() int {
+	this.clsidx = gopp.IfElseInt(this.clsidx == 0, 10000, this.clsidx)
+	this.clsidx += 1
+	return this.clsidx
 }

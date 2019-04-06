@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"gopp"
 	"log"
@@ -663,6 +664,51 @@ func readCursorLine(c clang.Cursor) string {
 		return ""
 	}
 	return strings.Split(string(buf[:rn]), "\n")[0]
+}
+
+type LineRange struct {
+	Begin uint32
+	End   uint32
+}
+
+func iscursorinLineRange(c clang.Cursor, lr *LineRange) bool {
+	_, lineno, _, _ := c.Location().FileLocation()
+	return lineno > lr.Begin && lineno < lr.End
+}
+
+func iscursorinLineRanges(c clang.Cursor, lrs []*LineRange) bool {
+	for _, lr := range lrs {
+		if iscursorinLineRange(c, lr) {
+			return true
+		}
+	}
+	return false
+}
+
+// for search #endif
+// stopfn: return true for stop
+func readCursorAfterLines(c clang.Cursor, ctx interface{}, stopfn func(line string, ctx interface{}) bool) (blineno, elineno uint32) {
+	fph := getOrOpenCursorFile(c)
+	if fph == nil {
+		log.Fatalln("wtf", c)
+	}
+
+	_, lineno, _, offset := c.Location().FileLocation()
+	fph.Seek(int64(offset), os.SEEK_SET)
+	rd := bufio.NewReader(fph)
+	blineno = lineno
+	elineno = lineno
+	for {
+		line, _, err := rd.ReadLine()
+		if err != nil {
+			break
+		}
+		if stopfn(string(line), ctx) {
+			break
+		}
+		elineno++
+	}
+	return
 }
 
 // support class/method/function cursor
