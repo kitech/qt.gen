@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"hash/crc32"
 	"log"
 	"strings"
 
@@ -12,6 +13,7 @@ type GenMangler interface {
 	convTo(cursor clang.Cursor) string
 	// convFrom(mname string) string
 	origin(cursor clang.Cursor) string
+	crc32(cursor clang.Cursor) uint32
 }
 
 type IncMangler struct {
@@ -44,6 +46,11 @@ func (this *IncMangler) origin(cursor clang.Cursor) (defname string) {
 	}
 	return cursor.Mangling()
 }
+func (this *IncMangler) crc32(cursor clang.Cursor) uint32 {
+	return symcrc32(this.origin(cursor))
+}
+
+func symcrc32(s string) uint32 { return crc32.ChecksumIEEE([]byte(s)) }
 
 type GoMangler struct {
 }
@@ -74,4 +81,7 @@ func (this *GoMangler) origin(cursor clang.Cursor) (defname string) {
 		return strings.Replace(cursor.Mangling(), "D1Ev", "D2Ev", -1)
 	}
 	return cursor.Mangling()
+}
+func (this *GoMangler) crc32(cursor clang.Cursor) uint32 {
+	return symcrc32(this.origin(cursor))
 }
