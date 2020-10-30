@@ -182,6 +182,24 @@ function mvdtsrc()
 
 }
 
+function mvnimsrc()
+{
+    set +x
+
+    mkdir -p ~/oss/qt5-nim/qt5/{qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}
+    # rm -f ~/oss/qtdart/src/{core,gui,widgets,network,qml,quick}/q*.dart
+
+    mvbymd5 nim src/core ~/oss/qt5-nim/qt5/qtcore
+    mvbymd5 nim src/gui ~/oss/qt5-nim/qt5/qtgui
+    # cp -a src/core/*.rs ~/oss/qtdart/src/core/
+    #cp -a src/gui/*.rs ~/oss/qtdart/src/gui/
+    #cp -a src/widgets/*.rs ~/oss/qtdart/src/widgets/
+    #cp -a src/network/*.rs ~/oss/qtdart/src/network/
+    #cp -a src/qml/*.rs ~/oss/qtdart/src/qml/
+    #cp -a src/quick/*.rs ~/oss/qtdart/src/quick/
+
+}
+
 cmd=$1
 
 set -x
@@ -200,6 +218,9 @@ case $cmd in
         ;;
     dtsrc)
         time mvdtsrc;
+        ;;
+    nimsrc)
+        time mvnimsrc;
         ;;
     *)
         set +x

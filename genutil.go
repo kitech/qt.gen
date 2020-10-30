@@ -140,6 +140,18 @@ func is_rs_keyword(s string) bool {
 	return ok
 }
 
+func is_nim_keyword(s string) bool {
+	keywords := map[string]int{"match": 1, "type": 1, "move": 1, "select": 1, "case": 1,
+		"map": 1, "range": 1, "var": 1, "len": 1, "fmt": 1, "err": 1, "go": 1, "func": 1,
+		"package": 1, "import": 1,
+		"begin": 1, "end": 1,
+		"out": 1, "include": 1, "extern": 1, "module": 1, "require": 1,
+		"method": 1, "proc": 1, "from": 1, "ptr": 1, "object": 1, "iterator": 1,
+		"result": 1, "div": 1, "block": 1, "in": 1}
+	_, ok := keywords[s]
+	return ok
+}
+
 // 包含1个以上的纯虚方法
 // TODO 父类也有纯虚方法，并且当前类没有实现该方法
 func is_pure_virtual_class(cursor clang.Cursor) bool {
