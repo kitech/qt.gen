@@ -138,6 +138,14 @@ func (this *GenCtrl) setupLang() {
 		this.qttmplgen = NewGenerateNim(genQtdir, genQtver)
 		this.qtconstgen = NewGenerateNim(genQtdir, genQtver)
 		this.modlstgen = NewGenerateNim(genQtdir, genQtver)
+	case "v":
+		this.filter = &GenFilterV{}
+		this.genor = NewGenerateV(genQtdir, genQtver)
+		this.qtenumgen = NewGenerateV(genQtdir, genQtver)
+		this.qtfuncgen = NewGenerateV(genQtdir, genQtver)
+		this.qttmplgen = NewGenerateV(genQtdir, genQtver)
+		this.qtconstgen = NewGenerateV(genQtdir, genQtver)
+		this.modlstgen = NewGenerateV(genQtdir, genQtver)
 	default:
 		log.Fatalln("not supported or not impled:", genLang, genQtdir, genQtver)
 	}
@@ -174,7 +182,7 @@ func (this *GenCtrl) setupEnv() {
 	// 预先处理头文件, cd gcc_64/include/ && ln -sv ../../Src/qtmacextras/include/QtMacExtras
 	// 这是要生成的模块表
 	modules := []string{
-		"QtCore", "QtGui", // "QtWidgets",
+		"QtCore", "QtGui", "QtWidgets",
 		// "QtNetwork", "QtQml", "QtQuick",
 		// "QtQuickTemplates2", "QtQuickControls2", "QtQuickWidgets",
 		// for platform dependent modules, need copy headers if not exists

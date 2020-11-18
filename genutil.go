@@ -13,6 +13,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/go-clang/v3.9/clang"
+	"github.com/iancoleman/strcase"
 	funk "github.com/thoas/go-funk"
 )
 
@@ -148,6 +149,16 @@ func is_nim_keyword(s string) bool {
 		"out": 1, "include": 1, "extern": 1, "module": 1, "require": 1,
 		"method": 1, "proc": 1, "from": 1, "ptr": 1, "object": 1, "iterator": 1,
 		"result": 1, "div": 1, "block": 1, "in": 1}
+	_, ok := keywords[s]
+	return ok
+}
+
+func is_v_keyword(s string) bool {
+	keywords := map[string]int{"match": 1, "type": 1, "move": 1, "select": 1, "case": 1,
+		"map": 1, "range": 1, "var": 1, "len": 1, "fmt": 1, "err": 1, "go": 1, "func": 1,
+		"package": 1, "import": 1, "string": 1,
+		"begin": 1, "end": 1, "lock": 1, "unlock": 1, "try_lock": 1,
+		"out": 1, "include": 1, "extern": 1, "module": 1, "require": 1}
 	_, ok := keywords[s]
 	return ok
 }
@@ -643,6 +654,14 @@ func has_default_value(arg clang.Cursor) (string, bool) {
 	return s, hasdv
 }
 
+func has_default_value_v(arg clang.Cursor) (string, bool) {
+	s, hasdv := has_default_value(arg)
+	if strings.HasPrefix(s, "'") && strings.HasSuffix(s, "'") {
+		s = "`" + s[1:len(s)-1] + "`" // for v: ' ' => ` `
+	}
+	return s, hasdv
+}
+
 func getOrOpenCursorFile(c clang.Cursor) *os.File {
 	bfp, _, _, _ := c.Location().FileLocation()
 
@@ -888,4 +907,26 @@ func getIncludeNameByModule(mod string) string {
 		}
 	}
 	return mod
+}
+
+func isGeneralMethod(cursor clang.Cursor) bool {
+	if cursor.Kind() == clang.Cursor_Constructor {
+	} else if cursor.Kind() == clang.Cursor_Destructor {
+	} else if cursor.CXXMethod_IsStatic() {
+	} else {
+		return true
+	}
+	return false
+}
+
+func toqsnake(s string) string {
+	if len(s) == 0 {
+		return s
+	}
+	if s[0] == 'Q' {
+		return "q" + strcase.ToSnake(s[1:])
+	}
+	s2 := strcase.ToSnake(s)
+	s2 = strings.Replace(s2, "q_", "q", -1)
+	return s2
 }

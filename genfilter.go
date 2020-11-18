@@ -629,3 +629,13 @@ func (this *GenFilterGo) skipMethod(cursor, parent clang.Cursor) bool {
 	bskip := this.GenFilterBase.skipMethod(cursor, parent)
 	return bskip
 }
+
+///
+type GenFilterV struct {
+	GenFilterBase
+}
+
+func (this *GenFilterV) skipMethod(cursor, parent clang.Cursor) bool {
+	bskip := this.GenFilterBase.skipMethod(cursor, parent)
+	return bskip
+}

@@ -200,6 +200,27 @@ function mvnimsrc()
 
 }
 
+function mvvsrc()
+{
+    set +x
+
+    mkdir -p ~/.vmodules/vqt/{qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}
+    # rm -f ~/oss/qt.cr/src/{core,gui,widgets,network,qml,quick}/q*.cr
+
+    mvbymd5 v src/core ~/.vmodules/vqt/qtcore/
+    # cp -a src/core/*.rs ~/oss/qt.cr/src/core/
+    #cp -a src/gui/*.rs ~/oss/qt.cr/src/gui/
+    #cp -a src/widgets/*.rs ~/oss/qt.cr/src/widgets/
+    #cp -a src/network/*.rs ~/oss/qt.cr/src/network/
+    #cp -a src/qml/*.rs ~/oss/qt.cr/src/qml/
+    #cp -a src/quick/*.rs ~/oss/qt.cr/src/quick/
+
+    rm -f ~/.vmodules/vqt/qtcore/*list.v
+    rm -f ~/.vmodules/vqt/qtcore/*map.v
+    rm -f ~/.vmodules/vqt/qtcore/*hash.v
+    rm -f ~/.vmodules/vqt/qtcore/*set.v
+}
+
 cmd=$1
 
 set -x
@@ -221,6 +242,9 @@ case $cmd in
         ;;
     nimsrc)
         time mvnimsrc;
+        ;;
+    vsrc)
+        time mvvsrc;
         ;;
     *)
         set +x
