@@ -57,8 +57,9 @@ func (this *GenerateV) genTemplateInstant(tmplClsCursor, argClsCursor clang.Curs
 	// tmplArgClsName := argClsCursor.Spelling()
 	// tmplClsName := tmplClsCursor.Spelling()
 
-	this.cp.APf("body", "type %s struct {", argClsCursor.Spelling())
-	this.cp.APf("body", "    *qtrt.CObject")
+	this.cp.APf("body", "pub struct %s  {", argClsCursor.Spelling())
+	this.cp.APf("body", "    // *qtrt.CObject")
+	this.cp.APf("body", "  pub mut: cthis voidptr")
 	this.cp.APf("body", "}")
 
 	this.mthidxs = map[string]int{}
@@ -107,21 +108,33 @@ func (this *GenerateV) genTemplateMethod(cursor, parent clang.Cursor, argClsCurs
 		fallthrough
 	case clang.Type_Unexposed:
 		if isSelfRef(rety.Spelling()) {
-			retytxt = "*" + clsName
+			retytxt = "" + clsName
 		} else if isElemRef(rety) {
-			retytxt = "*" + elemClsName
+			retytxt = "" + elemClsName
 		}
 	default:
 		log.Println(rety.Spelling(), rety.Kind().Spelling(), cursor.DisplayName())
 	}
 
 	validMethodName := rewriteOperatorMethodName(cursor.Spelling())
-	this.cp.APf("body", "// %s %s", cursor.ResultType().Spelling(), cursor.DisplayName())
-	this.cp.APf("body", "func (this *%s) %s%d() %s {",
-		clsName, strings.Title(validMethodName), midx, retytxt)
-	this.cp.APf("body", "    // %s_%s_%d()", clsName, validMethodName, midx)
-	this.cp.APf("body", "    rv, err := qtrt.InvokeQtFunc6(\"C_%s_%s_%d\", qtrt.FFI_TYPE_POINTER, this.Cthis)", clsName, validMethodName, midx)
-	this.cp.APf("body", "    qtrt.ErrPrint(err, rv)")
+	cp := this.cp
+
+	retstr := getTyDesc(cursor.ResultType(), AsVReturn, cursor)
+	cp.APf("body", "// %s %s", cursor.ResultType().Spelling(), cursor.DisplayName())
+	cp.APf("body", "type TC_%s_%s_%d = fn(voidptr) %s",
+		clsName, validMethodName, midx, retstr)
+	cp.APf("body", "pub fn (this %s) %s%d() %s {",
+		clsName, toqsnake(validMethodName), midx, retytxt)
+	cp.APf("body", "    // %s_%s_%d()", clsName, validMethodName, midx)
+	cp.APf("body", "    // rv, err := qtrt.InvokeQtFunc6(\"C_%s_%s_%d\", qtrt.FFI_TYPE_POINTER, this.Cthis)", clsName, validMethodName, midx)
+	cp.APf("body", "    // qtrt.ErrPrint(err, rv)")
+	cp.APf("body", "    mut fnobj := TC_%s_%s_%d(0)", clsName, validMethodName, midx)
+	cp.APf("body", "    fnobj = qtrt.sym_cfunc6(\"C_%s_%s_%d\")",
+		toqsnake(clsName), toqsnake(validMethodName), midx)
+	if rety.Kind() != clang.Type_Void {
+		cp.APf("body", "    rv :=")
+	}
+	cp.APf("body", "    fnobj(this.cthis)")
 
 	switch rety.Kind() {
 	case clang.Type_Int:
@@ -134,7 +147,7 @@ func (this *GenerateV) genTemplateMethod(cursor, parent clang.Cursor, argClsCurs
 		if isSelfRef(rety.Spelling()) {
 			this.cp.APf("body", "    return this")
 		} else if isElemRef(rety) {
-			this.cp.APf("body", "    return &%s{}", elemClsName)
+			this.cp.APf("body", "    return %s{}", elemClsName)
 		}
 	}
 
@@ -148,8 +161,8 @@ func (this *GenerateV) genTemplateInterface(tmplClsCursor, argClsCursor clang.Cu
 	}
 	tmplclsifgened[tmplClsCursor.Spelling()] = 1
 
-	log.Printf("%s_IF\n", tmplClsCursor.Spelling())
-	this.cp.APf("body", "type %s_IF interface {", tmplClsCursor.Spelling())
+	log.Printf("%sITF\n", tmplClsCursor.Spelling())
+	this.cp.APf("body", "type %sITF interface {", tmplClsCursor.Spelling())
 
 	this.mthidxs = map[string]int{}
 	tmplClsCursor.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
@@ -171,7 +184,7 @@ func (this *GenerateV) genTemplateInterface(tmplClsCursor, argClsCursor clang.Cu
 func (this *GenerateV) genTemplateInterfaceSignature(cursor, parent clang.Cursor, argClsCursor clang.Cursor) {
 	clsName := argClsCursor.Spelling()
 	elemClsName := clsName[:strings.LastIndexAny(clsName, "LHSM")]
-	baseMthName := parent.Spelling() + cursor.Spelling() + "_IF"
+	baseMthName := parent.Spelling() + cursor.Spelling() + "ITF"
 	midx := 0
 	if midx_, ok := this.mthidxs[baseMthName]; ok {
 		this.mthidxs[baseMthName] = midx_ + 1

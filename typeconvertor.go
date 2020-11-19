@@ -623,6 +623,10 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 		che[AsGoReturn] = "unsafe.Pointer/*222*/"
 		che[AsGoSignature] = "unsafe.Pointer"
 
+		che[AsVReturn] = "voidptr"
+		che[AsVSignature] = "voidptr"
+		che[ArgTyDesc_CV_SIGNATURE] = "voidptr"
+
 		che[ArgDesc_RS_SIGNATURE] = "usize"
 		che[AsRsCallFFITy] = "POINTER"
 		che[ArgDesc_CR_SIGNATURE] = "UInt64"
@@ -639,6 +643,10 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 		che[AsCReturn] = "void*"
 		che[AsGoReturn] = "unsafe.Pointer/*222*/"
 		che[AsGoSignature] = "unsafe.Pointer"
+
+		che[AsVReturn] = "voidptr"
+		che[AsVSignature] = "voidptr"
+		che[ArgTyDesc_CV_SIGNATURE] = "voidptr"
 
 		che[ArgDesc_RS_SIGNATURE] = "usize"
 		che[AsRsCallFFITy] = "POINTER"
@@ -691,6 +699,10 @@ func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
 			che[AsCReturn] = "void*"
 			che[AsGoReturn] = "unsafe.Pointer/*666*/"
 			che[AsGoSignature] = "unsafe.Pointer"
+
+			che[AsVReturn] = "voidptr"
+			che[AsVSignature] = "voidptr"
+			che[ArgTyDesc_CV_SIGNATURE] = "voidptr"
 
 			che[ArgDesc_RS_SIGNATURE] = "usize"
 			che[AsRsCallFFITy] = "POINTER"
@@ -1174,7 +1186,7 @@ func (this *TypeConvertV) toDest(ty clang.Type, cursor clang.Cursor) string {
 			refmod := get_decl_mod(tmplArgTy.Declaration())
 			usemod := get_decl_mod(cursor)
 			pkgPref := gopp.IfElseStr(refmod != usemod, fmt.Sprintf("qt%s.", refmod), "")
-			return "" + pkgPref + ty.Spelling() + "/*667*/"
+			return " " + pkgPref + ty.Spelling() + "/*667*/"
 		}
 		return this.toDest(ty.CanonicalType(), cursor)
 	case clang.Type_Record:
@@ -1190,7 +1202,7 @@ func (this *TypeConvertV) toDest(ty clang.Type, cursor clang.Cursor) string {
 			if is_qstring_cls(ty.Spelling()) {
 				return "string"
 			}
-			return "" + pkgPref + get_bare_type(ty).Spelling() + "/*123*/"
+			return " " + pkgPref + get_bare_type(ty).Spelling() + "/*123*/"
 		}
 		return "voidptr /*444*/"
 	case clang.Type_Pointer:
@@ -1206,7 +1218,7 @@ func (this *TypeConvertV) toDest(ty clang.Type, cursor clang.Cursor) string {
 			} else if usemod == "core" && refmod == "widgets" {
 			} else if usemod == "gui" && refmod == "widgets" {
 			} else {
-				return "" + pkgPref + get_bare_type(ty).Spelling() +
+				return " " + pkgPref + get_bare_type(ty).Spelling() +
 					fmt.Sprintf("/*777 %s*/", ty.Spelling())
 			}
 		} else if ty.PointeeType().Kind() == clang.Type_Bool {
@@ -1223,7 +1235,7 @@ func (this *TypeConvertV) toDest(ty clang.Type, cursor clang.Cursor) string {
 			if is_qstring_cls(ty.Spelling()) {
 				return "string"
 			}
-			return "" + pkgPref + get_bare_type(ty).Spelling()
+			return " " + pkgPref + get_bare_type(ty).Spelling()
 		}
 		return "voidptr /*555*/"
 	case clang.Type_RValueReference:
