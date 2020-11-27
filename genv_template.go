@@ -124,13 +124,13 @@ func (this *GenerateV) genTemplateMethod(cursor, parent clang.Cursor, argClsCurs
 	cp.APf("body", "type TC_%s_%s_%d = fn(voidptr) %s",
 		clsName, validMethodName, midx, retstr)
 	cp.APf("body", "pub fn (this %s) %s%d() %s {",
-		clsName, toqsnake(validMethodName), midx, retytxt)
+		clsName, validMethodName, midx, retytxt)
 	cp.APf("body", "    // %s_%s_%d()", clsName, validMethodName, midx)
 	cp.APf("body", "    // rv, err := qtrt.InvokeQtFunc6(\"C_%s_%s_%d\", qtrt.FFI_TYPE_POINTER, this.Cthis)", clsName, validMethodName, midx)
 	cp.APf("body", "    // qtrt.ErrPrint(err, rv)")
 	cp.APf("body", "    mut fnobj := TC_%s_%s_%d(0)", clsName, validMethodName, midx)
 	cp.APf("body", "    fnobj = qtrt.sym_cfunc6(\"C_%s_%s_%d\")",
-		toqsnake(clsName), toqsnake(validMethodName), midx)
+		clsName, validMethodName, midx)
 	if rety.Kind() != clang.Type_Void {
 		cp.APf("body", "    rv :=")
 	}

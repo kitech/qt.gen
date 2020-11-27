@@ -13,7 +13,6 @@ import (
 	"unicode"
 
 	"github.com/go-clang/v3.9/clang"
-	"github.com/iancoleman/strcase"
 	funk "github.com/thoas/go-funk"
 )
 
@@ -344,14 +343,14 @@ func (this *GenerateV) genClassDef(cursor, parent clang.Cursor) {
 		// break
 	}
 	this.cp.APf("body", "    get_cthis() voidptr")
-	this.cp.APf("body", "    %s_ptr() %s", toqsnake(cursor.Spelling()), cursor.Spelling())
+	this.cp.APf("body", "    %s_ptr() %s", cursor.Spelling(), cursor.Spelling())
 	this.cp.APf("body", "}")
-	this.cp.APf("body", "fn hotfix_%s_itf_name_table(this %sITF) {", toqsnake(cursor.Spelling()), cursor.Spelling())
+	this.cp.APf("body", "fn hotfix_%s_itf_name_table(this %sITF) {", cursor.Spelling(), cursor.Spelling())
 	this.cp.APf("body", "  that := %s{}", cursor.Spelling())
-	this.cp.APf("body", "  hotfix_%s_itf_name_table(that)", toqsnake(cursor.Spelling()))
+	this.cp.APf("body", "  hotfix_%s_itf_name_table(that)", cursor.Spelling())
 	this.cp.APf("body", "}")
 	this.cp.APf("body", "pub fn (ptr %s) %s_ptr() %s { return ptr }",
-		cursor.Spelling(), toqsnake(cursor.Spelling()), cursor.Spelling())
+		cursor.Spelling(), cursor.Spelling(), cursor.Spelling())
 	this.cp.APf("body", "")
 
 	this.genGetCthis(cursor, cursor, 0) // 只要定义了结构体，就有GetCthis方法
@@ -574,15 +573,15 @@ func (this *GenerateV) genMethodSignature(cursor, parent clang.Cursor, midx int)
 		prmStr := strings.Join(prms.([]string), ", ")
 		cp.APf("body", "pub fn (dummy %s) new_for_inherit_%s(%s) %s {",
 			strings.Title(parent.Spelling()), overloadSuffix, argStr, parent.Spelling())
-		cp.APf("body", "  //return new_%s_%s(%s)", toqsnake(cursor.Spelling()), overloadSuffix, prmStr)
+		cp.APf("body", "  //return new%s%s(%s)", cursor.Spelling(), overloadSuffix, prmStr)
 		cp.APf("body", "  return %s{}", cursor.Spelling())
 		cp.APf("body", "}")
 
-		cp.APf("body", "pub fn new_%s_%s(%s) %s {",
-			toqsnake(cursor.Spelling()), overloadSuffix, argStr, parent.Spelling())
+		cp.APf("body", "pub fn new%s%s(%s) %s {",
+			cursor.Spelling(), overloadSuffix, argStr, parent.Spelling())
 	case clang.Cursor_Destructor:
-		cp.APf("body", "pub fn delete_%s_%s(this %s) {",
-			toqsnake(cursor.Spelling()[1:]), overloadSuffix, parent.Spelling())
+		cp.APf("body", "pub fn delete%s%s(this %s) {",
+			cursor.Spelling()[1:], overloadSuffix, parent.Spelling())
 	default:
 		retPlace := "interface{}"
 		retPlace = this.tyconver.toDest(cursor.ResultType(), cursor)
@@ -596,7 +595,7 @@ func (this *GenerateV) genMethodSignature(cursor, parent clang.Cursor, midx int)
 			rewriteOperatorMethodName(cursor.Spelling()), cursor.Spelling())
 		mthname = gopp.IfElseStr(is_v_keyword(mthname), mthname+"_", mthname)
 		cp.APf("body", "pub fn (this %s) %s%s(%s) %s {",
-			parent.Spelling(), strcase.ToSnake(mthname), overloadSuffix, argStr, retPlace)
+			parent.Spelling(), mthname, overloadSuffix, argStr, retPlace)
 	}
 
 	// TODO fill types, default args
@@ -621,12 +620,12 @@ func (this *GenerateV) genMethodSignatureDv(cursor, parent clang.Cursor, midx in
 		prmStr := strings.Join(prms.([]string), ", ")
 		cp.APf("body", "pub fn (dummy %s) new_for_inherit_%s(%s) %s {",
 			strings.Title(parent.Spelling()), overloadSuffix, argStr, parent.Spelling())
-		cp.APf("body", "  //return new_%s_%s(%s)", toqsnake(cursor.Spelling()), overloadSuffix, prmStr)
+		cp.APf("body", "  //return new%s%s(%s)", cursor.Spelling(), overloadSuffix, prmStr)
 		cp.APf("body", "  return %s{}", cursor.Spelling())
 		cp.APf("body", "}")
 
-		cp.APf("body", "pub fn new_%s_%s(%s) %s {",
-			toqsnake(cursor.Spelling()), overloadSuffix, argStr, parent.Spelling())
+		cp.APf("body", "pub fn new%s%s(%s) %s {",
+			cursor.Spelling(), overloadSuffix, argStr, parent.Spelling())
 	case clang.Cursor_Destructor:
 	default:
 		retPlace := "interface{}"
@@ -640,7 +639,7 @@ func (this *GenerateV) genMethodSignatureDv(cursor, parent clang.Cursor, midx in
 		mthname := gopp.IfElseStr(strings.HasPrefix(cursor.Spelling(), "operator"),
 			rewriteOperatorMethodName(cursor.Spelling()), cursor.Spelling())
 		cp.APf("body", "pub fn (this %s) %s%s(%s) %s {",
-			parent.Spelling(), strcase.ToSnake(mthname), overloadSuffix, argStr, retPlace)
+			parent.Spelling(), mthname, overloadSuffix, argStr, retPlace)
 	}
 
 	// TODO fill types, default args
@@ -667,8 +666,8 @@ func (this *GenerateV) genMethodSignatureNoThis(cursor, parent clang.Cursor, mid
 		}
 		mthname := gopp.IfElseStr(strings.HasPrefix(cursor.Spelling(), "operator"),
 			rewriteOperatorMethodName(cursor.Spelling()), cursor.Spelling())
-		cp.APf("body", "pub fn %s_%s%s(%s) %s {",
-			toqsnake(parent.Spelling()), strcase.ToSnake(mthname), overloadSuffix, argStr, retPlace)
+		cp.APf("body", "pub fn %s%s%s(%s) %s {",
+			parent.Spelling(), mthname, overloadSuffix, argStr, retPlace)
 	default:
 		// wtf
 	}
@@ -755,9 +754,9 @@ func (this *GenerateV) genCtor(cursor, parent clang.Cursor, midx int) {
 	cp.APf("body", "    // rv, err := qtrt.invoke_qtfunc6(\"%s\", qtrt.ffity_pointer, %s)",
 		this.mangler.origin(cursor), paramStr)
 	cp.APf("body", "    // qtrt.errprint(err, rv)")
-	cp.APf("body", "    // gothis := new_%s_fromptr(voidptr(rv))", toqsnake(parent.Spelling()))
+	cp.APf("body", "    // gothis := new%sFromptr(voidptr(rv))", parent.Spelling())
 	if !has_qobject_base_class(parent) {
-		cp.APf("body", "    // qtrt.set_finalizer(gothis, delete_%s)", toqsnake(parent.Spelling()))
+		cp.APf("body", "    // qtrt.set_finalizer(gothis, delete_%s)", parent.Spelling())
 	} else {
 		cp.APf("body", "    // qtrt.connect_destroyed(gothis, \"%s\")", parent.DisplayName())
 	}
@@ -800,9 +799,9 @@ func (this *GenerateV) genCtorDv(cursor, parent clang.Cursor, midx int, dvidx in
 	cp.APf("body", "    // rv, err := qtrt.invoke_qtfunc6(\"%s\", qtrt.ffity_pointer, %s)",
 		this.mangler.origin(cursor), paramStr)
 	cp.APf("body", "    // qtrt.errprint(err, rv)")
-	cp.APf("body", "    //gothis := new_%s_fromptr(voidptr(rv))", toqsnake(parent.Spelling()))
+	cp.APf("body", "    //gothis := new%sFromptr(voidptr(rv))", parent.Spelling())
 	if !has_qobject_base_class(parent) {
-		cp.APf("body", "    // qtrt.set_finalizer(gothis, delete_%s)", toqsnake(parent.Spelling()))
+		cp.APf("body", "    // qtrt.set_finalizer(gothis, delete_%s)", parent.Spelling())
 	} else {
 		cp.APf("body", "    // qtrt.connect_destroyed(gothis, \"%s\")", parent.DisplayName())
 	}
@@ -819,8 +818,8 @@ func (this *GenerateV) genCtorFromPointer(cursor, parent clang.Cursor, midx int)
 	bcs := find_base_classes(parent)
 	bcs = this.filter_base_classes(bcs)
 
-	this.cp.APf("body", "pub fn new_%s_fromptr(cthis voidptr) %s {",
-		toqsnake(cursor.Spelling()), cursor.Spelling())
+	this.cp.APf("body", "pub fn new%sFromptr(cthis voidptr) %s {",
+		cursor.Spelling(), cursor.Spelling())
 	if len(bcs) == 0 {
 		this.cp.APf("body", "    //return %s{qtrt.CObject{cthis}}", cursor.Spelling())
 		this.cp.APf("body", "    return %s{cthis}", cursor.Spelling())
@@ -828,7 +827,7 @@ func (this *GenerateV) genCtorFromPointer(cursor, parent clang.Cursor, midx int)
 		bcobjs := []string{}
 		for i, bc := range bcs {
 			pkgSuff := calc_package_prefix(cursor, bc)
-			this.cp.APf("body", "    // bcthis%d := %s_new_%s_fromptr(cthis)", i, pkgSuff, toqsnake(bc.Spelling()))
+			this.cp.APf("body", "    // bcthis%d := %snew%sFromptr(cthis)", i, pkgSuff, bc.Spelling())
 			bcobjs = append(bcobjs, fmt.Sprintf("bcthis%d", i))
 			// break // TODO multiple base classes
 		}
@@ -844,9 +843,9 @@ func (this *GenerateV) genYaCtorFromPointer(cursor, parent clang.Cursor, midx in
 		return
 	}
 	// can use ((*Qxxx)nil).NewFromPointer
-	this.cp.APf("body", "pub fn (dummy %s) new_fromptr(cthis voidptr) %s {",
+	this.cp.APf("body", "pub fn (dummy %s) newFromptr(cthis voidptr) %s {",
 		cursor.Spelling(), cursor.Spelling())
-	this.cp.APf("body", "    return new_%s_fromptr(cthis)", toqsnake(cursor.Spelling()))
+	this.cp.APf("body", "    return new%sFromptr(cthis)", cursor.Spelling())
 	this.cp.APf("body", "}")
 }
 
@@ -890,7 +889,7 @@ func (this *GenerateV) genSetCthis(cursor, parent clang.Cursor, midx int) {
 	} else {
 		for _, bc := range bcs {
 			pkgSuff := calc_package_prefix(cursor, bc)
-			this.cp.APf("body", "    // this.%s = %s_new_%s_fromptr(cthis)", bc.Spelling(), pkgSuff, bc.Spelling())
+			this.cp.APf("body", "    // this.%s = %snew%sFromptr(cthis)", bc.Spelling(), pkgSuff, bc.Spelling())
 			// break
 		}
 	}
@@ -915,8 +914,8 @@ func (this *GenerateV) genDtor(cursor, parent clang.Cursor, midx int) {
 	cp.APf("body", "    // this.set_cthis(voidptr(0))")
 
 	this.genMethodFooterFFI(cursor, parent, midx)
-	this.cp.APf("body", "pub fn (this %s) freec() { delete_%s_(this) }\n",
-		cursor.Spelling()[1:], toqsnake(cursor.Spelling()[1:]))
+	this.cp.APf("body", "pub fn (this %s) freec() { delete%s(this) }\n",
+		cursor.Spelling()[1:], cursor.Spelling()[1:])
 }
 
 func (this *GenerateV) genDtorNoCode(cursor, parent clang.Cursor, midx int) {
@@ -927,7 +926,7 @@ func (this *GenerateV) genDtorNoCode(cursor, parent clang.Cursor, midx int) {
 	symbol := fmt.Sprintf("_ZN%d%sD2Ev", len(cursor.Spelling()), cursor.Spelling())
 	cp.APf("body", "")
 	cp.APf("body", "// type T%s = fn(cthis voidptr)", symbol)
-	cp.APf("body", "pub fn delete_%s(this %s) {", toqsnake(cursor.Spelling()), cursor.Spelling())
+	cp.APf("body", "pub fn delete%s(this %s) {", cursor.Spelling(), cursor.Spelling())
 	cp.APf("body", "    mut fnobj := qtrt.TCppDtor(0)")
 	cp.APf("body", "    fnobj = qtrt.sym_qtfunc6(\"%s\")", symbol)
 	cp.APf("body", "    fnobj(this.cthis)")
@@ -939,8 +938,8 @@ func (this *GenerateV) genDtorNoCode(cursor, parent clang.Cursor, midx int) {
 	cp.APf("body", "    // this.set_cthis(voidptr(0))")
 
 	this.genMethodFooterFFI(cursor, parent, midx)
-	this.cp.APf("body", "pub fn (this %s) freec() { delete_%s(this) }\n",
-		cursor.Spelling(), toqsnake(cursor.Spelling()))
+	this.cp.APf("body", "pub fn (this %s) freec() { delete%s(this) }\n",
+		cursor.Spelling(), cursor.Spelling())
 }
 
 func (this *GenerateV) genNonStaticMethod(cursor, parent clang.Cursor, midx int) {
@@ -1134,10 +1133,10 @@ func (this *GenerateV) genStaticMethodNoThis(cursor, parent clang.Cursor, midx i
 	cp.APf("body", "    nilthis := %s{}", parent.Spelling())
 	if cursor.ResultType().Kind() == clang.Type_Void {
 		cp.APf("body", "    nilthis.%s%s(%s)",
-			strcase.ToSnake(mthname), overloadSuffix, paramStr)
+			mthname, overloadSuffix, paramStr)
 	} else {
 		cp.APf("body", "    rv := nilthis.%s%s(%s)",
-			strcase.ToSnake(mthname), overloadSuffix, paramStr)
+			mthname, overloadSuffix, paramStr)
 		cp.APf("body", "    return rv")
 	}
 	// this.genRetFFI(cursor, parent, midx)
@@ -1227,7 +1226,7 @@ func (this *GenerateV) genProtectedCallback(cursor, parent clang.Cursor, midx in
 
 			this.cp.APf("body", "// %s %s", getTyDesc(cursor.ResultType(), ArgTyDesc_CPP_SIGNAUTE, cursor), cursor.DisplayName())
 			this.cp.APf("body", "pub fn (this %s) inherit_%s(f fn(%s) %s) {",
-				parent.Spelling(), strcase.ToSnake(mthname), argStr, retStr)
+				parent.Spelling(), mthname, argStr, retStr)
 			this.cp.APf("body", "  // qtrt.set_all_inherit_callback(this, \"%s\", f)", cursor.Spelling())
 			this.cp.APf("body", "}")
 			this.cp.APf("body", "")
@@ -1370,7 +1369,7 @@ func (this *GenerateV) genArgConvFFI(cursor, parent clang.Cursor, midx, aidx int
 	} else if is_qt_class(argty) && get_bare_type(argty).Spelling() == "QString" {
 		usemod := get_decl_mod(cursor)
 		pkgPref := gopp.IfElseStr(usemod == "core", "", "qtcore.")
-		cp.APf("body", "    mut tmp_arg%d := %snew_qstring_5(%s)", aidx, pkgPref,
+		cp.APf("body", "    mut tmp_arg%d := %snewQString5(%s)", aidx, pkgPref,
 			this.genParamRefName(cursor, parent, aidx))
 		// this.cp.APf("body", "    defer %sDeleteQString(tmpArg%d)", pkgPref, aidx) // not needed
 		cp.APf("body", "    mut conv_arg%d := tmp_arg%d.cthis", aidx, aidx)
@@ -1389,9 +1388,9 @@ func (this *GenerateV) genArgConvFFI(cursor, parent clang.Cursor, midx, aidx int
 			cp.APf("body", "    mut conv_arg%d := voidptr(0)", aidx)
 			cp.APf("body", "    /*if %s != voidptr(0) && %s.%s_ptr() != voidptr(0) */ {",
 				this.genParamRefName(cursor, parent, aidx),
-				this.genParamRefName(cursor, parent, aidx), toqsnake(barety.Spelling()))
+				this.genParamRefName(cursor, parent, aidx), barety.Spelling())
 			cp.APf("body", "        // conv_arg%d = %s.%s_ptr().get_cthis()", aidx,
-				this.genParamRefName(cursor, parent, aidx), toqsnake(barety.Spelling()))
+				this.genParamRefName(cursor, parent, aidx), barety.Spelling())
 			cp.APf("body", "      conv_arg%d = %s.get_cthis()", aidx,
 				this.genParamRefName(cursor, parent, aidx))
 			cp.APf("body", "    }")
@@ -1483,11 +1482,11 @@ func (this *GenerateV) genArgConvFFIDv(cursor, parent clang.Cursor, midx, aidx i
 			"QSize", "QAbstractState" /*"QScreen", "QAction"*/}, get_bare_type(argty).Spelling()) {
 		usemod := get_decl_mod(cursor)
 		pkgPref := gopp.IfElseStr(usemod == "core", "", "qtcore.")
-		cp.APf("body", "    mut conv_arg%d := %snew_%s_()", aidx, pkgPref, toqsnake(get_bare_type(argty).Spelling()))
+		cp.APf("body", "    mut conv_arg%d := %snew%s()", aidx, pkgPref, get_bare_type(argty).Spelling())
 	} else if is_qt_class(argty) && get_bare_type(argty).Spelling() == "QChar" {
 		usemod := get_decl_mod(cursor)
 		pkgPref := gopp.IfElseStr(usemod == "core", "", "qtcore.")
-		cp.APf("body", "    mut conv_arg%d  := %snew_qchar_8(`%s`)", aidx,
+		cp.APf("body", "    mut conv_arg%d  := %snewQChar8(`%s`)", aidx,
 			pkgPref, strings.Split(argdv, "'")[1])
 	} else if is_qt_class(argty) && !isPrimitiveType(argty.CanonicalType()) {
 		if argty.Spelling() == "QRgb" {
@@ -1631,14 +1630,13 @@ func (this *GenerateV) genRetFFI(cursor, parent clang.Cursor, midx int) {
 				pkgPrefix = "/*222*/"
 			}
 			retstr := gopp.IfElseStr(TypeIsConsted(rety), rety.Spelling()[6:], rety.Spelling())
-			retstr = toqsnake(retstr)
-			cp.APf("body", "    rv2 := %snew_%s_fromptr(voidptr(rv)) //5551",
+			cp.APf("body", "    rv2 := %snew%sFromptr(voidptr(rv)) //5551",
 				pkgPrefix, retstr)
 			cp.APf("body", "    return rv2")
 		} else if is_qt_class(rety.CanonicalType()) {
-			cp.APf("body", "    rv2 := %snew_%s_fromptr(voidptr(rv)) //555",
+			cp.APf("body", "    rv2 := %snew%sFromptr(voidptr(rv)) //555",
 				// pkgPrefix, rety.Spelling())
-				pkgPrefix, toqsnake(get_bare_type(rety.CanonicalType()).Spelling()))
+				pkgPrefix, get_bare_type(rety.CanonicalType()).Spelling())
 			cp.APf("body", "    return rv2")
 		} else if TypeIsFuncPointer(rety.CanonicalType()) {
 			cp.APf("body", "    return voidptr(rv)")
@@ -1661,16 +1659,16 @@ func (this *GenerateV) genRetFFI(cursor, parent clang.Cursor, midx int) {
 		}
 	case clang.Type_Record:
 		if is_qt_class(rety) && get_bare_type(rety).Spelling() == "QString" {
-			cp.APf("body", "    //rv2 := %snew_qstring_fromptr(voidptr(rv))", pkgPrefix)
-			cp.APf("body", "    //rv3 := rv2.to_utf8().data()")
-			cp.APf("body", "    //%sdelete_qstring(rv2)", pkgPrefix)
+			cp.APf("body", "    //rv2 := %snewQStringFromptr(voidptr(rv))", pkgPrefix)
+			cp.APf("body", "    //rv3 := rv2.toTtf8().data()")
+			cp.APf("body", "    //%sdeleteQString(rv2)", pkgPrefix)
 			cp.APf("body", "    //return rv3")
 			cp.APf("body", "    return \"\"")
 		} else if is_qt_class(rety) {
 			barety := get_bare_type(rety)
-			cp.APf("body", "    //rv2 := %snew_%s_fromptr(voidptr(rv)) // 333",
-				pkgPrefix, toqsnake(barety.Spelling()))
-			cp.APf("body", "    // qtrt.set_finalizer(rv2, %sdelete_%s)", pkgPrefix, toqsnake(barety.Spelling()))
+			cp.APf("body", "    //rv2 := %snew%sfromptr(voidptr(rv)) // 333",
+				pkgPrefix, barety.Spelling())
+			cp.APf("body", "    // qtrt.set_finalizer(rv2, %sdelete%s)", pkgPrefix, barety.Spelling())
 			cp.APf("body", "    //return rv2")
 			cp.APf("body", "    return %s%s{rv}", pkgPrefix, barety.Spelling())
 		} else {
@@ -1679,16 +1677,16 @@ func (this *GenerateV) genRetFFI(cursor, parent clang.Cursor, midx int) {
 
 	case clang.Type_LValueReference:
 		if is_qt_class(rety) && get_bare_type(rety).Spelling() == "QString" {
-			cp.APf("body", "    //rv2 := %snew_qstring_fromptr(voidptr(rv))", pkgPrefix)
-			cp.APf("body", "    //rv3 := rv2.to_utf8.data()")
+			cp.APf("body", "    //rv2 := %snewQStringFromptr(voidptr(rv))", pkgPrefix)
+			cp.APf("body", "    //rv3 := rv2.toUtf8.data()")
 			cp.APf("body", "    //%sdelete_qstring(rv2)", pkgPrefix)
 			cp.APf("body", "    //return rv3")
 			cp.APf("body", "    return \"\"")
 		} else if is_qt_class(rety) {
 			barety := get_bare_type(rety)
-			cp.APf("body", "    rv2 := %snew_%s_fromptr(rv) // 4441",
-				pkgPrefix, toqsnake(barety.Spelling()))
-			cp.APf("body", "    // qtrt.set_finalizer(rv2, %sdelete_%s)", pkgPrefix, toqsnake(barety.Spelling()))
+			cp.APf("body", "    rv2 := %snew%sFromptr(rv) // 4441",
+				pkgPrefix, barety.Spelling())
+			cp.APf("body", "    // qtrt.set_finalizer(rv2, %sdelete%s)", pkgPrefix, barety.Spelling())
 			cp.APf("body", "    return rv2")
 			cp.APf("body", "    //return voidptr(0)")
 		} else if TypeIsCharPtr(rety) {
@@ -1710,9 +1708,9 @@ func (this *GenerateV) genRetFFI(cursor, parent clang.Cursor, midx int) {
 		}
 	case clang.Type_Pointer:
 		if is_qt_class(rety) && get_bare_type(rety).Spelling() == "QString" {
-			cp.APf("body", "    //rv2 := %snew_qstring_fromptr(voidptr(rv))", pkgPrefix)
-			cp.APf("body", "    //rv3 := rv2.to_utf8().data()")
-			cp.APf("body", "    //%sdelete_qstring(rv2)", pkgPrefix)
+			cp.APf("body", "    //rv2 := %snewQStringFromptr(voidptr(rv))", pkgPrefix)
+			cp.APf("body", "    //rv3 := rv2.toUtf8().data()")
+			cp.APf("body", "    //%sdeleteQString(rv2)", pkgPrefix)
 			cp.APf("body", "    //return rv3")
 			cp.APf("body", "    return \"\"")
 		} else if is_qt_class(rety) {
@@ -1724,8 +1722,8 @@ func (this *GenerateV) genRetFFI(cursor, parent clang.Cursor, midx int) {
 				cp.APf("body", "    return voidptr(rv)")
 			} else {
 				barety := get_bare_type(rety)
-				cp.APf("body", "    return %snew_%s_fromptr(voidptr(rv)) // 444",
-					pkgPrefix, toqsnake(barety.Spelling()))
+				cp.APf("body", "    return %snew%sFromptr(voidptr(rv)) // 444",
+					pkgPrefix, barety.Spelling())
 			}
 		} else if TypeIsCharPtrPtr(rety) {
 			cp.APf("body", "    return qtrt.ccharpp_to_string_slice(voidptr(rv))")
@@ -1752,8 +1750,8 @@ func (this *GenerateV) genRetFFI(cursor, parent clang.Cursor, midx int) {
 		cp.APf("body", "    return int(rv)")
 	case clang.Type_Unexposed:
 		if strings.HasPrefix(rety.Spelling(), "QList<") {
-			cp.APf("body", "    rv2 := %snew_%s_list_fromptr(voidptr(rv)) //5552",
-				pkgPrefix, toqsnake(strings.TrimRight(rety.Spelling()[6:], " *>")))
+			cp.APf("body", "    rv2 := %snew%sListFromptr(voidptr(rv)) //5552",
+				pkgPrefix, strings.TrimRight(rety.Spelling()[6:], " *>"))
 			cp.APf("body", "    return rv2")
 		} else {
 			cp.APf("body", "    return rv/*-222*/")
@@ -1820,7 +1818,7 @@ func (this *GenerateV) genClassEnums(cursor, parent clang.Cursor) {
 				log.Println("yyyyyyyyy", c1.EnumConstantDeclValue(), c1.DisplayName(), p1.DisplayName(), cursor.DisplayName())
 				this.cp.APf("body", "// %s", elems[c1.DisplayName()])
 				this.cp.APf("body", "const (%s__%s = %s__%s(%d))",
-					toqsnake(cursor.DisplayName()), toqsnake(c1.DisplayName()),
+					cursor.DisplayName(), c1.DisplayName(),
 					cursor.DisplayName(), p1.DisplayName(),
 					c1.EnumConstantDeclValue())
 			}
@@ -1844,8 +1842,8 @@ func (this *GenerateV) genClassEnums(cursor, parent clang.Cursor) {
 			return clang.ChildVisit_Continue
 		})
 
-		this.cp.APf("body", "pub fn (this %s) %s_item_name(val int) string {",
-			cursor.DisplayName(), toqsnake(enum.DisplayName()))
+		this.cp.APf("body", "pub fn (this %s) %sItemName(val int) string {",
+			cursor.DisplayName(), enum.DisplayName())
 		if isobjty {
 			this.cp.APf("body", "  // return qtrt.get_class_enum_item_name(this, val)")
 			this.cp.APf("body", "  return \"\"")
@@ -1858,7 +1856,7 @@ func (this *GenerateV) genClassEnums(cursor, parent clang.Cursor) {
 					_, keyok := revalmap[eival]
 					commentit := gopp.IfElseStr(keyok, "", "//")
 					this.cp.APf("body", "    %s %s__%s {// %d",
-						commentit, toqsnake(cursor.DisplayName()), toqsnake(c1.DisplayName()), eival)
+						commentit, cursor.DisplayName(), c1.DisplayName(), eival)
 					this.cp.APf("body", "    %s return \"%s\"", commentit, strings.Join(revalmap[eival], ","))
 					this.cp.APf("body", "    %s }", commentit)
 					if keyok {
@@ -1871,10 +1869,10 @@ func (this *GenerateV) genClassEnums(cursor, parent clang.Cursor) {
 			this.cp.APf("body", "}")
 		}
 		this.cp.APf("body", "}")
-		this.cp.APf("body", "pub fn %s_%s_item_name(val int) string {",
-			toqsnake(cursor.DisplayName()), toqsnake(enum.DisplayName()))
+		this.cp.APf("body", "pub fn %s%sItemName(val int) string {",
+			cursor.DisplayName(), enum.DisplayName())
 		this.cp.APf("body", "  nilthis := %s{}", cursor.DisplayName())
-		this.cp.APf("body", "  return nilthis.%s_item_name(val)", toqsnake(enum.DisplayName()))
+		this.cp.APf("body", "  return nilthis.%sItemName(val)", enum.DisplayName())
 		this.cp.APf("body", "}")
 		this.cp.APf("body", "")
 	}
@@ -1915,7 +1913,7 @@ func (this *GenerateV) genEnumsGlobal(cursor, parent clang.Cursor) {
 
 				this.cp.APUf("body", "// %s", elems[c1.DisplayName()])
 				this.cp.APUf("body", "const (%s__%s = %s__%s(%d))",
-					"qt", toqsnake(c1.DisplayName()), "Qt", p1.DisplayName(),
+					"qt", c1.DisplayName(), "Qt", p1.DisplayName(),
 					c1.EnumConstantDeclValue())
 			}
 
@@ -1938,7 +1936,7 @@ func (this *GenerateV) genEnumsGlobal(cursor, parent clang.Cursor) {
 			return clang.ChildVisit_Continue
 		})
 
-		this.cp.APf("body", "pub fn %s_item_name(val int) string {", toqsnake(enum.DisplayName()))
+		this.cp.APf("body", "pub fn %sItemName(val int) string {", enum.DisplayName())
 		this.cp.APf("body", "  match val {")
 		enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
 			switch c1.Kind() {
@@ -1946,7 +1944,7 @@ func (this *GenerateV) genEnumsGlobal(cursor, parent clang.Cursor) {
 				eival := c1.EnumConstantDeclValue()
 				_, keyok := revalmap[eival]
 				commentit := gopp.IfElseStr(keyok, "", "//")
-				this.cp.APf("body", "    %s %s__%s { // %d", commentit, "qt", toqsnake(c1.DisplayName()), eival)
+				this.cp.APf("body", "    %s %s__%s { // %d", commentit, "qt", c1.DisplayName(), eival)
 				this.cp.APf("body", "    %s return \"%s\"", commentit, strings.Join(revalmap[eival], ","))
 				this.cp.APf("body", "    %s }", commentit)
 				if keyok {
@@ -2115,7 +2113,7 @@ func (this *GenerateV) genBareFunctionSignature(cursor, parent clang.Cursor, mid
 		}
 		rewname := rewriteOperatorMethodName(cursor.Spelling())
 		cp.APf("body", "pub fn %s%s(%s) %s {",
-			toqsnake(rewname), overloadSuffix, argStr, retPlace)
+			rewname, overloadSuffix, argStr, retPlace)
 	}
 }
 

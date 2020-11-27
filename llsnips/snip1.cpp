@@ -17,3 +17,5 @@ QSize foo5() { return QSize(); }
 QSizeF foo6() { return QSizeF(); }
 
 double & foo7() { double val = 1.0; return val ; }
+
+void foo8(const QString& a) {}

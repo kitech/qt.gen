@@ -13,7 +13,8 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/go-clang/v3.9/clang"
-	"github.com/iancoleman/strcase"
+
+	//"github.com/iancoleman/strcase"
 	funk "github.com/thoas/go-funk"
 )
 
@@ -919,6 +920,7 @@ func isGeneralMethod(cursor clang.Cursor) bool {
 	return false
 }
 
+/*
 func toqsnake(s string) string {
 	if len(s) == 0 {
 		return s
@@ -930,3 +932,4 @@ func toqsnake(s string) string {
 	s2 = strings.Replace(s2, "q_", "q", -1)
 	return s2
 }
+*/
