@@ -45,3 +45,11 @@ RValue => ???
   函数签名比原始签名多一个this指针参数，在所有参数之前，在sret之后
 
 
+### Qt符号表项分类
+* extern C
+* 静态与C兼容签名
+* 静态含record参数/返回record
+* 方法与C兼容签名
+* 方法包含record参数/返回record
+* inline方法
+

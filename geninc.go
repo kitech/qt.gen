@@ -638,6 +638,13 @@ func (this *GenerateInline) genMethodHeader(clsctx *GenClassContext, cursor, par
 	this.cp.APf("main", "// %s:%d", fix_inc_name(file.Name()), lineno)
 	this.cp.APf("main", "// [%d] %s %s",
 		cursor.ResultType().SizeOf(), cursor.ResultType().Spelling(), cursor.DisplayName())
+	this.cp.APf("main", "// (%d)%s (%d)%s",
+		len(this.mangler.crc32p(cursor)), this.mangler.crc32p(cursor),
+		len(this.mangler.origin(cursor)), this.mangler.origin(cursor))
+}
+func (this *GenerateInline) genMethodFooter(clsctx *GenClassContext, cursor, parent clang.Cursor) {
+	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
+	this.cp.APf("main", "void* %s = (void*)&%s;", this.mangler.crc32p(cursor), this.mangler.convTo(cursor))
 }
 
 func (this *GenerateInline) genCtor(clsctx *GenClassContext, cursor, parent clang.Cursor) {
@@ -688,6 +695,7 @@ func (this *GenerateInline) genCtor(clsctx *GenClassContext, cursor, parent clan
 		this.cp.APf("main", "  return %s new %s%s(%s);", pureVirtRetstr, pxyclsp, parent.Type().Spelling(), paramStr)
 	}
 	this.cp.APf("main", "}")
+	this.genMethodFooter(clsctx, cursor, parent)
 	if found && funco.Since != "" {
 		this.cp.APf("main", "#endif // QT_VERSION >= %s", sinceVer2Hex(funco.Since))
 	}
@@ -705,6 +713,7 @@ func (this *GenerateInline) genDtor(clsctx *GenClassContext, cursor, parent clan
 		this.cp.APf("main", "  delete (%s*)(this_);", parent.Type().Spelling())
 	}
 	this.cp.APf("main", "}")
+	this.genMethodFooter(clsctx, cursor, parent)
 }
 
 // 在该类没有显式的声明析构方法时，补充生成一个默认析构方法
@@ -833,6 +842,7 @@ func (this *GenerateInline) genNonStaticMethod(clsctx *GenClassContext, cursor, 
 		}
 	}
 	this.cp.APf("main", "}")
+	this.genMethodFooter(clsctx, cursor, parent)
 
 	if featname := is_feated_method(cursor); featname != "" {
 		this.cp.APf("main", "#endif // QT_CONFIG(%s)", featname)
@@ -934,6 +944,7 @@ func (this *GenerateInline) genStaticMethod(clsctx *GenClassContext, cursor, par
 		}
 	}
 	this.cp.APf("main", "}")
+	this.genMethodFooter(clsctx, cursor, parent)
 
 	if featname := is_feated_method(cursor); featname != "" {
 		this.cp.APf("main", "#endif // QT_CONFIG(%s)", featname)
@@ -1366,6 +1377,7 @@ func (this *GenerateInline) genFunction(cursor clang.Cursor, olidx int) {
 		}
 	}
 	this.cp.APf("main", "}")
+	this.genMethodFooter(nil, cursor, cursor)
 	if hasLongDoubleArg {
 		this.cp.APf("main", "#endif")
 	}
