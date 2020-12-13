@@ -459,23 +459,7 @@ func (this *GenerateGo) genMethodHeader(cursor, parent clang.Cursor, midx int) {
 	cp.APf("body", "// %s:%d", fix_inc_name(fileName), lineno)
 	cp.APf("body", "// index:%d", midx)
 
-	qualities := make([]string, 0)
-	qualities = append(qualities, strings.Split(cursor.AccessSpecifier().Spelling(), "=")[1])
-	if cursor.CXXMethod_IsStatic() {
-		qualities = append(qualities, "static")
-	}
-	if cursor.IsFunctionInlined() {
-		qualities = append(qualities, "inline")
-	}
-	if cursor.CXXMethod_IsPureVirtual() {
-		qualities = append(qualities, "purevirtual")
-	}
-	if cursor.CXXMethod_IsVirtual() {
-		qualities = append(qualities, "virtual")
-	}
-	qualities = append(qualities, cursor.Visibility().String())
-	qualities = append(qualities, cursor.Availability().String())
-	qualities = this.getFuncQulities(cursor)
+	qualities := this.getFuncQulities(cursor)
 	if len(qualities) > 0 {
 		cp.APf("body", "// %s", strings.Join(qualities, " "))
 	}

@@ -512,6 +512,22 @@ func TypeIsConsted(ty clang.Type) bool {
 
 func TypeIsTemplate(ty clang.Type) bool { return ty.NumTemplateArguments() != -1 }
 
+func MethodHasStructRet(cursor clang.Cursor) bool {
+	hastpl := hasTmplArgRet(cursor)
+	if !hastpl {
+		if cursor.Kind() == clang.Cursor_CXXMethod {
+			fni := clcg.ArrangeCXXMethodType(cursor, cursor)
+			retkd := cursor.ABIArgInfoKind(fni, -1)
+			return retkd == clang.Indirect || retkd == clang.InAlloca
+		} else {
+			fni := clcg.ArrangeFreeFunctionType(cursor)
+			retkd := cursor.ABIArgInfoKind(fni, -1)
+			return retkd == clang.Indirect || retkd == clang.InAlloca
+		}
+	}
+	return false
+}
+
 var privClasses = map[string]int{"QV8Engine": 1, "QQmlComponentAttached": 1,
 	"QQmlImageProviderBase": 1}
 

@@ -127,6 +127,18 @@ func (this *GenBase) getFuncQulities(cursor clang.Cursor) []string {
 	if cursor.CXXMethod_IsVirtual() {
 		qualities = append(qualities, "virtual")
 	}
+	hastpl := hasTmplArgRet(cursor)
+	if !hastpl {
+		if cursor.Kind() == clang.Cursor_CXXMethod {
+			fni := clcg.ArrangeCXXMethodType(cursor, cursor)
+			retkd := cursor.ABIArgInfoKind(fni, -1)
+			qualities = append(qualities, retkd.String())
+		} else {
+			// fni := clcg.ArrangeFreeFunctionType(cursor)
+			// retkd := cursor.ABIArgInfoKind(fni, -1)
+			// qualities = append(qualities, retkd.String())
+		}
+	}
 	qualities = append(qualities, cursor.Visibility().String())
 	qualities = append(qualities, cursor.Availability().String())
 	return qualities
