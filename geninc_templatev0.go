@@ -11,7 +11,7 @@ import (
 	funk "github.com/thoas/go-funk"
 )
 
-func (this *GenerateInline) genPlainTmplInstClses() {
+func (this *GenerateInlinev0) genPlainTmplInstClses() {
 	log.Println(len(this.plaintmplinstclses))
 	this.cpcs = NewCodeFS()
 
@@ -47,7 +47,7 @@ func (this *GenerateInline) genPlainTmplInstClses() {
 	}
 }
 
-func (this *GenerateInline) genPlainTmplInstCls(ptInstCls clang.Cursor) {
+func (this *GenerateInlinev0) genPlainTmplInstCls(ptInstCls clang.Cursor) {
 	qtmod := get_decl_mod(ptInstCls)
 	qtfile := "qplaintmplinstcls"
 	cp := this.cpcs.GetFile(qtmod, qtfile)
@@ -154,7 +154,7 @@ func (this *GenerateInline) genPlainTmplInstCls(ptInstCls clang.Cursor) {
 
 // TODO 无法找到这种模板实例化类的定义，无法遍历其方法并得到方法的mangling name
 // 也就是应该是在头文件里出现的这种typedef模板类声明实际上还没有实例化。
-func (this *GenerateInline) genTydefTmplInstClses() {
+func (this *GenerateInlinev0) genTydefTmplInstClses() {
 	reg := regexp.MustCompile(`^(Q[A-Z].*)([LSHM][ListSetHashMap]+)$`)
 	for _, clsinst := range this.tydeftmplinstclses {
 		mats := reg.FindAllStringSubmatch(clsinst.Spelling(), -1)
@@ -205,7 +205,7 @@ func (this *GenerateInline) genTydefTmplInstClses() {
 	}
 }
 
-func (this *GenerateInline) genTemplateInstant(tmplClsCursor, instClsCursor clang.Cursor) {
+func (this *GenerateInlinev0) genTemplateInstant(tmplClsCursor, instClsCursor clang.Cursor) {
 
 	this.mthidxs = map[string]int{}
 	tmplClsCursor.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
@@ -235,7 +235,7 @@ func (this *GenerateInline) genTemplateInstant(tmplClsCursor, instClsCursor clan
 
 }
 
-func (this *GenerateInline) genTemplateMethod(cursor, parent clang.Cursor, instClsCursor clang.Cursor) {
+func (this *GenerateInlinev0) genTemplateMethod(cursor, parent clang.Cursor, instClsCursor clang.Cursor) {
 	undty := instClsCursor.TypedefDeclUnderlyingType()
 	clsName := instClsCursor.Spelling()
 	elemClsName := undty.TemplateArgumentAsType(0).Spelling()
@@ -327,7 +327,7 @@ func (this *GenerateInline) genTemplateMethod(cursor, parent clang.Cursor, instC
 	this.cp.APf("body", "")
 }
 
-func (this *GenerateInline) genTmplFuncArgs(cursor, parent clang.Cursor, clsName, elemClsName string) ([]string, []string) {
+func (this *GenerateInlinev0) genTmplFuncArgs(cursor, parent clang.Cursor, clsName, elemClsName string) ([]string, []string) {
 	argstrs := []string{}
 	prmstrs := []string{}
 	for i := int32(0); i < cursor.NumArguments(); i++ {
@@ -338,7 +338,7 @@ func (this *GenerateInline) genTmplFuncArgs(cursor, parent clang.Cursor, clsName
 	return argstrs, prmstrs
 }
 
-func (this *GenerateInline) genTmplFuncArg(cursor, parent, pparent clang.Cursor, clsName, elemClsName string) (string, string) {
+func (this *GenerateInlinev0) genTmplFuncArg(cursor, parent, pparent clang.Cursor, clsName, elemClsName string) (string, string) {
 	var argstr string
 	var prmstr string
 	log.Println(cursor.Type().Spelling(), cursor.Type().Declaration().DisplayName(), cursor.Type().Declaration().NumTemplateArguments(), pparent.Spelling(), pparent.DisplayName())
@@ -372,7 +372,7 @@ func (this *GenerateInline) genTmplFuncArg(cursor, parent, pparent clang.Cursor,
 	return argstr, prmstr
 }
 
-func (this *GenerateInline) genTemplateInterface(tmplClsCursor, argClsCursor clang.Cursor) {
+func (this *GenerateInlinev0) genTemplateInterface(tmplClsCursor, argClsCursor clang.Cursor) {
 	if _, ok := tmplclsifgened[tmplClsCursor.Spelling()]; ok {
 		// return
 	}
@@ -397,7 +397,7 @@ func (this *GenerateInline) genTemplateInterface(tmplClsCursor, argClsCursor cla
 	this.cp.APf("body", "}")
 }
 
-func (this *GenerateInline) genTemplateInterfaceSignature(cursor, parent clang.Cursor, argClsCursor clang.Cursor) {
+func (this *GenerateInlinev0) genTemplateInterfaceSignature(cursor, parent clang.Cursor, argClsCursor clang.Cursor) {
 	clsName := argClsCursor.Spelling()
 	elemClsName := clsName[:strings.LastIndexAny(clsName, "LHSM")]
 	baseMthName := parent.Spelling() + cursor.Spelling() + "_IF"

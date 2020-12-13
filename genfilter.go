@@ -245,6 +245,7 @@ func (this *GenFilterBase) skipArg(cursor, parent clang.Cursor) bool {
 func (this *GenFilterBase) skipArgImpl(cursor, parent clang.Cursor) int {
 	// C_ZN16QCoreApplication11aboutToQuitENS_14QPrivateSignalE(void *this_, QCoreApplication::QPrivateSignal a0)
 	argTyBare := get_bare_type(cursor.Type())
+	argCanty := argTyBare.CanonicalType()
 	log.Println(cursor.DisplayName(), cursor.DisplayName(), cursor.Type().Spelling(), is_qt_private_class(argTyBare.Declaration()), argTyBare.Spelling())
 	if strings.Contains(argTyBare.Spelling(), "QPrivate") {
 		return 1
@@ -258,7 +259,8 @@ func (this *GenFilterBase) skipArgImpl(cursor, parent clang.Cursor) int {
 	if strings.HasSuffix(argTyBare.Spelling(), "Func") {
 		return 3
 	}
-	if strings.HasSuffix(argTyBare.Spelling(), "Private") {
+	if strings.HasSuffix(argTyBare.Spelling(), "Private") ||
+		strings.HasSuffix(argCanty.Spelling(), "Private") {
 		return 4
 	}
 	if strings.HasSuffix(argTyBare.Spelling(), "DataPtr") {
@@ -447,6 +449,7 @@ func (this *GenFilterBase2) skipClassImpl(cursor, parent clang.Cursor) int {
 	cname := cursor.Spelling()
 	prefixes := []string{
 		"QMetaTypeId", "QTypeInfo", "QQmlTypeInfo", "QIntegerForSize",
+		"QStringView",
 		// "QOpenGLFunctions",
 		// "QOpenGLExtraFunctions", "QOpenGLVersion", "QOpenGL",
 		// "QAbstract-", "QPrivate",
@@ -577,8 +580,17 @@ func (this *GenFilterBase2) skipArg(cursor, parent clang.Cursor) bool {
 	return skipn > 0
 }
 func (this *GenFilterBase2) skipArgImpl(cursor, parent clang.Cursor) int {
-	if strings.Contains(cursor.Type().Spelling(), "std::function") {
+	argty := cursor.Type()
+	canty := argty.CanonicalType()
+	log.Println(parent.Spelling(), argty.Spelling(), canty.Spelling())
+	if strings.Contains(argty.Spelling(), "std::function") {
 		// return 10
+	}
+	if strings.Contains(argty.Spelling(), "QStringView") {
+		return 590
+	}
+	if strings.Contains(canty.Spelling(), "QtPrivate") {
+		return 593
 	}
 	return 0
 }
@@ -587,6 +599,13 @@ func (this *GenFilterBase2) skipFunc(cursor clang.Cursor) bool {
 	if strings.HasSuffix(cursor.Spelling(), "_helper") && !strings.HasPrefix(cursor.Spelling(), "qt_") {
 		return true
 	}
+
+	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
+		if this.skipArg(cursor.Argument(uint32(idx)), cursor) {
+			return true
+		}
+	}
+
 	return false
 }
 

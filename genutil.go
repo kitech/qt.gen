@@ -326,8 +326,11 @@ func is_deleted_method(cursor, parent clang.Cursor) bool {
 		"_ZN16QOpenGLFunctions14glShaderSourceEjiPPKcPKi":                              1,
 		"_ZNK23QOperatingSystemVersion11isAnyOfTypeESt16initializer_listINS_6OSTypeEE": 1,
 
-		"_ZN17QCborStreamReaderaSERKS_": 1, "_ZN17QCborStreamWriteraSERKS_": 1,
-		"_ZN10QCborValueC2EPKv": 1,
+		"_ZN24QAbstractOpenGLFunctionsaSERKS_": 1,
+		"_ZN24QAbstractOpenGLFunctionsC2ERKS_": 1,
+		"_ZN17QCborStreamReaderaSERKS_":        1, "_ZN17QCborStreamWriteraSERKS_": 1,
+		"_ZN10QCborValueC2EPKv":   1,
+		"_ZN11QSharedDataaSERKS_": 1,
 	}
 	mname := _cmgl.origin(cursor)
 	if _, ok := mths[mname]; ok {
@@ -506,6 +509,8 @@ func TypeIsFuncPointer(ty clang.Type) bool {
 func TypeIsConsted(ty clang.Type) bool {
 	return ty.IsConstQualifiedType() || strings.HasPrefix(ty.Spelling(), "const ")
 }
+
+func TypeIsTemplate(ty clang.Type) bool { return ty.NumTemplateArguments() != -1 }
 
 var privClasses = map[string]int{"QV8Engine": 1, "QQmlComponentAttached": 1,
 	"QQmlImageProviderBase": 1}
@@ -933,3 +938,12 @@ func toqsnake(s string) string {
 	return s2
 }
 */
+
+func hasTmplArgRet(cursor clang.Cursor) bool {
+	rety := cursor.ResultType()
+	hastpl := rety.NumTemplateArguments() != -1
+	for i := 0; i < int(cursor.NumArguments()); i++ {
+		hastpl = hastpl || (cursor.Argument(uint32(i)).Type().NumTemplateArguments() != -1)
+	}
+	return hastpl
+}

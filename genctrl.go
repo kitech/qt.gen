@@ -53,7 +53,7 @@ func NewGenCtrl() *GenCtrl {
 	return this
 }
 
-var genLang string = ""  // c(c binding), go (go binding), rs (rust binding)
+var genLang string = ""  // c0(only inline), c(c binding), go (go binding), rs (rust binding)
 var genQtdir string = "" // format: /home/me/Qt5.10.1 or /usr
 var genQtver string = "" // format: 5.10.1
 
@@ -83,6 +83,13 @@ func (this *GenCtrl) main() {
 func (this *GenCtrl) setupLang() {
 
 	switch genLang {
+	case "c0":
+		this.filter = NewGenFilterInc()
+		this.genor = NewGenerateInlinev0(genQtdir, genQtver)
+		this.qtenumgen = NewGenerateInlinev0(genQtdir, genQtver)
+		this.qtfuncgen = NewGenerateInlinev0(genQtdir, genQtver)
+		this.qttmplgen = NewGenerateInlinev0(genQtdir, genQtver)
+		this.qtconstgen = NewGenerateInlinev0(genQtdir, genQtver)
 	case "c":
 		this.filter = NewGenFilterInc()
 		this.genor = NewGenerateInline(genQtdir, genQtver)
@@ -97,6 +104,13 @@ func (this *GenCtrl) setupLang() {
 		this.qtfuncgen = NewGenerateGo(genQtdir, genQtver)
 		this.qttmplgen = NewGenerateGo(genQtdir, genQtver)
 		this.qtconstgen = NewGenerateGo(genQtdir, genQtver)
+	case "gov2": // generate methods call with no wrapper, sret
+		this.filter = &GenFilterGo{}
+		this.genor = NewGenerateGov2(genQtdir, genQtver)
+		this.qtenumgen = NewGenerateGov2(genQtdir, genQtver)
+		this.qtfuncgen = NewGenerateGov2(genQtdir, genQtver)
+		this.qttmplgen = NewGenerateGov2(genQtdir, genQtver)
+		this.qtconstgen = NewGenerateGov2(genQtdir, genQtver)
 	case "rs":
 		this.filter = &GenFilterGo{}
 		this.genor = NewGenerateRs(genQtdir, genQtver)
@@ -276,6 +290,8 @@ func (this *GenCtrl) dryrunEnv() {
 	gopp.ErrFatal(err, string(output))
 }
 
+var clcg clang.CodeGenerator
+
 func (this *GenCtrl) createTU() {
 	cidx := clang.NewIndex(0, 1)
 	// defer cidx.Dispose()
@@ -307,6 +323,7 @@ func (this *GenCtrl) createTU() {
 	this.tuc = cursor
 	this.tu = tu
 	this.save_ast = save_ast
+	clcg = clang.NewCodeGenerator2(tu)
 
 	if this.save_ast {
 		this.tu.SaveTranslationUnit(ast_file, 0)

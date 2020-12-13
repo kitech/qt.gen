@@ -1,6 +1,10 @@
 #include <QString>
 #include <QChar>
 #include <QSize>
+#include <QByteArray>
+#include <QVariant>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 class QString1  {
 private:
@@ -26,3 +30,9 @@ double & foo7() { double val = 1.0; return val ; }
 void foo8(const QString& a) {}
 
 QString1 foo9() { return QString1(); }
+
+QByteArray foo10() { return QByteArray(); }
+QVariant foo11() { return QVariant(); }
+QJsonDocument foo12() { return QJsonDocument(); }
+QJsonObject foo13() { return QJsonObject(); }
+QJsonValue foo14() { return QJsonValue(); }

@@ -24,6 +24,12 @@ Sometimes need `ulimit -n 10240`
 * [ ] nim
 * [ ] vlang
 
+### lang 参数说明
+* [x] c 为所有Qt函数生成一个对应的封装函数，做参数返回值的简化，以便纯C语言中调用
+* [x] c0 只生成Qt的内联函数/方法的符号生成，不做封装，减小包大小
+* [x] go 为所有Qt函数生成一个对应的Go封装函数
+* [ ] gov2 为clipqt(Qt子集)中的函数/方法生成对应的Go封装，减小包大小
+
 ### TODOs
 * [x] QString arguments as string
 * [x] QString record/reference auto destroy
@@ -34,6 +40,21 @@ Sometimes need `ulimit -n 10240`
 * [x] #define to const
 * [x] global variable 全局变量获取
 
+### go-clang TODO
+* [x] 无法检查方法delete属性
+* [ ] 无法检查方法depcreated属性
+* [x] 参数default value 的获取
+* [ ] ifdef/ifndef块的检测咋用
+* [ ] sret 检测
+* [ ] RECORD参数unpack直传 检测
+* [ ] RECORD返回值unpack直传 检测
+* [x] class是否抽像
+* [ ] 获取comment
+* [ ] isFunctionType/isFunctionPointerType/isMemberFunctionPointerType
+* [x] isTemplateType
+* [x] MSVC always passes 'sret' after 'this', unlike GCC
+
 ### depends
 * therecipe/qt@a76e7081468b0d9d554349b66b4971929f036ce7
+* extended go-clang https://github.com/kitech/go-clang-v3.9
 
