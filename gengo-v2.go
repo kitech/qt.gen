@@ -875,6 +875,11 @@ func (this *GenerateGov2) genGetCthis(cursor, parent clang.Cursor, midx int) {
 	bcs := find_base_classes(parent)
 	bcs = this.filter_base_classes(bcs)
 
+	if len(bcs) < 2 {
+		this.cp.APf("body", "  // ignore GetCthis for %d base", len(bcs))
+		return // just inherit from parent
+	}
+
 	this.cp.APf("body", "func (this *%s) GetCthis() unsafe.Pointer {", parent.Spelling())
 	if len(bcs) == 0 {
 		this.cp.APf("body", "    if this == nil{ return nil } else { return this.Cthis }")
@@ -895,6 +900,11 @@ func (this *GenerateGov2) genSetCthis(cursor, parent clang.Cursor, midx int) {
 	}
 	bcs := find_base_classes(parent)
 	bcs = this.filter_base_classes(bcs)
+
+	if len(bcs) < 2 {
+		this.cp.APf("body", "  // ignore SetCthis for %d base", len(bcs))
+		return // just inherit from parent
+	}
 
 	this.cp.APf("body", "func (this *%s) SetCthis(cthis unsafe.Pointer) {", parent.Spelling())
 	if len(bcs) == 0 {
@@ -1073,7 +1083,7 @@ func (this *GenerateGov2) genStaticMethod(cursor, parent clang.Cursor, midx int)
 	sretstr := gopp.IfElseStr(besret, "sretobj,", "")
 
 	if besret {
-		cp.APf("body", "    sretobj = qtrt.Malloc(%d) // %s", rety.SizeOf(), rety.Spelling())
+		cp.APf("body", "    sretobj := qtrt.Malloc(%d) // %s", rety.SizeOf(), rety.Spelling())
 	}
 	cp.APf("body", "    rv, err := qtrt.Qtcc0(\"%s\", qtrt.FFI_TYPE_POINTER, %s %s)",
 		this.mangler.origin(cursor), sretstr, paramStr)
@@ -1110,7 +1120,7 @@ func (this *GenerateGov2) genStaticMethodDv(cursor, parent clang.Cursor, midx in
 	sretstr := gopp.IfElseStr(besret, "sretobj,", "")
 
 	if besret {
-		cp.APf("body", "    sretobj = qtrt.Malloc(%d) // %s", rety.SizeOf(), rety.Spelling())
+		cp.APf("body", "    sretobj := qtrt.Malloc(%d) // %s", rety.SizeOf(), rety.Spelling())
 	}
 	cp.APf("body", "    rv, err := qtrt.Qtcc0(\"%s\", qtrt.FFI_TYPE_POINTER, %s %s)",
 		this.mangler.origin(cursor), sretstr, paramStr)
@@ -1371,7 +1381,7 @@ func (this *GenerateGov2) genArgConvFFI(cursor, parent clang.Cursor, midx, aidx 
 	} else if TypeIsCharPtr(argty) {
 		cp.APf("body", "    var convArg%d = qtrt.CStringRef(&%s)", aidx,
 			this.genParamRefName(cursor, parent, aidx))
-		// cp.APf("body", "    defer qtrt.FreeMem(convArg%d)", aidx)
+		//cp.APf("body", "    defer qtrt.FreeMem(convArg%d)", aidx)
 	} else if is_qt_class(argty) && get_bare_type(argty).Spelling() == "QString" {
 		usemod := get_decl_mod(cursor)
 		pkgPref := gopp.IfElseStr(usemod == "core", "", "qtcore.")
