@@ -45,7 +45,7 @@ Sometimes need `ulimit -n 10240`
 * [ ] 无法检查方法depcreated属性
 * [x] 参数default value 的获取
 * [ ] ifdef/ifndef块的检测咋用
-* [ ] sret 检测
+* [x] sret 检测
 * [ ] RECORD参数unpack直传 检测
 * [ ] RECORD返回值unpack直传 检测
 * [x] class是否抽像

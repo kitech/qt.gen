@@ -6,13 +6,16 @@
 // essentials
 #ifdef GEN_GO_QT_CORE_LIB
 #include <QtCore>
+#include <qstring0.h>
 #endif
 #ifdef GEN_GO_QT_GUI_LIB
 #include <QtGui>
+#include <qpainter0.h>
 #endif
 #if QT_VERSION >= 0x050000
     #ifdef GEN_GO_QT_WIDGETS_LIB
     #include <QtWidgets>
+    #include <qwidget0.h>
     #endif
 #endif // QT_VERSION >= 0x050000
 #ifdef GEN_GO_QT_NETWORK_LIB
@@ -128,7 +131,9 @@ typedef QList<QMdiSubWindow *> QMdiSubWindowList;
 #endif // QT_VERSION >= 0x050000
 typedef QList<QTreeWidgetItem*> QTreeWidgetItemList;
 typedef QList<QUndoStack*> QUndoStackList;
+#ifdef GEN_GO_QT_NETWORK_LIB
 typedef QList<QNetworkConfiguration> QNetworkConfigurationList;
+#endif
 #if QT_VERSION >= 0x050000
     #ifdef QT_MULTIMEDIA_LIB
     typedef QList<QCameraFocusZone> QCameraFocusZoneList;

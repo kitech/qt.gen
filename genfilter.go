@@ -266,7 +266,7 @@ func (this *GenFilterBase) skipArgImpl(cursor, parent clang.Cursor) int {
 	if strings.HasSuffix(argTyBare.Spelling(), "DataPtr") {
 		return 5
 	}
-	if _, ok := skipClasses[argTyBare.Spelling()]; !ok {
+	if _, ok := keepClasses[argTyBare.Spelling()]; !ok {
 		if argTyBare.Kind() != clang.Type_Invalid && !isPrimitiveType(argTyBare) {
 			// like Qt::WindowFlags form
 			reg := regexp.MustCompile(`^Q.+::.*Flags$`)

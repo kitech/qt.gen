@@ -21,8 +21,8 @@ var ast_file = "./qthdrsrc.ast"
 var bshdr_file = "./bsheaders/qthdrsrc.h"
 
 // module depend table
-var modDeps = modDepsAll               // auto generated
-var skipClasses = make(map[string]int) // 全局过滤掉的class
+var modDeps = modDepsAll                        // auto generated
+var keepClasses = make(map[string]clang.Cursor) // 见过的class
 
 func init() {
 	if false {
@@ -241,6 +241,7 @@ func (this *GenCtrl) setupEnv() {
 	if !gopp.FileExist2(qtsysdir) {
 		log.Fatalln("maybe QTDIR not exists error", qtdir, qtver, qtsysdir)
 	}
+	args = append(args, fmt.Sprintf("-I./clipqt"))
 
 	hdrdirok := true
 	gopp.Domap(modules, func(e interface{}) interface{} {
@@ -323,11 +324,12 @@ func (this *GenCtrl) createTU() {
 	this.tuc = cursor
 	this.tu = tu
 	this.save_ast = save_ast
-	clcg = clang.NewCodeGenerator2(tu)
 
 	if this.save_ast {
 		this.tu.SaveTranslationUnit(ast_file, 0)
 	}
+
+	clcg = clang.NewCodeGenerator2(tu)
 }
 
 func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
@@ -349,8 +351,7 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 			this.genor.genClass(cursor, parent)
 			if genLang == "rs" {
 				this.modlstgen.(*GenerateRs).genModLst(cursor)
-			}
-			if genLang == "dt" {
+			} else if genLang == "dt" {
 				this.modlstgen.(*GenerateDt).genModLst(cursor)
 			}
 		} else {
@@ -502,7 +503,7 @@ func (this *GenCtrl) collectClasses() {
 				break
 			}
 			if !this.filter.skipClass(cursor, parent) {
-				skipClasses[cursor.Type().Spelling()] = 1
+				keepClasses[cursor.Type().Spelling()] = cursor
 			}
 			log.Println(cursor.DisplayName(), cursor.BriefCommentText(), cursor.RawCommentText())
 		case clang.Cursor_StructDecl:

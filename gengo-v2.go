@@ -21,7 +21,8 @@ type GenerateGov2 struct {
 	mangler  GenMangler
 	tyconver TypeConvertor
 
-	maxClassSize int64 // 暂存一下类的大小的最大值
+	maxClassSize int64        // 暂存一下类的大小的最大值
+	xclass       clang.Cursor // 当前正在处理的类对应的xclass
 
 	cp          *CodePager
 	cpnomin     *CodePager
@@ -70,8 +71,18 @@ func (this *GenerateGov2) genClass(cursor, parent clang.Cursor) {
 		log.Printf("%s:%d:%d @%s\n", file.Name(), line, col, file.Time().String())
 	}
 
+	clsname := cursor.Spelling()
+	xclsname := "x" + clsname
+	if xcursor, ok := keepClasses[xclsname]; ok {
+		this.xclass = xcursor
+	} else {
+		log.Println("no xcls found, white list not match", clsname)
+		return
+	}
+
 	this.genFileHeader(cursor, parent)
 	this.walkClass(cursor, parent)
+	this.filterClipqt()
 	// this.genExterns(cursor, parent)
 	this.genImports(cursor, parent)
 	this.genProtectedCallbacks(cursor, parent)
@@ -247,6 +258,86 @@ func (this *GenerateGov2) walkClass(cursor, parent clang.Cursor) {
 
 	this.methods = methods
 	this.enums = enums
+}
+
+// 从xclass中查找是否有对应的方法
+func (this *GenerateGov2) filterClipqt() {
+	newmths := []clang.Cursor{}
+	xmths := []clang.Cursor{}
+
+	this.xclass.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
+		switch cursor.Kind() {
+		case clang.Cursor_Constructor:
+			fallthrough
+		case clang.Cursor_Destructor:
+			fallthrough
+		case clang.Cursor_CXXMethod:
+			if !this.filter.skipMethod(cursor, parent) {
+				xmths = append(xmths, cursor)
+			} else {
+				log.Println("filtered:", cursor.DisplayName(), parent.Spelling())
+			}
+		case clang.Cursor_UnexposedDecl:
+			// log.Println(cursor.Spelling(), cursor.Kind().String(), cursor.DisplayName())
+			file, line, col, _ := cursor.Location().FileLocation()
+			if false {
+				log.Println(file.Name(), line, col, file.Time())
+			}
+		case clang.Cursor_EnumDecl:
+		default:
+			if false {
+				log.Println(cursor.Spelling(), cursor.Kind().String(), cursor.DisplayName())
+			}
+		}
+		return clang.ChildVisit_Continue
+	})
+
+	for i := 0; i < len(this.methods); i++ {
+		for j := 0; j < len(xmths); j++ {
+			matched := protoMatch(this.methods[i], xmths[j])
+			if matched {
+				newmths = append(newmths, this.methods[i])
+				break
+			}
+		}
+	}
+	log.Println(this.xclass.Spelling(), len(this.methods), "=>", len(newmths))
+	if len(newmths) != len(this.methods) {
+		this.methods = newmths
+	}
+}
+
+// FunctionDecl/CXXMethodDecl
+func protoMatch(c1, cx clang.Cursor) bool {
+	c2 := cx
+
+	rety1 := c1.ResultType()
+	rety2 := c2.ResultType()
+	argc1 := c1.NumArguments()
+	argc2 := c2.NumArguments()
+	if (c1.Spelling() == c2.Spelling() || "x"+c1.Spelling() == c2.Spelling()) &&
+		rety1.Equal(rety2) && argc1 == argc2 {
+		matched := true
+		for i := 0; i < int(argc1); i++ {
+			arg1 := c1.Argument(uint32(i))
+			arg2 := c2.Argument(uint32(i))
+			aty1 := arg1.Type()
+			aty2 := arg2.Type()
+			if !aty1.Equal(aty2) {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			isconst1 := c1.CXXMethod_IsConst()
+			isconst2 := c2.CXXMethod_IsConst()
+			if isconst1 == isconst2 {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 func (this *GenerateGov2) genExterns(cursor, parent clang.Cursor) {
@@ -770,7 +861,7 @@ func (this *GenerateGov2) genYaCtorFromptr(cursor, parent clang.Cursor, midx int
 	if midx > 0 { // 忽略更多重载
 		return
 	}
-	// can use ((*Qxxx)nil).FromPointer
+	// can use ((*Qxxx)nil).Fromptr
 	this.cp.APf("body", "func (*%s) Fromptr(cthis unsafe.Pointer) *%s {",
 		cursor.Spelling(), cursor.Spelling())
 	this.cp.APf("body", "    return %sFromptr(cthis)", cursor.Spelling())
@@ -797,7 +888,7 @@ func (this *GenerateGov2) genGetCthis(cursor, parent clang.Cursor, midx int) {
 }
 
 // 用于动态生成实例，new(Qxxx).SetCthis(cthis)
-// 像NewQxxxFromPointer，但是可以先创建空实例，再初始化
+// 像QxxxFromptr，但是可以先创建空实例，再初始化
 func (this *GenerateGov2) genSetCthis(cursor, parent clang.Cursor, midx int) {
 	if midx > 0 { // 忽略更多重载
 		return
@@ -897,7 +988,7 @@ func (this *GenerateGov2) genNonStaticMethod(cursor, parent clang.Cursor, midx i
 		// this.cp.APf("body", "   rv = uint64(uintptr(mv))")
 	}
 	if besret {
-		cp.APf("body", "    rv = qtrt.VRetype(sretobj)")
+		cp.APf("body", "    rv = qtrt.VRetype(uintptr(sretobj))")
 	}
 	this.genRetFFI(cursor, parent, midx)
 	this.genMethodFooterFFI(cursor, parent, midx)
@@ -956,7 +1047,7 @@ func (this *GenerateGov2) genNonStaticMethodDv(cursor, parent clang.Cursor, midx
 		// this.cp.APf("body", "   rv = uint64(uintptr(mv))")
 	}
 	if besret {
-		cp.APf("body", "    rv = qtrt.VRetype(sretobj)")
+		cp.APf("body", "    rv = qtrt.VRetype(uintptr(sretobj))")
 	}
 
 	this.genRetFFI(cursor, parent, midx)
@@ -988,7 +1079,7 @@ func (this *GenerateGov2) genStaticMethod(cursor, parent clang.Cursor, midx int)
 		this.mangler.origin(cursor), sretstr, paramStr)
 	cp.APf("body", "    qtrt.ErrPrint(err, rv)")
 	if besret {
-		cp.APf("body", "    rv = qtrt.VRetype(sretobj)")
+		cp.APf("body", "    rv = qtrt.VRetype(uintptr(sretobj))")
 	}
 
 	this.genRetFFI(cursor, parent, midx)
@@ -1025,7 +1116,7 @@ func (this *GenerateGov2) genStaticMethodDv(cursor, parent clang.Cursor, midx in
 		this.mangler.origin(cursor), sretstr, paramStr)
 	cp.APf("body", "    qtrt.ErrPrint(err, rv)")
 	if besret {
-		cp.APf("body", "    rv = qtrt.VRetype(sretobj)")
+		cp.APf("body", "    rv = qtrt.VRetype(uintptr(sretobj))")
 	}
 
 	this.genRetFFI(cursor, parent, midx)
@@ -1571,7 +1662,7 @@ func (this *GenerateGov2) genRetFFI(cursor, parent clang.Cursor, midx int) {
 			cp.APf("body", "    return rv3")
 		} else if is_qt_class(rety) {
 			barety := get_bare_type(rety)
-			cp.APf("body", "    rv2 := %s%sFromPointer(unsafe.Pointer(uintptr(rv))) // 333",
+			cp.APf("body", "    rv2 := %s%sFromptr(unsafe.Pointer(uintptr(rv))) // 333",
 				pkgPrefix, barety.Spelling())
 			cp.APf("body", "    qtrt.SetFinalizer(rv2, %sDelete%s)", pkgPrefix, barety.Spelling())
 			cp.APf("body", "    return rv2")
@@ -1910,6 +2001,9 @@ func (this *GenerateGov2) genFunctions(cursor clang.Cursor, parent clang.Cursor)
 
 		})
 		for _, fc := range funcs {
+			if true {
+				continue // do nothing for v2
+			}
 			log.Println(fc.Spelling(), fc.Mangling(), fc.DisplayName(), fc.IsCursorDefinition(), is_qt_global_func(fc))
 			if !is_qt_global_func(fc) {
 				log.Println("skip global function ", fc.Spelling())

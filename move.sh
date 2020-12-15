@@ -27,6 +27,7 @@ function mvgosrc()
     mkdir -p ~/oss/qt.go/{qtsvg,qtmultimedia}
     rm -f ~/oss/qt.go/{qtsvg,qtmultimedia}/q*.go
 
+    rm -f src/*/q*list.go
     # cp -a src/qtrt/*.go ~/oss/qt.go/qtrt/
     cp -a src/core/*.go ~/oss/qt.go/qtcore/
     cp -a src/gui/*.go ~/oss/qt.go/qtgui/

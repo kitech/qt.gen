@@ -105,6 +105,19 @@ func is_qt_class(ty clang.Type) bool {
 	return false
 }
 
+func is_xqt_class(ty clang.Type) bool {
+	nty := get_bare_type(ty)
+	name := nty.Spelling()
+	if len(name) < 2 {
+		return false
+	}
+	if name[0:2] == "xQ" && strings.ToUpper(name[2:3]) == name[2:3] &&
+		!strings.Contains(name, "::") && !strings.HasSuffix(name, "Function") {
+		return true
+	}
+	return false
+}
+
 func is_private_method(c clang.Cursor) bool {
 	return c.Kind() == clang.Cursor_CXXMethod &&
 		c.AccessSpecifier() == clang.AccessSpecifier_Private

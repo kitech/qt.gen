@@ -180,8 +180,12 @@ func (this *GenBase) getIncNameByMod(mod string) string {
 	return ""
 }
 
+var gclsidx = 10000
+
 func (this *GenBase) nextclsidx() int {
-	this.clsidx = gopp.IfElseInt(this.clsidx == 0, 10000, this.clsidx)
-	this.clsidx += 1
-	return this.clsidx
+	// this.clsidx = gopp.IfElseInt(this.clsidx == 0, 10000, this.clsidx)
+	// this.clsidx += 1
+	// return this.clsidx
+	gclsidx += 1
+	return gclsidx
 }
