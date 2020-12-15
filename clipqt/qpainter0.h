@@ -412,6 +412,609 @@ class xQColor : public QColor
 
 };
 
+class xQPen : public QPen
+{
+public:
+    xQPen();
+    //xQPen(Qt::PenStyle);
+    /* QPen(const QColor &color); */
+    /* QPen(const QBrush &brush, qreal width, Qt::PenStyle s = Qt::SolidLine, */
+    /*      Qt::PenCapStyle c = Qt::SquareCap, Qt::PenJoinStyle j = Qt::BevelJoin); */
+    /* QPen(const QPen &pen) noexcept; */
+
+    /* ~QPen(); */
+
+    /* QPen &operator=(const QPen &pen) noexcept; */
+    /* QPen(QPen &&other) noexcept */
+    /*     : d(other.d) { other.d = nullptr; } */
+    /* QPen &operator=(QPen &&other) noexcept */
+    /* { qSwap(d, other.d); return *this; } */
+    /* void swap(QPen &other) noexcept { qSwap(d, other.d); } */
+
+    /* Qt::PenStyle style() const; */
+    /* void setStyle(Qt::PenStyle); */
+
+    /* QVector<qreal> dashPattern() const; */
+    /* void setDashPattern(const QVector<qreal> &pattern); */
+
+    /* qreal dashOffset() const; */
+    /* void setDashOffset(qreal doffset); */
+
+    /* qreal miterLimit() const; */
+    /* void setMiterLimit(qreal limit); */
+
+    /* qreal widthF() const; */
+    /* void setWidthF(qreal width); */
+
+    /* int width() const; */
+    /* void setWidth(int width); */
+
+    /* QColor color() const; */
+    /* void setColor(const QColor &color); */
+
+    /* QBrush brush() const; */
+    /* void setBrush(const QBrush &brush); */
+
+    /* bool isSolid() const; */
+
+    /* Qt::PenCapStyle capStyle() const; */
+    /* void setCapStyle(Qt::PenCapStyle pcs); */
+
+    /* Qt::PenJoinStyle joinStyle() const; */
+    /* void setJoinStyle(Qt::PenJoinStyle pcs); */
+
+    /* bool isCosmetic() const; */
+    /* void setCosmetic(bool cosmetic); */
+
+    /* bool operator==(const QPen &p) const; */
+    /* inline bool operator!=(const QPen &p) const { return !(operator==(p)); } */
+    /* operator QVariant() const; */
+
+    /* bool isDetached(); */
+}; // QPen
+
+class xQBrush : public QBrush
+{
+public:
+    xQBrush();
+/*     QBrush(Qt::BrushStyle bs); */
+/*     QBrush(const QColor &color, Qt::BrushStyle bs=Qt::SolidPattern); */
+/*     QBrush(Qt::GlobalColor color, Qt::BrushStyle bs=Qt::SolidPattern); */
+
+/*     QBrush(const QColor &color, const QPixmap &pixmap); */
+/*     QBrush(Qt::GlobalColor color, const QPixmap &pixmap); */
+/*     QBrush(const QPixmap &pixmap); */
+/*     QBrush(const QImage &image); */
+
+/*     QBrush(const QBrush &brush); */
+
+/*     QBrush(const QGradient &gradient); */
+
+/*     ~QBrush(); */
+/*     QBrush &operator=(const QBrush &brush); */
+/*     inline QBrush &operator=(QBrush &&other) noexcept */
+/*     { qSwap(d, other.d); return *this; } */
+/*     inline void swap(QBrush &other) noexcept */
+/*     { qSwap(d, other.d); } */
+
+/*     operator QVariant() const; */
+
+/*     inline Qt::BrushStyle style() const; */
+/*     void setStyle(Qt::BrushStyle); */
+
+/* #if QT_DEPRECATED_SINCE(5, 15) */
+/*     QT_DEPRECATED_X("Use transform()") inline const QMatrix &matrix() const; */
+/*     QT_DEPRECATED_X("Use setTransform()") void setMatrix(const QMatrix &mat); */
+/* #endif // QT_DEPRECATED_SINCE(5, 15) */
+
+/*     inline QTransform transform() const; */
+/*     void setTransform(const QTransform &); */
+
+/*     QPixmap texture() const; */
+/*     void setTexture(const QPixmap &pixmap); */
+
+/*     QImage textureImage() const; */
+/*     void setTextureImage(const QImage &image); */
+
+/*     inline const QColor &color() const; */
+/*     void setColor(const QColor &color); */
+/*     inline void setColor(Qt::GlobalColor color); */
+
+/*     const QGradient *gradient() const; */
+
+/*     bool isOpaque() const; */
+
+/*     bool operator==(const QBrush &b) const; */
+/*     inline bool operator!=(const QBrush &b) const { return !(operator==(b)); } */
+
+
+/* public: */
+/*     inline bool isDetached() const; */
+
+}; // QBrush
+
+
+class xQPixmap : public QPixmap
+{
+public:
+    xQPixmap();
+/*     explicit QPixmap(QPlatformPixmap *data); */
+/*     QPixmap(int w, int h); */
+/*     explicit QPixmap(const QSize &); */
+/*     QPixmap(const QString& fileName, const char *format = nullptr, Qt::ImageConversionFlags flags = Qt::AutoColor); */
+/* #ifndef QT_NO_IMAGEFORMAT_XPM */
+/*     explicit QPixmap(const char * const xpm[]); */
+/* #endif */
+/*     QPixmap(const QPixmap &); */
+/*     ~QPixmap(); */
+
+/*     QPixmap &operator=(const QPixmap &); */
+/*     inline QPixmap &operator=(QPixmap &&other) noexcept */
+/*     { qSwap(data, other.data); return *this; } */
+/*     inline void swap(QPixmap &other) noexcept */
+/*     { qSwap(data, other.data); } */
+
+/*     operator QVariant() const; */
+
+/*     bool isNull() const; */
+/*     int devType() const override; */
+
+/*     int width() const; */
+/*     int height() const; */
+/*     QSize size() const; */
+/*     QRect rect() const; */
+/*     int depth() const; */
+
+/*     static int defaultDepth(); */
+
+/*     void fill(const QColor &fillColor = Qt::white); */
+/* #if QT_DEPRECATED_SINCE(5, 13) */
+/*     QT_DEPRECATED_X("Use QPainter or fill(QColor)") */
+/*     void fill(const QPaintDevice *device, const QPoint &ofs); */
+/*     QT_DEPRECATED_X("Use QPainter or fill(QColor)") */
+/*     void fill(const QPaintDevice *device, int xofs, int yofs); */
+/* #endif */
+
+/*     QBitmap mask() const; */
+/*     void setMask(const QBitmap &); */
+
+/*     qreal devicePixelRatio() const; */
+/*     void setDevicePixelRatio(qreal scaleFactor); */
+
+/*     bool hasAlpha() const; */
+/*     bool hasAlphaChannel() const; */
+
+/* #ifndef QT_NO_IMAGE_HEURISTIC_MASK */
+/*     QBitmap createHeuristicMask(bool clipTight = true) const; */
+/* #endif */
+/*     QBitmap createMaskFromColor(const QColor &maskColor, Qt::MaskMode mode = Qt::MaskInColor) const; */
+
+/* #if QT_DEPRECATED_SINCE(5, 13) */
+/*     QT_DEPRECATED_X("Use QScreen::grabWindow() instead") */
+/*     static QPixmap grabWindow(WId, int x = 0, int y = 0, int w = -1, int h = -1); */
+/*     QT_DEPRECATED_X("Use QWidget::grab() instead") */
+/*     static QPixmap grabWidget(QObject *widget, const QRect &rect); */
+/*     QT_DEPRECATED_X("Use QWidget::grab() instead") */
+/*     static QPixmap grabWidget(QObject *widget, int x = 0, int y = 0, int w = -1, int h = -1); */
+/* #endif */
+
+/*     inline QPixmap scaled(int w, int h, Qt::AspectRatioMode aspectMode = Qt::IgnoreAspectRatio, */
+/*                           Qt::TransformationMode mode = Qt::FastTransformation) const */
+/*         { return scaled(QSize(w, h), aspectMode, mode); } */
+/*     QPixmap scaled(const QSize &s, Qt::AspectRatioMode aspectMode = Qt::IgnoreAspectRatio, */
+/*                    Qt::TransformationMode mode = Qt::FastTransformation) const; */
+/*     QPixmap scaledToWidth(int w, Qt::TransformationMode mode = Qt::FastTransformation) const; */
+/*     QPixmap scaledToHeight(int h, Qt::TransformationMode mode = Qt::FastTransformation) const; */
+/* #if QT_DEPRECATED_SINCE(5, 15) */
+/*     QT_DEPRECATED_X("Use transformed(const QTransform &, Qt::TransformationMode mode)") */
+/*     QPixmap transformed(const QMatrix &, Qt::TransformationMode mode = Qt::FastTransformation) const; */
+/*     QT_DEPRECATED_X("Use trueMatrix(const QTransform &m, int w, int h)") */
+/*     static QMatrix trueMatrix(const QMatrix &m, int w, int h); */
+/* #endif // QT_DEPRECATED_SINCE(5, 15) */
+/*     QPixmap transformed(const QTransform &, Qt::TransformationMode mode = Qt::FastTransformation) const; */
+/*     static QTransform trueMatrix(const QTransform &m, int w, int h); */
+
+/*     QImage toImage() const; */
+/*     static QPixmap fromImage(const QImage &image, Qt::ImageConversionFlags flags = Qt::AutoColor); */
+/*     static QPixmap fromImageReader(QImageReader *imageReader, Qt::ImageConversionFlags flags = Qt::AutoColor); */
+/*     static QPixmap fromImage(QImage &&image, Qt::ImageConversionFlags flags = Qt::AutoColor) */
+/*     { */
+/*         return fromImageInPlace(image, flags); */
+/*     } */
+
+/*     bool load(const QString& fileName, const char *format = nullptr, Qt::ImageConversionFlags flags = Qt::AutoColor); */
+/*     bool loadFromData(const uchar *buf, uint len, const char* format = nullptr, Qt::ImageConversionFlags flags = Qt::AutoColor); */
+/*     inline bool loadFromData(const QByteArray &data, const char* format = nullptr, Qt::ImageConversionFlags flags = Qt::AutoColor); */
+/*     bool save(const QString& fileName, const char* format = nullptr, int quality = -1) const; */
+/*     bool save(QIODevice* device, const char* format = nullptr, int quality = -1) const; */
+
+/*     bool convertFromImage(const QImage &img, Qt::ImageConversionFlags flags = Qt::AutoColor); */
+
+/*     inline QPixmap copy(int x, int y, int width, int height) const; */
+/*     QPixmap copy(const QRect &rect = QRect()) const; */
+
+/*     inline void scroll(int dx, int dy, int x, int y, int width, int height, QRegion *exposed = nullptr); */
+/*     void scroll(int dx, int dy, const QRect &rect, QRegion *exposed = nullptr); */
+
+/* #if QT_DEPRECATED_SINCE(5, 0) */
+/*     QT_DEPRECATED inline int serialNumber() const { return cacheKey() >> 32; } */
+/* #endif */
+/*     qint64 cacheKey() const; */
+
+/*     bool isDetached() const; */
+/*     void detach(); */
+
+/*     bool isQBitmap() const; */
+
+/*     QPaintEngine *paintEngine() const override; */
+
+/*     inline bool operator!() const { return isNull(); } */
+
+/* #if QT_DEPRECATED_SINCE(5, 0) */
+/*     QT_DEPRECATED inline QPixmap alphaChannel() const; */
+/*     QT_DEPRECATED inline void setAlphaChannel(const QPixmap &); */
+/* #endif */
+
+/* protected: */
+/*     int metric(PaintDeviceMetric) const override; */
+/*     static QPixmap fromImageInPlace(QImage &image, Qt::ImageConversionFlags flags = Qt::AutoColor); */
+
+/* public: */
+/*     QPlatformPixmap* handle() const; */
+
+}; // QPixmap
+
+class xQIcon: public QIcon
+{
+public:
+    xQIcon() noexcept;
+    //    QIcon(const QPixmap &pixmap);
+    //    QIcon(const QIcon &other);
+/*     QIcon(QIcon &&other) noexcept */
+/*         : d(other.d) */
+/*     { other.d = nullptr; } */
+/*     explicit QIcon(const QString &fileName); // file or resource name */
+/*     explicit QIcon(QIconEngine *engine); */
+/*     ~QIcon(); */
+/*     QIcon &operator=(const QIcon &other); */
+/*     inline QIcon &operator=(QIcon &&other) noexcept */
+/*     { swap(other); return *this; } */
+/*     inline void swap(QIcon &other) noexcept */
+/*     { qSwap(d, other.d); } */
+
+/*     operator QVariant() const; */
+
+/*     QPixmap pixmap(const QSize &size, Mode mode = Normal, State state = Off) const; */
+/*     inline QPixmap pixmap(int w, int h, Mode mode = Normal, State state = Off) const */
+/*         { return pixmap(QSize(w, h), mode, state); } */
+/*     inline QPixmap pixmap(int extent, Mode mode = Normal, State state = Off) const */
+/*         { return pixmap(QSize(extent, extent), mode, state); } */
+/*     QPixmap pixmap(QWindow *window, const QSize &size, Mode mode = Normal, State state = Off) const; */
+
+/*     QSize actualSize(const QSize &size, Mode mode = Normal, State state = Off) const; */
+/*     QSize actualSize(QWindow *window, const QSize &size, Mode mode = Normal, State state = Off) const; */
+
+/*     QString name() const; */
+
+/*     void paint(QPainter *painter, const QRect &rect, Qt::Alignment alignment = Qt::AlignCenter, Mode mode = Normal, State state = Off) const; */
+/*     inline void paint(QPainter *painter, int x, int y, int w, int h, Qt::Alignment alignment = Qt::AlignCenter, Mode mode = Normal, State state = Off) const */
+/*         { paint(painter, QRect(x, y, w, h), alignment, mode, state); } */
+
+/*     bool isNull() const; */
+/*     bool isDetached() const; */
+/*     void detach(); */
+
+/* #if QT_DEPRECATED_SINCE(5, 0) */
+/*     QT_DEPRECATED inline int serialNumber() const { return cacheKey() >> 32; } */
+/* #endif */
+/*     qint64 cacheKey() const; */
+
+/*     void addPixmap(const QPixmap &pixmap, Mode mode = Normal, State state = Off); */
+/*     void addFile(const QString &fileName, const QSize &size = QSize(), Mode mode = Normal, State state = Off); */
+
+/*     QList<QSize> availableSizes(Mode mode = Normal, State state = Off) const; */
+
+/*     void setIsMask(bool isMask); */
+/*     bool isMask() const; */
+
+/*     static QIcon fromTheme(const QString &name); */
+/*     static QIcon fromTheme(const QString &name, const QIcon &fallback); */
+/*     static bool hasThemeIcon(const QString &name); */
+
+/*     static QStringList themeSearchPaths(); */
+/*     static void setThemeSearchPaths(const QStringList &searchpath); */
+
+/*     static QStringList fallbackSearchPaths(); */
+/*     static void setFallbackSearchPaths(const QStringList &paths); */
+
+/*     static QString themeName(); */
+/*     static void setThemeName(const QString &path); */
+
+/*     static QString fallbackThemeName(); */
+/*     static void setFallbackThemeName(const QString &name); */
+
+/*     Q_DUMMY_COMPARISON_OPERATOR(QIcon) */
+
+}; // QIcon
+
+class xQImage : public QImage
+{
+public:
+    xQImage() noexcept;
+    xQImage(const QSize &size, Format format);
+    xQImage(int width, int height, Format format);
+/*     QImage(uchar *data, int width, int height, Format format, QImageCleanupFunction cleanupFunction = nullptr, void *cleanupInfo = nullptr); */
+/*     QImage(const uchar *data, int width, int height, Format format, QImageCleanupFunction cleanupFunction = nullptr, void *cleanupInfo = nullptr); */
+/*     QImage(uchar *data, int width, int height, int bytesPerLine, Format format, QImageCleanupFunction cleanupFunction = nullptr, void *cleanupInfo = nullptr); */
+/*     QImage(const uchar *data, int width, int height, int bytesPerLine, Format format, QImageCleanupFunction cleanupFunction = nullptr, void *cleanupInfo = nullptr); */
+
+/* #ifndef QT_NO_IMAGEFORMAT_XPM */
+/*     explicit QImage(const char * const xpm[]); */
+/* #endif */
+/*     explicit QImage(const QString &fileName, const char *format = nullptr); */
+
+/*     QImage(const QImage &); */
+/*     inline QImage(QImage &&other) noexcept */
+/*         : QPaintDevice(), d(nullptr) */
+/*     { qSwap(d, other.d); } */
+/*     ~QImage(); */
+
+/*     QImage &operator=(const QImage &); */
+/*     inline QImage &operator=(QImage &&other) noexcept */
+/*     { qSwap(d, other.d); return *this; } */
+/*     inline void swap(QImage &other) noexcept */
+/*     { qSwap(d, other.d); } */
+
+/*     bool isNull() const; */
+
+/*     int devType() const override; */
+
+/*     bool operator==(const QImage &) const; */
+/*     bool operator!=(const QImage &) const; */
+/*     operator QVariant() const; */
+/*     void detach(); */
+/*     bool isDetached() const; */
+
+/*     QImage copy(const QRect &rect = QRect()) const; */
+/*     inline QImage copy(int x, int y, int w, int h) const */
+/*         { return copy(QRect(x, y, w, h)); } */
+
+/*     Format format() const; */
+
+/* #if defined(Q_COMPILER_REF_QUALIFIERS) && !defined(QT_COMPILING_QIMAGE_COMPAT_CPP) */
+/*     Q_REQUIRED_RESULT Q_ALWAYS_INLINE QImage convertToFormat(Format f, Qt::ImageConversionFlags flags = Qt::AutoColor) const & */
+/*     { return convertToFormat_helper(f, flags); } */
+/*     Q_REQUIRED_RESULT Q_ALWAYS_INLINE QImage convertToFormat(Format f, Qt::ImageConversionFlags flags = Qt::AutoColor) && */
+/*     { */
+/*         if (convertToFormat_inplace(f, flags)) */
+/*             return std::move(*this); */
+/*         else */
+/*             return convertToFormat_helper(f, flags); */
+/*     } */
+/* #else */
+/*     Q_REQUIRED_RESULT QImage convertToFormat(Format f, Qt::ImageConversionFlags flags = Qt::AutoColor) const; */
+/* #endif */
+/*     Q_REQUIRED_RESULT QImage convertToFormat(Format f, const QVector<QRgb> &colorTable, Qt::ImageConversionFlags flags = Qt::AutoColor) const; */
+/*     bool reinterpretAsFormat(Format f); */
+
+/*     void convertTo(Format f, Qt::ImageConversionFlags flags = Qt::AutoColor); */
+
+/*     int width() const; */
+/*     int height() const; */
+/*     QSize size() const; */
+/*     QRect rect() const; */
+
+/*     int depth() const; */
+/*     int colorCount() const; */
+/*     int bitPlaneCount() const; */
+
+/*     QRgb color(int i) const; */
+/*     void setColor(int i, QRgb c); */
+/*     void setColorCount(int); */
+
+/*     bool allGray() const; */
+/*     bool isGrayscale() const; */
+
+/*     uchar *bits(); */
+/*     const uchar *bits() const; */
+/*     const uchar *constBits() const; */
+
+/* #if QT_DEPRECATED_SINCE(5, 10) */
+/*     QT_DEPRECATED_X("Use sizeInBytes") int byteCount() const; */
+/* #endif */
+/*     qsizetype sizeInBytes() const; */
+
+/*     uchar *scanLine(int); */
+/*     const uchar *scanLine(int) const; */
+/*     const uchar *constScanLine(int) const; */
+/* #if QT_VERSION >= QT_VERSION_CHECK(6,0,0) */
+/*     qsizetype bytesPerLine() const; */
+/* #else */
+/*     int bytesPerLine() const; */
+/* #endif */
+
+/*     bool valid(int x, int y) const; */
+/*     bool valid(const QPoint &pt) const; */
+
+/*     int pixelIndex(int x, int y) const; */
+/*     int pixelIndex(const QPoint &pt) const; */
+
+/*     QRgb pixel(int x, int y) const; */
+/*     QRgb pixel(const QPoint &pt) const; */
+
+/*     void setPixel(int x, int y, uint index_or_rgb); */
+/*     void setPixel(const QPoint &pt, uint index_or_rgb); */
+
+/*     QColor pixelColor(int x, int y) const; */
+/*     QColor pixelColor(const QPoint &pt) const; */
+
+/*     void setPixelColor(int x, int y, const QColor &c); */
+/*     void setPixelColor(const QPoint &pt, const QColor &c); */
+
+/*     QVector<QRgb> colorTable() const; */
+/* #if QT_VERSION >= QT_VERSION_CHECK(6,0,0) */
+/*     void setColorTable(const QVector<QRgb> &colors); */
+/* #else */
+/*     void setColorTable(const QVector<QRgb> colors); */
+/* #endif */
+
+/*     qreal devicePixelRatio() const; */
+/*     void setDevicePixelRatio(qreal scaleFactor); */
+
+/*     void fill(uint pixel); */
+/*     void fill(const QColor &color); */
+/*     void fill(Qt::GlobalColor color); */
+
+
+/*     bool hasAlphaChannel() const; */
+/*     void setAlphaChannel(const QImage &alphaChannel); */
+/* #if QT_DEPRECATED_SINCE(5, 15) */
+/*     QT_DEPRECATED_X("Use convertToFormat(QImage::Format_Alpha8)") */
+/*     QImage alphaChannel() const; */
+/* #endif */
+/*     QImage createAlphaMask(Qt::ImageConversionFlags flags = Qt::AutoColor) const; */
+/* #ifndef QT_NO_IMAGE_HEURISTIC_MASK */
+/*     QImage createHeuristicMask(bool clipTight = true) const; */
+/* #endif */
+/*     QImage createMaskFromColor(QRgb color, Qt::MaskMode mode = Qt::MaskInColor) const; */
+
+/*     inline QImage scaled(int w, int h, Qt::AspectRatioMode aspectMode = Qt::IgnoreAspectRatio, */
+/*                         Qt::TransformationMode mode = Qt::FastTransformation) const */
+/*         { return scaled(QSize(w, h), aspectMode, mode); } */
+/*     QImage scaled(const QSize &s, Qt::AspectRatioMode aspectMode = Qt::IgnoreAspectRatio, */
+/*                  Qt::TransformationMode mode = Qt::FastTransformation) const; */
+/*     QImage scaledToWidth(int w, Qt::TransformationMode mode = Qt::FastTransformation) const; */
+/*     QImage scaledToHeight(int h, Qt::TransformationMode mode = Qt::FastTransformation) const; */
+/* #if QT_DEPRECATED_SINCE(5, 15) */
+/*     QT_DEPRECATED_X("Use transformed(const QTransform &matrix, Qt::TransformationMode mode)") */
+/*     QImage transformed(const QMatrix &matrix, Qt::TransformationMode mode = Qt::FastTransformation) const; */
+/*     QT_DEPRECATED_X("trueMatrix(const QTransform &, int w, int h)") */
+/*     static QMatrix trueMatrix(const QMatrix &, int w, int h); */
+/* #endif // QT_DEPRECATED_SINCE(5, 15) */
+/*     QImage transformed(const QTransform &matrix, Qt::TransformationMode mode = Qt::FastTransformation) const; */
+/*     static QTransform trueMatrix(const QTransform &, int w, int h); */
+/* #if defined(Q_COMPILER_REF_QUALIFIERS) && !defined(QT_COMPILING_QIMAGE_COMPAT_CPP) */
+/*     QImage mirrored(bool horizontally = false, bool vertically = true) const & */
+/*         { return mirrored_helper(horizontally, vertically); } */
+/*     QImage &&mirrored(bool horizontally = false, bool vertically = true) && */
+/*         { mirrored_inplace(horizontally, vertically); return std::move(*this); } */
+/*     QImage rgbSwapped() const & */
+/*         { return rgbSwapped_helper(); } */
+/*     QImage &&rgbSwapped() && */
+/*         { rgbSwapped_inplace(); return std::move(*this); } */
+/* #else */
+/*     QImage mirrored(bool horizontally = false, bool vertically = true) const; */
+/*     QImage rgbSwapped() const; */
+/* #endif */
+/*     void invertPixels(InvertMode = InvertRgb); */
+
+/*     QColorSpace colorSpace() const; */
+/*     QImage convertedToColorSpace(const QColorSpace &) const; */
+/*     void convertToColorSpace(const QColorSpace &); */
+/*     void setColorSpace(const QColorSpace &); */
+
+/*     void applyColorTransform(const QColorTransform &transform); */
+
+/*     bool load(QIODevice *device, const char* format); */
+/*     bool load(const QString &fileName, const char *format = nullptr); */
+/*     bool loadFromData(const uchar *buf, int len, const char *format = nullptr); */
+/*     inline bool loadFromData(const QByteArray &data, const char *aformat = nullptr) */
+/*         { return loadFromData(reinterpret_cast<const uchar *>(data.constData()), data.size(), aformat); } */
+
+/*     bool save(const QString &fileName, const char *format = nullptr, int quality = -1) const; */
+/*     bool save(QIODevice *device, const char *format = nullptr, int quality = -1) const; */
+
+/*     static QImage fromData(const uchar *data, int size, const char *format = nullptr); */
+/*     inline static QImage fromData(const QByteArray &data, const char *format = nullptr) */
+/*         { return fromData(reinterpret_cast<const uchar *>(data.constData()), data.size(), format); } */
+
+/* #if QT_DEPRECATED_SINCE(5, 0) */
+/*     QT_DEPRECATED inline int serialNumber() const { return cacheKey() >> 32; } */
+/* #endif */
+/*     qint64 cacheKey() const; */
+
+/*     QPaintEngine *paintEngine() const override; */
+
+/*     // Auxiliary data */
+/*     int dotsPerMeterX() const; */
+/*     int dotsPerMeterY() const; */
+/*     void setDotsPerMeterX(int); */
+/*     void setDotsPerMeterY(int); */
+/*     QPoint offset() const; */
+/*     void setOffset(const QPoint&); */
+
+/*     QStringList textKeys() const; */
+/*     QString text(const QString &key = QString()) const; */
+/*     void setText(const QString &key, const QString &value); */
+
+/*     QPixelFormat pixelFormat() const noexcept; */
+/*     static QPixelFormat toPixelFormat(QImage::Format format) noexcept; */
+/*     static QImage::Format toImageFormat(QPixelFormat format) noexcept; */
+
+/*     // Platform specific conversion functions */
+/* #if defined(Q_OS_DARWIN) || defined(Q_QDOC) */
+/*     CGImageRef toCGImage() const Q_DECL_CF_RETURNS_RETAINED; */
+/* #endif */
+
+/* #if QT_DEPRECATED_SINCE(5, 0) */
+/*     QT_DEPRECATED inline QString text(const char *key, const char *lang = nullptr) const; */
+/*     QT_DEPRECATED inline QList<QImageTextKeyLang> textList() const; */
+/*     QT_DEPRECATED inline QStringList textLanguages() const; */
+/*     QT_DEPRECATED inline QString text(const QImageTextKeyLang&) const; */
+/*     QT_DEPRECATED inline void setText(const char* key, const char* lang, const QString&); */
+/* #endif */
+
+/* #if QT_DEPRECATED_SINCE(5, 0) */
+/*     QT_DEPRECATED inline int numColors() const; */
+/*     QT_DEPRECATED inline void setNumColors(int); */
+/*     QT_DEPRECATED inline int numBytes() const; */
+/* #endif */
+
+/* protected: */
+/*     virtual int metric(PaintDeviceMetric metric) const override; */
+/*     QImage mirrored_helper(bool horizontal, bool vertical) const; */
+/*     QImage rgbSwapped_helper() const; */
+/*     void mirrored_inplace(bool horizontal, bool vertical); */
+/*     void rgbSwapped_inplace(); */
+/*     QImage convertToFormat_helper(Format format, Qt::ImageConversionFlags flags) const; */
+/*     bool convertToFormat_inplace(Format format, Qt::ImageConversionFlags flags); */
+/*     QImage smoothScaled(int w, int h) const; */
+
+}; // QImage
+
+class xQClipboard : public QClipboard
+{
+public:
+    void clear(Mode mode = Clipboard);
+
+    bool supportsSelection() const;
+    bool supportsFindBuffer() const;
+
+    bool ownsSelection() const;
+    bool ownsClipboard() const;
+    bool ownsFindBuffer() const;
+
+/*     QString text(Mode mode = Clipboard) const; */
+/*     QString text(QString& subtype, Mode mode = Clipboard) const; */
+/*     void setText(const QString &, Mode mode = Clipboard); */
+
+/*     const QMimeData *mimeData(Mode mode = Clipboard ) const; */
+/*     void setMimeData(QMimeData *data, Mode mode = Clipboard); */
+
+/*     QImage image(Mode mode = Clipboard) const; */
+/*     QPixmap pixmap(Mode mode = Clipboard) const; */
+/*     void setImage(const QImage &, Mode mode  = Clipboard); */
+/*     void setPixmap(const QPixmap &, Mode mode  = Clipboard); */
+
+/* Q_SIGNALS: */
+/*     void changed(QClipboard::Mode mode); */
+/*     void selectionChanged(); */
+/*     void findBufferChanged(); */
+/*     void dataChanged(); */
+
+}; // QClipboard
+
+
 class xQWindow : public QWindow
 {
  public:
@@ -421,6 +1024,38 @@ class xQWindow : public QWindow
 class xQSurface : public QSurface {
  public:
 };
+
+class xQDesktopServices : public QDesktopServices
+{
+public:
+    static bool openUrl(const QUrl &url);
+    static void setUrlHandler(const QString &scheme, QObject *receiver, const char *method);
+    static void unsetUrlHandler(const QString &scheme);
+
+/* #if QT_DEPRECATED_SINCE(5, 0) */
+/*     //Must match QStandardPaths::StandardLocation */
+/*     enum StandardLocation { */
+/*         DesktopLocation, */
+/*         DocumentsLocation, */
+/*         FontsLocation, */
+/*         ApplicationsLocation, */
+/*         MusicLocation, */
+/*         MoviesLocation, */
+/*         PicturesLocation, */
+/*         TempLocation, */
+/*         HomeLocation, */
+/*         DataLocation, */
+/*         CacheLocation */
+/*     }; */
+
+/*     QT_DEPRECATED static QString storageLocation(StandardLocation type) { */
+/*         return storageLocationImpl(static_cast<QStandardPaths::StandardLocation>(type)); */
+/*     } */
+/*     QT_DEPRECATED static QString displayName(StandardLocation type) { */
+/*         return QStandardPaths::displayName(static_cast<QStandardPaths::StandardLocation>(type)); */
+/*     } */
+/* #endif */
+}; // QDesktopServices
 
 
 class xQGuiApplication : public QGuiApplication {

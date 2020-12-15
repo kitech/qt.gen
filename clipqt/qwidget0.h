@@ -269,7 +269,7 @@ public:
 /*     void stackUnder(QWidget*); */
 /*     void move(int x, int y); */
 /*     void move(const QPoint &); */
-/*     void resize(int w, int h); */
+    void resize(int w, int h);
 /*     void resize(const QSize &); */
 /*     inline void setGeometry(int x, int y, int w, int h); */
 /*     void setGeometry(const QRect &); */
@@ -521,9 +521,9 @@ class xQBoxLayout : public QBoxLayout
     void addSpacing(int size);
     void addStretch(int stretch = 0);
     /* void addSpacerItem(QSpacerItem *spacerItem); */
-    /* void addWidget(QWidget *, int stretch = 0, Qt::Alignment alignment = Qt::Alignment()); */
-    /* void addLayout(QLayout *layout, int stretch = 0); */
-    /* void addStrut(int); */
+    void addWidget(QWidget *, int stretch = 0, Qt::Alignment alignment = Qt::Alignment());
+    void addLayout(QLayout *layout, int stretch = 0);
+    void addStrut(int);
     /* void addItem(QLayoutItem *) override; */
 
     /* void insertSpacing(int index, int size); */
@@ -690,6 +690,60 @@ class xQPushButton : public QPushButton {
 /*         QPushButton(QPushButtonPrivate &dd, QWidget* parent = nullptr); */
 
 }; // QPushButton
+
+class xQToolButton : public QToolButton
+{
+public:
+    explicit xQToolButton(QWidget *parent = nullptr);
+/*     ~QToolButton(); */
+
+/*     QSize sizeHint() const override; */
+/*     QSize minimumSizeHint() const override; */
+
+/*     Qt::ToolButtonStyle toolButtonStyle() const; */
+
+/*     Qt::ArrowType arrowType() const; */
+/*     void setArrowType(Qt::ArrowType type); */
+
+/* #if QT_CONFIG(menu) */
+/*     void setMenu(QMenu* menu); */
+/*     QMenu* menu() const; */
+
+/*     void setPopupMode(ToolButtonPopupMode mode); */
+/*     ToolButtonPopupMode popupMode() const; */
+/* #endif */
+
+/*     QAction *defaultAction() const; */
+
+/*     void setAutoRaise(bool enable); */
+/*     bool autoRaise() const; */
+
+/* public Q_SLOTS: */
+/* #if QT_CONFIG(menu) */
+/*     void showMenu(); */
+/* #endif */
+/*     void setToolButtonStyle(Qt::ToolButtonStyle style); */
+/*     void setDefaultAction(QAction *); */
+
+/* Q_SIGNALS: */
+/*     void triggered(QAction *); */
+
+/* protected: */
+/*     bool event(QEvent *e) override; */
+/*     void mousePressEvent(QMouseEvent *) override; */
+/*     void mouseReleaseEvent(QMouseEvent *) override; */
+/*     void paintEvent(QPaintEvent *) override; */
+/*     void actionEvent(QActionEvent *) override; */
+
+/*     void enterEvent(QEvent *) override; */
+/*     void leaveEvent(QEvent *) override; */
+/*     void timerEvent(QTimerEvent *) override; */
+/*     void changeEvent(QEvent *) override; */
+
+/*     bool hitButton(const QPoint &pos) const override; */
+/*     void nextCheckState() override; */
+/*     void initStyleOption(QStyleOptionToolButton *option) const; */
+}; // QToolButton
 
 class  xQCheckBox : public QCheckBox
 {
@@ -874,8 +928,8 @@ public:
 /*     QString selectedText() const; */
 /*     int selectionStart() const; */
 
-/* public Q_SLOTS: */
-/*     void setText(const QString &); */
+public Q_SLOTS:
+    void setText(const QString &);
 /*     void setPixmap(const QPixmap &); */
 /* #ifndef QT_NO_PICTURE */
 /*     void setPicture(const QPicture &); */
@@ -883,9 +937,9 @@ public:
 /* #if QT_CONFIG(movie) */
 /*     void setMovie(QMovie *movie); */
 /* #endif */
-/*     void setNum(int); */
-/*     void setNum(double); */
-/*     void clear(); */
+    void setNum(int);
+    void setNum(double);
+    void clear();
 
 /* Q_SIGNALS: */
 /*     void linkActivated(const QString& link); */
@@ -1530,6 +1584,157 @@ public:
 
 }; // QComboBox
 
+class xQGroupBox : public QGroupBox
+{
+public:
+    explicit xQGroupBox(QWidget *parent = nullptr);
+    explicit xQGroupBox(const QString &title, QWidget *parent = nullptr);
+/*     ~QGroupBox(); */
+
+/*     QString title() const; */
+/*     void setTitle(const QString &title); */
+
+/*     Qt::Alignment alignment() const; */
+/*     void setAlignment(int alignment); */
+
+/*     QSize minimumSizeHint() const override; */
+
+/*     bool isFlat() const; */
+/*     void setFlat(bool flat); */
+/*     bool isCheckable() const; */
+/*     void setCheckable(bool checkable); */
+/*     bool isChecked() const; */
+
+/* public Q_SLOTS: */
+/*     void setChecked(bool checked); */
+
+/* Q_SIGNALS: */
+/*     void clicked(bool checked = false); */
+/*     void toggled(bool); */
+
+/* protected: */
+/*     bool event(QEvent *event) override; */
+/*     void childEvent(QChildEvent *event) override; */
+/*     void resizeEvent(QResizeEvent *event) override; */
+/*     void paintEvent(QPaintEvent *event) override; */
+/*     void focusInEvent(QFocusEvent *event) override; */
+/*     void changeEvent(QEvent *event) override; */
+/*     void mousePressEvent(QMouseEvent *event) override; */
+/*     void mouseMoveEvent(QMouseEvent *event) override; */
+/*     void mouseReleaseEvent(QMouseEvent *event) override; */
+/*     void initStyleOption(QStyleOptionGroupBox *option) const; */
+
+}; // QGroupBox
+
+class xQAbstractSpinBox : public QAbstractSpinBox {
+ public:
+}; // QAbstractSpinBox
+
+class  xQSpinBox : public QSpinBox
+{
+public:
+    explicit xQSpinBox(QWidget *parent = nullptr);
+/*     ~QSpinBox(); */
+
+/*     int value() const; */
+
+/*     QString prefix() const; */
+/*     void setPrefix(const QString &prefix); */
+
+/*     QString suffix() const; */
+/*     void setSuffix(const QString &suffix); */
+
+/*     QString cleanText() const; */
+
+/*     int singleStep() const; */
+/*     void setSingleStep(int val); */
+
+/*     int minimum() const; */
+/*     void setMinimum(int min); */
+
+/*     int maximum() const; */
+/*     void setMaximum(int max); */
+
+/*     void setRange(int min, int max); */
+
+/*     StepType stepType() const; */
+/*     void setStepType(StepType stepType); */
+
+/*     int displayIntegerBase() const; */
+/*     void setDisplayIntegerBase(int base); */
+
+/* protected: */
+/*     bool event(QEvent *event) override; */
+/*     QValidator::State validate(QString &input, int &pos) const override; */
+/*     virtual int valueFromText(const QString &text) const; */
+/*     virtual QString textFromValue(int val) const; */
+/*     void fixup(QString &str) const override; */
+
+
+/* public Q_SLOTS: */
+/*     void setValue(int val); */
+
+/* Q_SIGNALS: */
+/*     void valueChanged(int); */
+/*     void textChanged(const QString &); */
+/* #if QT_DEPRECATED_SINCE(5, 14) */
+/*     QT_DEPRECATED_X("Use textChanged(QString) instead") */
+/*     void valueChanged(const QString &); */
+/* #endif */
+
+}; // QSpinBox
+
+class  xQDoubleSpinBox : public QDoubleSpinBox
+{
+public:
+    explicit xQDoubleSpinBox(QWidget *parent = nullptr);
+/*     ~QDoubleSpinBox(); */
+
+/*     double value() const; */
+
+/*     QString prefix() const; */
+/*     void setPrefix(const QString &prefix); */
+
+/*     QString suffix() const; */
+/*     void setSuffix(const QString &suffix); */
+
+/*     QString cleanText() const; */
+
+/*     double singleStep() const; */
+/*     void setSingleStep(double val); */
+
+/*     double minimum() const; */
+/*     void setMinimum(double min); */
+
+/*     double maximum() const; */
+/*     void setMaximum(double max); */
+
+/*     void setRange(double min, double max); */
+
+/*     StepType stepType() const; */
+/*     void setStepType(StepType stepType); */
+
+/*     int decimals() const; */
+/*     void setDecimals(int prec); */
+
+/*     QValidator::State validate(QString &input, int &pos) const override; */
+/*     virtual double valueFromText(const QString &text) const; */
+/*     virtual QString textFromValue(double val) const; */
+/*     void fixup(QString &str) const override; */
+
+/* public Q_SLOTS: */
+/*     void setValue(double val); */
+
+/* Q_SIGNALS: */
+/*     void valueChanged(double); */
+/*     void textChanged(const QString &); */
+/* #if QT_DEPRECATED_SINCE(5, 14) */
+/*     QT_DEPRECATED_X("Use textChanged(QString) instead") */
+/*     void valueChanged(const QString &); */
+/* #endif */
+
+}; // QDoubleSpinBox
+
 
 class xQStackedWidget : public QStackedWidget
 {
@@ -2088,6 +2293,718 @@ public:
 }; // QTreeView
 
 
+class  xQSizePolicy : public QSizePolicy
+{
+public:
+    QT_SIZEPOLICY_CONSTEXPR xQSizePolicy() noexcept;
+
+/* #if defined(Q_COMPILER_UNIFORM_INIT) && !defined(Q_QDOC) */
+/*     QT_SIZEPOLICY_CONSTEXPR QSizePolicy(Policy horizontal, Policy vertical, ControlType type = DefaultType) noexcept */
+/*         : bits{0, 0, quint32(horizontal), quint32(vertical), */
+/*                type == DefaultType ? 0 : toControlTypeFieldValue(type), 0, 0, 0} */
+/*     {} */
+/* #else */
+/*     QSizePolicy(Policy horizontal, Policy vertical, ControlType type = DefaultType) noexcept */
+/*         : data(0) { */
+/*         bits.horPolicy = horizontal; */
+/*         bits.verPolicy = vertical; */
+/*         setControlType(type); */
+/*     } */
+/* #endif // uniform-init */
+/*     QT_SIZEPOLICY_CONSTEXPR Policy horizontalPolicy() const noexcept { return static_cast<Policy>(bits.horPolicy); } */
+/*     QT_SIZEPOLICY_CONSTEXPR Policy verticalPolicy() const noexcept { return static_cast<Policy>(bits.verPolicy); } */
+/*     ControlType controlType() const noexcept; */
+
+/*     Q_DECL_RELAXED_CONSTEXPR void setHorizontalPolicy(Policy d) noexcept { bits.horPolicy = d; } */
+/*     Q_DECL_RELAXED_CONSTEXPR void setVerticalPolicy(Policy d) noexcept { bits.verPolicy = d; } */
+/*     void setControlType(ControlType type) noexcept; */
+
+/*     QT_SIZEPOLICY_CONSTEXPR Qt::Orientations expandingDirections() const noexcept { */
+/*         return ( (verticalPolicy()   & ExpandFlag) ? Qt::Vertical   : Qt::Orientations() ) */
+/*              | ( (horizontalPolicy() & ExpandFlag) ? Qt::Horizontal : Qt::Orientations() ) ; */
+/*     } */
+
+/*     Q_DECL_RELAXED_CONSTEXPR void setHeightForWidth(bool b) noexcept { bits.hfw = b;  } */
+/*     QT_SIZEPOLICY_CONSTEXPR bool hasHeightForWidth() const noexcept { return bits.hfw; } */
+/*     Q_DECL_RELAXED_CONSTEXPR void setWidthForHeight(bool b) noexcept { bits.wfh = b;  } */
+/*     QT_SIZEPOLICY_CONSTEXPR bool hasWidthForHeight() const noexcept { return bits.wfh; } */
+
+/*     QT_SIZEPOLICY_CONSTEXPR bool operator==(const QSizePolicy& s) const noexcept { return data == s.data; } */
+/*     QT_SIZEPOLICY_CONSTEXPR bool operator!=(const QSizePolicy& s) const noexcept { return data != s.data; } */
+
+/*     friend Q_DECL_CONST_FUNCTION uint qHash(QSizePolicy key, uint seed) noexcept { return qHash(key.data, seed); } */
+
+/*     operator QVariant() const; */
+
+/*     QT_SIZEPOLICY_CONSTEXPR int horizontalStretch() const noexcept { return static_cast<int>(bits.horStretch); } */
+/*     QT_SIZEPOLICY_CONSTEXPR int verticalStretch() const noexcept { return static_cast<int>(bits.verStretch); } */
+/*     Q_DECL_RELAXED_CONSTEXPR void setHorizontalStretch(int stretchFactor) { bits.horStretch = static_cast<quint32>(qBound(0, stretchFactor, 255)); } */
+/*     Q_DECL_RELAXED_CONSTEXPR void setVerticalStretch(int stretchFactor) { bits.verStretch = static_cast<quint32>(qBound(0, stretchFactor, 255)); } */
+
+/*     QT_SIZEPOLICY_CONSTEXPR bool retainSizeWhenHidden() const noexcept { return bits.retainSizeWhenHidden; } */
+/*     Q_DECL_RELAXED_CONSTEXPR void setRetainSizeWhenHidden(bool retainSize) noexcept { bits.retainSizeWhenHidden = retainSize; } */
+
+/*     Q_DECL_RELAXED_CONSTEXPR void transpose() noexcept { *this = transposed(); } */
+/*     Q_REQUIRED_RESULT */
+/* #ifndef Q_QDOC */
+/*     QT_SIZEPOLICY_CONSTEXPR_AND_UNIFORM_INIT */
+/* #endif */
+/*     QSizePolicy transposed() const noexcept */
+/*     { */
+/*         return QSizePolicy(bits.transposed()); */
+/*     } */
+
+/* private: */
+/* #ifndef QT_NO_DATASTREAM */
+/*     friend Q_WIDGETS_EXPORT QDataStream &operator<<(QDataStream &, const QSizePolicy &); */
+/*     friend Q_WIDGETS_EXPORT QDataStream &operator>>(QDataStream &, QSizePolicy &); */
+/* #endif */
+/*     QT_SIZEPOLICY_CONSTEXPR QSizePolicy(int i) noexcept : data(i) { } */
+/*     struct Bits; */
+/*     QT_SIZEPOLICY_CONSTEXPR explicit QSizePolicy(Bits b) noexcept : bits(b) { } */
+
+/*     static Q_DECL_RELAXED_CONSTEXPR quint32 toControlTypeFieldValue(ControlType type) noexcept */
+/*     { */
+/*         /\* */
+/*           The control type is a flag type, with values 0x1, 0x2, 0x4, 0x8, 0x10, */
+/*           etc. In memory, we pack it onto the available bits (CTSize) in */
+/*           setControlType(), and unpack it here. */
+
+/*           Example: */
+
+/*           0x00000001 maps to 0 */
+/*           0x00000002 maps to 1 */
+/*           0x00000004 maps to 2 */
+/*           0x00000008 maps to 3 */
+/*           etc. */
+/*         *\/ */
+
+/*         return qCountTrailingZeroBits(static_cast<quint32>(type)); */
+/*     } */
+
+/*     struct Bits { */
+/*         quint32 horStretch : 8; */
+/*         quint32 verStretch : 8; */
+/*         quint32 horPolicy : 4; */
+/*         quint32 verPolicy : 4; */
+/*         quint32 ctype : 5; */
+/*         quint32 hfw : 1; */
+/*         quint32 wfh : 1; */
+/*         quint32 retainSizeWhenHidden : 1; */
+
+/*         QT_SIZEPOLICY_CONSTEXPR_AND_UNIFORM_INIT */
+/*         Bits transposed() const noexcept */
+/*         { */
+/*             return {verStretch, // \ swap */
+/*                     horStretch, // / */
+/*                     verPolicy, // \ swap */
+/*                     horPolicy, // / */
+/*                     ctype, */
+/*                     hfw, // \ don't swap (historic behavior) */
+/*                     wfh, // / */
+/*                     retainSizeWhenHidden}; */
+/*         } */
+/*     }; */
+/*     union { */
+/*         Bits bits; */
+/*         quint32 data; */
+/*     }; */
+}; // QSizePolicy
+
+class xQProgressBar : public QProgressBar
+{
+public:
+    explicit xQProgressBar(QWidget *parent = nullptr);
+/*     ~QProgressBar(); */
+
+/*     int minimum() const; */
+/*     int maximum() const; */
+
+/*     int value() const; */
+
+/*     virtual QString text() const; */
+/*     void setTextVisible(bool visible); */
+/*     bool isTextVisible() const; */
+
+/*     Qt::Alignment alignment() const; */
+/*     void setAlignment(Qt::Alignment alignment); */
+
+/*     QSize sizeHint() const override; */
+/*     QSize minimumSizeHint() const override; */
+
+/*     Qt::Orientation orientation() const; */
+
+/*     void setInvertedAppearance(bool invert); */
+/*     bool invertedAppearance() const; */
+/*     void setTextDirection(QProgressBar::Direction textDirection); */
+/*     QProgressBar::Direction textDirection() const; */
+
+/*     void setFormat(const QString &format); */
+/*     void resetFormat(); */
+/*     QString format() const; */
+
+/* public Q_SLOTS: */
+/*     void reset(); */
+/*     void setRange(int minimum, int maximum); */
+/*     void setMinimum(int minimum); */
+/*     void setMaximum(int maximum); */
+/*     void setValue(int value); */
+/*     void setOrientation(Qt::Orientation); */
+
+/* Q_SIGNALS: */
+/*     void valueChanged(int value); */
+
+/* protected: */
+/*     bool event(QEvent *e) override; */
+/*     void paintEvent(QPaintEvent *) override; */
+/*     void initStyleOption(QStyleOptionProgressBar *option) const; */
+
+}; // QProgressBar
+
+class  xQToolBar : public QToolBar
+{
+public:
+    explicit xQToolBar(const QString &title, QWidget *parent = nullptr);
+    explicit xQToolBar(QWidget *parent = nullptr);
+/*     ~QToolBar(); */
+
+/*     void setMovable(bool movable); */
+/*     bool isMovable() const; */
+
+/*     void setAllowedAreas(Qt::ToolBarAreas areas); */
+/*     Qt::ToolBarAreas allowedAreas() const; */
+
+/*     inline bool isAreaAllowed(Qt::ToolBarArea area) const */
+/*     { return (allowedAreas() & area) == area; } */
+
+/*     void setOrientation(Qt::Orientation orientation); */
+/*     Qt::Orientation orientation() const; */
+
+/*     void clear(); */
+
+/*     using QWidget::addAction; */
+/*     QAction *addAction(const QString &text); */
+/*     QAction *addAction(const QIcon &icon, const QString &text); */
+/*     QAction *addAction(const QString &text, const QObject *receiver, const char* member); */
+/*     QAction *addAction(const QIcon &icon, const QString &text, */
+/*                        const QObject *receiver, const char* member); */
+/* #ifdef Q_CLANG_QDOC */
+/*     template<typename Functor> */
+/*     QAction *addAction(const QString &text, Functor functor); */
+/*     template<typename Functor> */
+/*     QAction *addAction(const QString &text, const QObject *context, Functor functor); */
+/*     template<typename Functor> */
+/*     QAction *addAction(const QIcon &icon, const QString &text, Functor functor); */
+/*     template<typename Functor> */
+/*     QAction *addAction(const QIcon &icon, const QString &text, const QObject *context, Functor functor); */
+/* #else */
+/*     // addAction(QString): Connect to a QObject slot / functor or function pointer (with context) */
+/*     template<class Obj, typename Func1> */
+/*     inline typename std::enable_if<!std::is_same<const char*, Func1>::value */
+/*         && QtPrivate::IsPointerToTypeDerivedFromQObject<Obj*>::Value, QAction *>::type */
+/*         addAction(const QString &text, const Obj *object, Func1 slot) */
+/*     { */
+/*         QAction *result = addAction(text); */
+/*         connect(result, &QAction::triggered, object, std::move(slot)); */
+/*         return result; */
+/*     } */
+/*     // addAction(QString): Connect to a functor or function pointer (without context) */
+/*     template <typename Func1> */
+/*     inline QAction *addAction(const QString &text, Func1 slot) */
+/*     { */
+/*         QAction *result = addAction(text); */
+/*         connect(result, &QAction::triggered, slot); */
+/*         return result; */
+/*     } */
+/*     // addAction(QString): Connect to a QObject slot / functor or function pointer (with context) */
+/*     template<class Obj, typename Func1> */
+/*     inline typename std::enable_if<!std::is_same<const char*, Func1>::value */
+/*         && QtPrivate::IsPointerToTypeDerivedFromQObject<Obj*>::Value, QAction *>::type */
+/*         addAction(const QIcon &actionIcon, const QString &text, const Obj *object, Func1 slot) */
+/*     { */
+/*         QAction *result = addAction(actionIcon, text); */
+/*         connect(result, &QAction::triggered, object, std::move(slot)); */
+/*         return result; */
+/*     } */
+/*     // addAction(QIcon, QString): Connect to a functor or function pointer (without context) */
+/*     template <typename Func1> */
+/*     inline QAction *addAction(const QIcon &actionIcon, const QString &text, Func1 slot) */
+/*     { */
+/*         QAction *result = addAction(actionIcon, text); */
+/*         connect(result, &QAction::triggered, slot); */
+/*         return result; */
+/*     } */
+/* #endif // !Q_CLANG_QDOC */
+
+/*     QAction *addSeparator(); */
+/*     QAction *insertSeparator(QAction *before); */
+
+/*     QAction *addWidget(QWidget *widget); */
+/*     QAction *insertWidget(QAction *before, QWidget *widget); */
+
+/*     QRect actionGeometry(QAction *action) const; */
+/*     QAction *actionAt(const QPoint &p) const; */
+/*     inline QAction *actionAt(int x, int y) const; */
+
+/*     QAction *toggleViewAction() const; */
+
+/*     QSize iconSize() const; */
+/*     Qt::ToolButtonStyle toolButtonStyle() const; */
+
+/*     QWidget *widgetForAction(QAction *action) const; */
+
+/*     bool isFloatable() const; */
+/*     void setFloatable(bool floatable); */
+/*     bool isFloating() const; */
+
+/* public Q_SLOTS: */
+/*     void setIconSize(const QSize &iconSize); */
+/*     void setToolButtonStyle(Qt::ToolButtonStyle toolButtonStyle); */
+
+/* Q_SIGNALS: */
+/*     void actionTriggered(QAction *action); */
+/*     void movableChanged(bool movable); */
+/*     void allowedAreasChanged(Qt::ToolBarAreas allowedAreas); */
+/*     void orientationChanged(Qt::Orientation orientation); */
+/*     void iconSizeChanged(const QSize &iconSize); */
+/*     void toolButtonStyleChanged(Qt::ToolButtonStyle toolButtonStyle); */
+/*     void topLevelChanged(bool topLevel); */
+/*     void visibilityChanged(bool visible); */
+
+/* protected: */
+/*     void actionEvent(QActionEvent *event) override; */
+/*     void changeEvent(QEvent *event) override; */
+/*     void paintEvent(QPaintEvent *event) override; */
+/*     bool event(QEvent *event) override; */
+/*     void initStyleOption(QStyleOptionToolBar *option) const; */
+}; // QToolBar
+
+class xQStatusBar: public QStatusBar
+{
+public:
+    explicit xQStatusBar(QWidget *parent = nullptr);
+/*     virtual ~QStatusBar(); */
+
+/*     void addWidget(QWidget *widget, int stretch = 0); */
+/*     int insertWidget(int index, QWidget *widget, int stretch = 0); */
+/*     void addPermanentWidget(QWidget *widget, int stretch = 0); */
+/*     int insertPermanentWidget(int index, QWidget *widget, int stretch = 0); */
+/*     void removeWidget(QWidget *widget); */
+
+/*     void setSizeGripEnabled(bool); */
+/*     bool isSizeGripEnabled() const; */
+
+/*     QString currentMessage() const; */
+
+/* public Q_SLOTS: */
+/*     void showMessage(const QString &text, int timeout = 0); */
+/*     void clearMessage(); */
+
+
+/* Q_SIGNALS: */
+/*     void messageChanged(const QString &text); */
+
+/* protected: */
+/*     void showEvent(QShowEvent *) override; */
+/*     void paintEvent(QPaintEvent *) override; */
+/*     void resizeEvent(QResizeEvent *) override; */
+
+/*     void reformat(); */
+/*     void hideOrShow(); */
+/*     bool event(QEvent *) override; */
+
+}; // QStatusBar
+
+
+class  xQAction : public QAction
+{
+public:
+
+    explicit xQAction(QObject *parent = nullptr);
+    explicit xQAction(const QString &text, QObject *parent = nullptr);
+/*     explicit QAction(const QIcon &icon, const QString &text, QObject *parent = nullptr); */
+
+/*     ~QAction(); */
+
+/*     void setActionGroup(QActionGroup *group); */
+/*     QActionGroup *actionGroup() const; */
+/*     void setIcon(const QIcon &icon); */
+/*     QIcon icon() const; */
+
+/*     void setText(const QString &text); */
+/*     QString text() const; */
+
+/*     void setIconText(const QString &text); */
+/*     QString iconText() const; */
+
+/*     void setToolTip(const QString &tip); */
+/*     QString toolTip() const; */
+
+/*     void setStatusTip(const QString &statusTip); */
+/*     QString statusTip() const; */
+
+/*     void setWhatsThis(const QString &what); */
+/*     QString whatsThis() const; */
+
+/*     void setPriority(Priority priority); */
+/*     Priority priority() const; */
+
+/* #if QT_CONFIG(menu) */
+/*     QMenu *menu() const; */
+/*     void setMenu(QMenu *menu); */
+/* #endif */
+
+/*     void setSeparator(bool b); */
+/*     bool isSeparator() const; */
+
+/* #if QT_CONFIG(shortcut) */
+/*     void setShortcut(const QKeySequence &shortcut); */
+/*     QKeySequence shortcut() const; */
+
+/*     void setShortcuts(const QList<QKeySequence> &shortcuts); */
+/*     void setShortcuts(QKeySequence::StandardKey); */
+/*     QList<QKeySequence> shortcuts() const; */
+
+/*     void setShortcutContext(Qt::ShortcutContext context); */
+/*     Qt::ShortcutContext shortcutContext() const; */
+
+/*     void setAutoRepeat(bool); */
+/*     bool autoRepeat() const; */
+/* #endif */
+
+/*     void setFont(const QFont &font); */
+/*     QFont font() const; */
+
+/*     void setCheckable(bool); */
+/*     bool isCheckable() const; */
+
+/*     QVariant data() const; */
+/*     void setData(const QVariant &var); */
+
+/*     bool isChecked() const; */
+
+/*     bool isEnabled() const; */
+
+/*     bool isVisible() const; */
+
+/*     enum ActionEvent { Trigger, Hover }; */
+/*     void activate(ActionEvent event); */
+/*     bool showStatusText(QWidget *widget = nullptr); */
+
+/*     void setMenuRole(MenuRole menuRole); */
+/*     MenuRole menuRole() const; */
+
+/*     void setIconVisibleInMenu(bool visible); */
+/*     bool isIconVisibleInMenu() const; */
+
+/*     void setShortcutVisibleInContextMenu(bool show); */
+/*     bool isShortcutVisibleInContextMenu() const; */
+
+/*     QWidget *parentWidget() const; */
+
+/*     QList<QWidget *> associatedWidgets() const; */
+/* #if QT_CONFIG(graphicsview) */
+/*     QList<QGraphicsWidget *> associatedGraphicsWidgets() const; // ### suboptimal */
+/* #endif */
+
+/* protected: */
+/*     bool event(QEvent *) override; */
+/*     QAction(QActionPrivate &dd, QObject *parent); */
+
+/* public Q_SLOTS: */
+/*     void trigger() { activate(Trigger); } */
+/*     void hover() { activate(Hover); } */
+/*     void setChecked(bool); */
+/*     void toggle(); */
+/*     void setEnabled(bool); */
+/*     inline void setDisabled(bool b) { setEnabled(!b); } */
+/*     void setVisible(bool); */
+
+/* Q_SIGNALS: */
+/*     void changed(); */
+/*     void triggered(bool checked = false); */
+/*     void hovered(); */
+/*     void toggled(bool); */
+
+}; // QAction
+
+class xQMenu : public QMenu
+{
+public:
+    explicit xQMenu(QWidget *parent = nullptr);
+    explicit xQMenu(const QString &title, QWidget *parent = nullptr);
+/*     ~QMenu(); */
+
+/*     using QWidget::addAction; */
+/*     QAction *addAction(const QString &text); */
+/*     QAction *addAction(const QIcon &icon, const QString &text); */
+/*     QAction *addAction(const QString &text, const QObject *receiver, const char* member, const QKeySequence &shortcut = 0); */
+/*     QAction *addAction(const QIcon &icon, const QString &text, const QObject *receiver, const char* member, const QKeySequence &shortcut = 0); */
+
+/* #ifdef Q_CLANG_QDOC */
+/*     template<typename Functor> */
+/*     QAction *addAction(const QString &text, Functor functor, const QKeySequence &shortcut = 0); */
+/*     template<typename Functor> */
+/*     QAction *addAction(const QString &text, const QObject *context, Functor functor, const QKeySequence &shortcut = 0); */
+/*     template<typename Functor> */
+/*     QAction *addAction(const QIcon &icon, const QString &text, Functor functor, const QKeySequence &shortcut = 0); */
+/*     template<typename Functor> */
+/*     QAction *addAction(const QIcon &icon, const QString &text, const QObject *context, Functor functor, const QKeySequence &shortcut = 0); */
+/* #else */
+/*     // addAction(QString): Connect to a QObject slot / functor or function pointer (with context) */
+/*     template<class Obj, typename Func1> */
+/*     inline typename std::enable_if<!std::is_same<const char*, Func1>::value */
+/*         && QtPrivate::IsPointerToTypeDerivedFromQObject<Obj*>::Value, QAction *>::type */
+/*         addAction(const QString &text, const Obj *object, Func1 slot, const QKeySequence &shortcut = 0) */
+/*     { */
+/*         QAction *result = addAction(text); */
+/* #ifdef QT_NO_SHORTCUT */
+/*         Q_UNUSED(shortcut) */
+/* #else */
+/*         result->setShortcut(shortcut); */
+/* #endif */
+/*         connect(result, &QAction::triggered, object, std::move(slot)); */
+/*         return result; */
+/*     } */
+/*     // addAction(QString): Connect to a functor or function pointer (without context) */
+/*     template <typename Func1> */
+/*     inline QAction *addAction(const QString &text, Func1 slot, const QKeySequence &shortcut = 0) */
+/*     { */
+/*         QAction *result = addAction(text); */
+/* #ifdef QT_NO_SHORTCUT */
+/*         Q_UNUSED(shortcut) */
+/* #else */
+/*         result->setShortcut(shortcut); */
+/* #endif */
+/*         connect(result, &QAction::triggered, std::move(slot)); */
+/*         return result; */
+/*     } */
+/*     // addAction(QIcon, QString): Connect to a QObject slot / functor or function pointer (with context) */
+/*     template<class Obj, typename Func1> */
+/*     inline typename std::enable_if<!std::is_same<const char*, Func1>::value */
+/*         && QtPrivate::IsPointerToTypeDerivedFromQObject<Obj*>::Value, QAction *>::type */
+/*         addAction(const QIcon &actionIcon, const QString &text, const Obj *object, Func1 slot, const QKeySequence &shortcut = 0) */
+/*     { */
+/*         QAction *result = addAction(actionIcon, text); */
+/* #ifdef QT_NO_SHORTCUT */
+/*         Q_UNUSED(shortcut) */
+/* #else */
+/*         result->setShortcut(shortcut); */
+/* #endif */
+/*         connect(result, &QAction::triggered, object, std::move(slot)); */
+/*         return result; */
+/*     } */
+/*     // addAction(QIcon, QString): Connect to a functor or function pointer (without context) */
+/*     template <typename Func1> */
+/*     inline QAction *addAction(const QIcon &actionIcon, const QString &text, Func1 slot, const QKeySequence &shortcut = 0) */
+/*     { */
+/*         QAction *result = addAction(actionIcon, text); */
+/* #ifdef QT_NO_SHORTCUT */
+/*         Q_UNUSED(shortcut) */
+/* #else */
+/*         result->setShortcut(shortcut); */
+/* #endif */
+/*         connect(result, &QAction::triggered, std::move(slot)); */
+/*         return result; */
+/*     } */
+/* #endif // !Q_CLANG_QDOC */
+
+/*     QAction *addMenu(QMenu *menu); */
+/*     QMenu *addMenu(const QString &title); */
+/*     QMenu *addMenu(const QIcon &icon, const QString &title); */
+
+/*     QAction *addSeparator(); */
+
+/*     QAction *addSection(const QString &text); */
+/*     QAction *addSection(const QIcon &icon, const QString &text); */
+
+/*     QAction *insertMenu(QAction *before, QMenu *menu); */
+/*     QAction *insertSeparator(QAction *before); */
+/*     QAction *insertSection(QAction *before, const QString &text); */
+/*     QAction *insertSection(QAction *before, const QIcon &icon, const QString &text); */
+
+/*     bool isEmpty() const; */
+/*     void clear(); */
+
+/*     void setTearOffEnabled(bool); */
+/*     bool isTearOffEnabled() const; */
+
+/*     bool isTearOffMenuVisible() const; */
+/*     void showTearOffMenu(); */
+/*     void showTearOffMenu(const QPoint &pos); */
+/*     void hideTearOffMenu(); */
+
+/*     void setDefaultAction(QAction *); */
+/*     QAction *defaultAction() const; */
+
+/*     void setActiveAction(QAction *act); */
+/*     QAction *activeAction() const; */
+
+/*     void popup(const QPoint &pos, QAction *at = nullptr); */
+/*     QAction *exec(); */
+/*     QAction *exec(const QPoint &pos, QAction *at = nullptr); */
+
+/* #if QT_VERSION >= QT_VERSION_CHECK(6,0,0) */
+/*     static QAction *exec(const QList<QAction *> &actions, const QPoint &pos, QAction *at = nullptr, QWidget *parent = nullptr); */
+/* #else */
+/*     static QAction *exec(QList<QAction*> actions, const QPoint &pos, QAction *at = nullptr, QWidget *parent = nullptr); */
+/* #endif */
+
+/*     QSize sizeHint() const override; */
+
+/*     QRect actionGeometry(QAction *) const; */
+/*     QAction *actionAt(const QPoint &) const; */
+
+/*     QAction *menuAction() const; */
+
+/*     QString title() const; */
+/*     void setTitle(const QString &title); */
+
+/*     QIcon icon() const; */
+/*     void setIcon(const QIcon &icon); */
+
+/*     void setNoReplayFor(QWidget *widget); */
+/*     QPlatformMenu *platformMenu(); */
+/*     void setPlatformMenu(QPlatformMenu *platformMenu); */
+
+/* #if defined(Q_OS_MACOS) || defined(Q_CLANG_QDOC) */
+/*     NSMenu* toNSMenu(); */
+/*     void setAsDockMenu(); */
+/* #endif */
+
+/*     bool separatorsCollapsible() const; */
+/*     void setSeparatorsCollapsible(bool collapse); */
+
+/*     bool toolTipsVisible() const; */
+/*     void setToolTipsVisible(bool visible); */
+
+/* Q_SIGNALS: */
+/*     void aboutToShow(); */
+/*     void aboutToHide(); */
+/*     void triggered(QAction *action); */
+/*     void hovered(QAction *action); */
+
+/* protected: */
+/*     int columnCount() const; */
+
+/*     void changeEvent(QEvent *) override; */
+/*     void keyPressEvent(QKeyEvent *) override; */
+/*     void mouseReleaseEvent(QMouseEvent *) override; */
+/*     void mousePressEvent(QMouseEvent *) override; */
+/*     void mouseMoveEvent(QMouseEvent *) override; */
+/* #if QT_CONFIG(wheelevent) */
+/*     void wheelEvent(QWheelEvent *) override; */
+/* #endif */
+/*     void enterEvent(QEvent *) override; */
+/*     void leaveEvent(QEvent *) override; */
+/*     void hideEvent(QHideEvent *) override; */
+/*     void paintEvent(QPaintEvent *) override; */
+/*     void actionEvent(QActionEvent *) override; */
+/*     void timerEvent(QTimerEvent *) override; */
+/*     bool event(QEvent *) override; */
+/*     bool focusNextPrevChild(bool next) override; */
+/*     void initStyleOption(QStyleOptionMenuItem *option, const QAction *action) const; */
+
+}; // QMenu
+
+class xQMenuBar : public QMenuBar
+{
+public:
+    explicit xQMenuBar(QWidget *parent = nullptr);
+/*     ~QMenuBar(); */
+
+/*     using QWidget::addAction; */
+/*     QAction *addAction(const QString &text); */
+/*     QAction *addAction(const QString &text, const QObject *receiver, const char* member); */
+
+/* #ifdef Q_CLANG_QDOC */
+/*     template<typename Obj, typename PointerToMemberFunctionOrFunctor> */
+/*     QAction *addAction(const QString &text, const Obj *receiver, PointerToMemberFunctionOrFunctor method); */
+/*     template<typename Functor> */
+/*     QAction *addAction(const QString &text, Functor functor); */
+/* #else */
+/*     // addAction(QString): Connect to a QObject slot / functor or function pointer (with context) */
+/*     template<typename Obj, typename Func1> */
+/*     inline typename std::enable_if<!std::is_same<const char*, Func1>::value */
+/*         && QtPrivate::IsPointerToTypeDerivedFromQObject<Obj*>::Value, QAction *>::type */
+/*         addAction(const QString &text, const Obj *object, Func1 slot) */
+/*     { */
+/*         QAction *result = addAction(text); */
+/*         connect(result, &QAction::triggered, object, std::move(slot)); */
+/*         return result; */
+/*     } */
+/*     // addAction(QString): Connect to a functor or function pointer (without context) */
+/*     template <typename Func1> */
+/*     inline QAction *addAction(const QString &text, Func1 slot) */
+/*     { */
+/*         QAction *result = addAction(text); */
+/*         connect(result, &QAction::triggered, std::move(slot)); */
+/*         return result; */
+/*     } */
+/* #endif // !Q_CLANG_QDOC */
+
+/*     QAction *addMenu(QMenu *menu); */
+/*     QMenu *addMenu(const QString &title); */
+/*     QMenu *addMenu(const QIcon &icon, const QString &title); */
+
+
+/*     QAction *addSeparator(); */
+/*     QAction *insertSeparator(QAction *before); */
+
+/*     QAction *insertMenu(QAction *before, QMenu *menu); */
+
+/*     void clear(); */
+
+/*     QAction *activeAction() const; */
+/*     void setActiveAction(QAction *action); */
+
+/*     void setDefaultUp(bool); */
+/*     bool isDefaultUp() const; */
+
+/*     QSize sizeHint() const override; */
+/*     QSize minimumSizeHint() const override; */
+/*     int heightForWidth(int) const override; */
+
+/*     QRect actionGeometry(QAction *) const; */
+/*     QAction *actionAt(const QPoint &) const; */
+
+/*     void setCornerWidget(QWidget *w, Qt::Corner corner = Qt::TopRightCorner); */
+/*     QWidget *cornerWidget(Qt::Corner corner = Qt::TopRightCorner) const; */
+
+/* #if defined(Q_OS_MACOS) || defined(Q_CLANG_QDOC) */
+/*     NSMenu* toNSMenu(); */
+/* #endif */
+
+/*     bool isNativeMenuBar() const; */
+/*     void setNativeMenuBar(bool nativeMenuBar); */
+/*     QPlatformMenuBar *platformMenuBar(); */
+/* public Q_SLOTS: */
+/*     void setVisible(bool visible) override; */
+
+/* Q_SIGNALS: */
+/*     void triggered(QAction *action); */
+/*     void hovered(QAction *action); */
+
+/* protected: */
+/*     void changeEvent(QEvent *) override; */
+/*     void keyPressEvent(QKeyEvent *) override; */
+/*     void mouseReleaseEvent(QMouseEvent *) override; */
+/*     void mousePressEvent(QMouseEvent *) override; */
+/*     void mouseMoveEvent(QMouseEvent *) override; */
+/*     void leaveEvent(QEvent *) override; */
+/*     void paintEvent(QPaintEvent *) override; */
+/*     void resizeEvent(QResizeEvent *) override; */
+/*     void actionEvent(QActionEvent *) override; */
+/*     void focusOutEvent(QFocusEvent *) override; */
+/*     void focusInEvent(QFocusEvent *) override; */
+/*     void timerEvent(QTimerEvent *) override; */
+/*     bool eventFilter(QObject *, QEvent *) override; */
+/*     bool event(QEvent *) override; */
+/*     void initStyleOption(QStyleOptionMenuItem *option, const QAction *action) const; */
+
+}; // QMenuBar
+
+
 class xQSystemTrayIcon : public QSystemTrayIcon
 {
 public:
@@ -2186,8 +3103,8 @@ class xQMainWindow : public QMainWindow
 /*     void setStatusBar(QStatusBar *statusbar); */
 /* #endif */
 
-/*     QWidget *centralWidget() const; */
-/*     void setCentralWidget(QWidget *widget); */
+    QWidget *centralWidget() const;
+    void setCentralWidget(QWidget *widget);
 
 /*     QWidget *takeCentralWidget(); */
 
