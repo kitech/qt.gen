@@ -294,7 +294,7 @@ func (this *GenerateGov2) filterClipqt() {
 
 	for i := 0; i < len(this.methods); i++ {
 		for j := 0; j < len(xmths); j++ {
-			matched := protoMatch(this.methods[i], xmths[j])
+			matched := this.protoMatch(this.methods[i], xmths[j])
 			if matched {
 				newmths = append(newmths, this.methods[i])
 				break
@@ -308,8 +308,12 @@ func (this *GenerateGov2) filterClipqt() {
 }
 
 // FunctionDecl/CXXMethodDecl
-func protoMatch(c1, cx clang.Cursor) bool {
+func (this *GenerateGov2) protoMatch(c1, cx clang.Cursor) bool {
 	c2 := cx
+
+	mgname1 := this.mangler.origin(c1)
+	mgname2 := this.mangler.origin(c2)
+	log.Println(c1.Spelling(), mgname1, mgname2)
 
 	rety1 := c1.ResultType()
 	rety2 := c2.ResultType()

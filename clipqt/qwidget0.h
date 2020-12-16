@@ -3020,13 +3020,13 @@ public:
 /*         MiddleClick */
 /*     }; */
 
-/* #if QT_CONFIG(menu) */
-/*     void setContextMenu(QMenu *menu); */
-/*     QMenu *contextMenu() const; */
-/* #endif */
+#if QT_CONFIG(menu)
+    void setContextMenu(QMenu *menu);
+    QMenu *contextMenu() const;
+#endif
 
-/*     QIcon icon() const; */
-/*     void setIcon(const QIcon &icon); */
+    QIcon icon() const;
+    void setIcon(const QIcon &icon);
 
     QString toolTip() const;
     void setToolTip(const QString &tip);
@@ -3043,9 +3043,9 @@ public Q_SLOTS:
     void setVisible(bool visible);
     inline void show() { setVisible(true); }
     inline void hide() { setVisible(false); }
-/*     void showMessage(const QString &title, const QString &msg, const QIcon &icon, int msecs = 10000); */
-/*     void showMessage(const QString &title, const QString &msg, */
-/*                      QSystemTrayIcon::MessageIcon icon = QSystemTrayIcon::Information, int msecs = 10000); */
+    void showMessage(const QString &title, const QString &msg, const QIcon &icon, int msecs = 10000);
+    void showMessage(const QString &title, const QString &msg,
+                     QSystemTrayIcon::MessageIcon icon = QSystemTrayIcon::Information, int msecs = 10000);
 
 /* Q_SIGNALS: */
 /*     void activated(QSystemTrayIcon::ActivationReason reason); */
@@ -3090,18 +3090,18 @@ class xQMainWindow : public QMainWindow
 
 /*     bool isSeparator(const QPoint &pos) const; */
 
-/* #if QT_CONFIG(menubar) */
-/*     QMenuBar *menuBar() const; */
-/*     void setMenuBar(QMenuBar *menubar); */
+#if QT_CONFIG(menubar)
+    QMenuBar *menuBar() const;
+    void setMenuBar(QMenuBar *menubar);
 
-/*     QWidget  *menuWidget() const; */
-/*     void setMenuWidget(QWidget *menubar); */
-/* #endif */
+    QWidget  *menuWidget() const;
+    void setMenuWidget(QWidget *menubar);
+#endif
 
-/* #if QT_CONFIG(statusbar) */
-/*     QStatusBar *statusBar() const; */
-/*     void setStatusBar(QStatusBar *statusbar); */
-/* #endif */
+#if QT_CONFIG(statusbar)
+    QStatusBar *statusBar() const;
+    void setStatusBar(QStatusBar *statusbar);
+#endif
 
     QWidget *centralWidget() const;
     void setCentralWidget(QWidget *widget);
@@ -3113,13 +3113,13 @@ class xQMainWindow : public QMainWindow
 /*     Qt::DockWidgetArea corner(Qt::Corner corner) const; */
 /* #endif */
 
-/* #if QT_CONFIG(toolbar) */
+#if QT_CONFIG(toolbar)
 /*     void addToolBarBreak(Qt::ToolBarArea area = Qt::TopToolBarArea); */
 /*     void insertToolBarBreak(QToolBar *before); */
 
 /*     void addToolBar(Qt::ToolBarArea area, QToolBar *toolbar); */
 /*     void addToolBar(QToolBar *toolbar); */
-/*     QToolBar *addToolBar(const QString &title); */
+    QToolBar *addToolBar(const QString &title);
 /*     void insertToolBar(QToolBar *before, QToolBar *toolbar); */
 /*     void removeToolBar(QToolBar *toolbar); */
 /*     void removeToolBarBreak(QToolBar *before); */
@@ -3132,7 +3132,7 @@ class xQMainWindow : public QMainWindow
 /* #endif */
 /*         QToolBar *toolbar) const; */
 /*     bool toolBarBreak(QToolBar *toolbar) const; */
-/* #endif */
+#endif
 /* #if QT_CONFIG(dockwidget) */
 /*     void addDockWidget(Qt::DockWidgetArea area, QDockWidget *dockwidget); */
 /*     void addDockWidget(Qt::DockWidgetArea area, QDockWidget *dockwidget, */

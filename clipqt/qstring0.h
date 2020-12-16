@@ -2,6 +2,7 @@
 
 class xQByteArray : public QString {
  public:
+    xQByteArray(const char *, int size = -1);
     char *data();
     inline int size() const;
 };
@@ -12,6 +13,7 @@ class xQString : public QString {
 
     int length() const;
     QByteArray toUtf8() const;
+    static inline QString fromUtf8(const char *str, int size = -1);
 };
 
 class xQVariant : public QVariant {
@@ -20,6 +22,13 @@ public:
 
 class xQUrl : public QUrl {
 public:
+    xQUrl();
+    explicit xQUrl(const QString &url, ParsingMode mode = TolerantMode);
+
+    void setUrl(const QString &url, ParsingMode mode = TolerantMode);
+    QString url(FormattingOptions options = FormattingOptions(PrettyDecoded)) const;
+    QString toString(FormattingOptions options = FormattingOptions(PrettyDecoded)) const;
+    QString toDisplayString(FormattingOptions options = FormattingOptions(PrettyDecoded)) const;
 }; // QUrl
 
 class xQSize : public QSize

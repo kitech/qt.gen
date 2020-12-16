@@ -194,7 +194,7 @@ func (this *GenFilterBase) skipMethodImpl(cursor, parent clang.Cursor) int {
 	//
 	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
 		if this.skipArg(cursor.Argument(uint32(idx)), cursor) {
-			return 10
+			return 197
 		}
 	}
 
@@ -274,7 +274,7 @@ func (this *GenFilterBase) skipArgImpl(cursor, parent clang.Cursor) int {
 			} else if argTyBare.Kind() == clang.Type_Typedef && strings.HasPrefix(argTyBare.CanonicalType().Spelling(), "QFlags<") {
 			} else if argTyBare.Spelling() == "QImageCleanupFunction" {
 			} else {
-				log.Println(argTyBare.Spelling(), argTyBare.Kind().String(), argTyBare.CanonicalType().Spelling(), "skiped by skiped class")
+				log.Println(argTyBare.Spelling(), argTyBare.Kind().String(), argTyBare.CanonicalType().Spelling(), "skiped by skiped arg")
 				return 6
 			}
 		}
@@ -568,7 +568,7 @@ func (this *GenFilterBase2) skipMethodImpl(cursor, parent clang.Cursor) int {
 	//
 	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
 		if this.skipArg(cursor.Argument(uint32(idx)), cursor) {
-			return 10
+			return 517
 		}
 	}
 
