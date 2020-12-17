@@ -14,6 +14,7 @@ import (
 	"github.com/go-clang/v3.9/clang"
 	"github.com/therecipe/qt/internal/binding/parser"
 	funk "github.com/thoas/go-funk"
+	// "github.com/ianlancetaylor/demangle"
 )
 
 // revert to original pure inline generate, no wrapper
@@ -683,8 +684,10 @@ func (this *GenerateInlinev0) genMethodHeader(clsctx *GenClassContext, cursor, p
 
 	file, lineno, _, _ := cursor.Location().FileLocation()
 	this.cp.APf("main", "// %s:%d", fix_inc_name(file.Name()), lineno)
-	this.cp.APf("main", "// [%d] %s %s",
-		cursor.ResultType().SizeOf(), cursor.ResultType().Spelling(), cursor.DisplayName())
+	consted := gopp.IfElseStr(cursor.CXXMethod_IsConst(), "const", "")
+	this.cp.APf("main", "// [%d] %s %s %s",
+		cursor.ResultType().SizeOf(), cursor.ResultType().Spelling(),
+		cursor.DisplayName(), consted)
 	this.cp.APf("main", "// (%d)%s (%d)%s",
 		len(this.mangler.crc32p(cursor)), this.mangler.crc32p(cursor),
 		len(this.mangler.origin(cursor)), this.mangler.origin(cursor))
@@ -692,6 +695,18 @@ func (this *GenerateInlinev0) genMethodHeader(clsctx *GenClassContext, cursor, p
 func (this *GenerateInlinev0) genMethodFooter(clsctx *GenClassContext, cursor, parent clang.Cursor) {
 	// this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
 	// this.cp.APf("main", "void* %s = (void*)&%s;", this.mangler.crc32p(cursor), this.mangler.convTo(cursor))
+}
+func (this *GenerateInlinev0) mthFnptrDesc(cursor, parent clang.Cursor) string {
+	// mgname := this.mangler.origin(cursor)
+	// like this: (int(QString::*)() const) &QString::count;
+	filt := cursor.DisplayName() // no return type
+	pos := strings.Index(filt, "(")
+	signoret := filt[pos:]
+	consted := gopp.IfElseStr(cursor.CXXMethod_IsConst(), "const", "")
+	res := fmt.Sprintf("(%s (%s::*)%s %s) &%s::%s",
+		cursor.ResultType().Spelling(), parent.Spelling(), signoret,
+		consted, parent.Spelling(), cursor.Spelling())
+	return res
 }
 
 func (this *GenerateInlinev0) genCtor(clsctx *GenClassContext, cursor, parent clang.Cursor) {
@@ -778,6 +793,12 @@ func (this *GenerateInlinev0) genDtorNotsee(cursor, parent clang.Cursor) {
 	this.cp.APf("main", "}")
 }
 
+// for CXXMethodDecl, c++filt result endwiths &&
+func (this *GenerateInlinev0) isrefrvalue(cursor clang.Cursor) bool {
+	rety := cursor.Type()
+	return rety.RefQualifier() == clang.RefQualifier_RValue
+}
+
 func (this *GenerateInlinev0) genNonStaticMethod(clsctx *GenClassContext, cursor, parent clang.Cursor, withParentSelector string) {
 	this.genArgs(cursor, parent)
 	argStr := strings.Join(this.argDesc, ", ")
@@ -803,6 +824,8 @@ func (this *GenerateInlinev0) genNonStaticMethod(clsctx *GenClassContext, cursor
 		this.cp.APf("main", "#if QT_CONFIG(%s)", featname)
 	}
 
+	isrefrval := this.isrefrvalue(cursor) // if endwiths &&
+
 	vaargstr := ""
 	vaprmstr := ""
 	if cursor.IsVariadic() && cursor.NumArguments() > 0 {
@@ -812,9 +835,16 @@ func (this *GenerateInlinev0) genNonStaticMethod(clsctx *GenClassContext, cursor
 		}
 	}
 	// this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
+	// this.cp.APf("main", `__attribute__((visibility ("hidden")))`)
+	this.cp.APf("main", "static")
 	this.cp.APf("main", "void %s(%s%s) {", this.mangler.crc32p(cursor), argStr, vaargstr)
 	this.cp.APf("main", "  ((%s%s*)0)->%s%s(%s%s);", pparentstr, parent.Type().Spelling(),
 		withParentSelector, cursor.Spelling(), paramStr, vaprmstr)
+	if isrefrval { // fix refqualifier rvalue
+		this.cp.APf("main", "  (%s%s{}).%s%s(%s%s);", pparentstr, parent.Type().Spelling(),
+			withParentSelector, cursor.Spelling(), paramStr, vaprmstr)
+	}
+	this.cp.APf("main", "  //%v auto x = %s;", isrefrval, this.mthFnptrDesc(cursor, parent))
 	this.cp.APf("main", "}")
 	this.genMethodFooter(clsctx, cursor, parent)
 
@@ -861,7 +891,10 @@ func (this *GenerateInlinev0) genStaticMethod(clsctx *GenClassContext, cursor, p
 			vaprmstr += fmt.Sprintf(",a%d ", i)
 		}
 	}
+
 	// this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
+	// this.cp.APf("main", `__attribute__((visibility ("hidden")))`)
+	this.cp.APf("main", "static")
 	this.cp.APf("main", "void %s(%s%s) {", this.mangler.crc32p(cursor), argStr, vaargstr)
 	this.cp.APf("main", "  %s%s::%s(%s%s);",
 		pparentstr, parent.Type().Spelling(), cursor.Spelling(), paramStr, vaprmstr)
