@@ -780,9 +780,11 @@ func (this *GenerateGov2) genCtor(cursor, parent clang.Cursor, midx int) {
 	}
 	// this.cp.APf("body", "    cthis := qtrt.Calloc(1, 256) // %d", parent.Type().SizeOf())
 	this.genArgsConvFFI(cursor, parent, midx)
+	// cp.APf("body", "    const qsymcrc uint32 = %s", this.mangler.crc32(cursor))
+	// cp.APf("body", "    const qsymname = \"%s\"", this.mangler.origin(cursor))
 	cp.APf("body", "    cthis := qtrt.Malloc(%d)", parent.Type().SizeOf())
-	cp.APf("body", "    rv, err := qtrt.Qtcc0(\"%s\", qtrt.FFI_TYPE_POINTER, cthis, %s)",
-		this.mangler.origin(cursor), paramStr)
+	cp.APf("body", "    rv, err := qtrt.Qtcc1(%s, \"%s\", qtrt.FFITY_POINTER, cthis, %s)",
+		this.mangler.crc32(cursor), this.mangler.origin(cursor), paramStr)
 	cp.APf("body", "    qtrt.ErrPrint(err, rv)")
 	cp.APf("body", "    gothis := %sFromptr(cthis)", parent.Spelling())
 	if !has_qobject_base_class(parent) {
@@ -819,11 +821,13 @@ func (this *GenerateGov2) genCtorDv(cursor, parent clang.Cursor, midx int, dvidx
 	if parent.Type().SizeOf() > this.maxClassSize {
 		this.maxClassSize = parent.Type().SizeOf()
 	}
-	// this.cp.APf("body", "    cthis := qtrt.Calloc(1, 256) // %d", parent.Type().SizeOf())
+
 	this.genArgsConvFFIDv(cursor, parent, midx, dvidx)
+	// cp.APf("body", "    const qsymcrc uint32 = %s", this.mangler.crc32(cursor))
+	// cp.APf("body", "    const qsymname = \"%s\"", this.mangler.origin(cursor))
 	cp.APf("body", "    cthis := qtrt.Malloc(%d)", parent.Type().SizeOf())
-	cp.APf("body", "    rv, err := qtrt.Qtcc0(\"%s\", qtrt.FFI_TYPE_POINTER, cthis, %s)",
-		this.mangler.origin(cursor), paramStr)
+	cp.APf("body", "    rv, err := qtrt.Qtcc1(%s, \"%s\", qtrt.FFITY_POINTER, cthis, %s)",
+		this.mangler.crc32(cursor), this.mangler.origin(cursor), paramStr)
 	cp.APf("body", "    qtrt.ErrPrint(err, rv)")
 	cp.APf("body", "    gothis := %sFromptr(cthis)", parent.Spelling())
 	if !has_qobject_base_class(parent) {
@@ -932,8 +936,9 @@ func (this *GenerateGov2) genDtor(cursor, parent clang.Cursor, midx int) {
 	this.genMethodSignature(cursor, parent, midx)
 	var cp = this.getpropercp(cursor)
 
-	cp.APf("body", "    rv, err := qtrt.Qtcc0(\"%s\", qtrt.FFI_TYPE_VOID, this.GetCthis())",
-		this.mangler.origin(cursor))
+	// cp.APf("body", "    const qsymcrc uint32 = %s", this.mangler.crc32(cursor))
+	// cp.APf("body", "    const qsymname = \"%s\"", this.mangler.origin(cursor))
+	cp.APf("body", "    rv, err := qtrt.Qtcc1(%s, \"%s\", qtrt.FFITY_VOID, this.GetCthis())", this.mangler.crc32(cursor), this.mangler.origin(cursor))
 	cp.APf("body", "    qtrt.Cmemset(this.GetCthis(), 9, %d)", parent.Type().SizeOf())
 	cp.APf("body", "    qtrt.ErrPrint(err, rv)")
 	cp.APf("body", "    this.SetCthis(nil)")
@@ -947,9 +952,11 @@ func (this *GenerateGov2) genDtorNoCode(cursor, parent clang.Cursor, midx int) {
 	var cp = this.getpropercp(cursor)
 
 	cp.APf("body", "")
+	// symname := fmt.Sprintf("_ZN%d%sD2Ev", len(cursor.Spelling()), cursor.Spelling())
 	cp.APf("body", "func Delete%s(this *%s) {", cursor.Spelling(), cursor.Spelling())
-	cp.APf("body", "    rv, err := qtrt.Qtcc0(\"_ZN%d%sD2Ev\", qtrt.FFI_TYPE_VOID, this.GetCthis())",
-		len(cursor.Spelling()), cursor.Spelling())
+	// cp.APf("body", "    const qsymcrc uint32 = %d", symcrc32(symname))
+	// cp.APf("body", "    const qsymname = \"%s\"", symname)
+	cp.APf("body", "    rv, err := qtrt.Qtcc1(%s, \"_ZN%d%sD2Ev\", qtrt.FFITY_VOID, this.GetCthis())", this.mangler.crc32(cursor), len(cursor.Spelling()), cursor.Spelling())
 	cp.APf("body", "    qtrt.ErrPrint(err, rv)")
 	cp.APf("body", "    this.SetCthis(nil)")
 
@@ -973,14 +980,10 @@ func (this *GenerateGov2) genNonStaticMethod(cursor, parent clang.Cursor, midx i
 
 	retype := cursor.ResultType() // move like sementic, compiler auto behaiver
 	mvexpr := ""                  // move expr
-	if retype.Kind() == clang.Type_Record {
-		// this.cp.APf("body", "    mv := qtrt.Calloc(1, 256)")
-		// mvexpr = ", mv"
-	}
 	besret := MethodHasStructRet(cursor)
 	sretstr := gopp.IfElseStr(besret, "sretobj,", "")
 
-	ffirety := "qtrt.FFI_TYPE_POINTER"
+	ffirety := "qtrt.FFITY_POINTER"
 	if retype.CanonicalType().Kind() == clang.Type_Float ||
 		retype.CanonicalType().Kind() == clang.Type_Double {
 		ffirety = "qtrt.FFI_TYPE_DOUBLE"
@@ -989,13 +992,18 @@ func (this *GenerateGov2) genNonStaticMethod(cursor, parent clang.Cursor, midx i
 	if besret {
 		cp.APf("body", "    sretobj := qtrt.Malloc(%d) // %s", retype.SizeOf(), retype.Spelling())
 	}
+
+	// cp.APf("body", "    const qsymcrc uint32 = %s", this.mangler.crc32(cursor))
+	// cp.APf("body", "    const qsymname = \"%s\"", this.mangler.origin(cursor))
 	if retype.Kind() == clang.Type_Record &&
 		(retype.Spelling() == "QSize" || retype.Spelling() == "QSizeF") {
-		cp.APf("body", "    rv, err := qtrt.Qtcc0(\"%s\", %s %s, %s this.GetCthis(), %s)",
-			this.mangler.origin(cursor), ffirety, mvexpr, sretstr, paramStr)
+		cp.APf("body", "    rv, err := qtrt.Qtcc1(%s, \"%s\", %s %s, %s this.GetCthis(), %s)",
+			this.mangler.crc32(cursor), this.mangler.origin(cursor),
+			ffirety, mvexpr, sretstr, paramStr)
 	} else {
-		cp.APf("body", "    rv, err := qtrt.Qtcc0(\"%s\", %s %s, %s this.GetCthis(), %s)",
-			this.mangler.origin(cursor), ffirety, mvexpr, sretstr, paramStr)
+		cp.APf("body", "    rv, err := qtrt.Qtcc1(%s, \"%s\", %s %s, %s this.GetCthis(), %s)",
+			this.mangler.crc32(cursor), this.mangler.origin(cursor),
+			ffirety, mvexpr, sretstr, paramStr)
 	}
 	cp.APf("body", "    qtrt.ErrPrint(err, rv)")
 	if retype.Kind() == clang.Type_Record {
@@ -1040,7 +1048,7 @@ func (this *GenerateGov2) genNonStaticMethodDv(cursor, parent clang.Cursor, midx
 	besret := MethodHasStructRet(cursor)
 	sretstr := gopp.IfElseStr(besret, "sretobj,", "")
 
-	ffirety := "qtrt.FFI_TYPE_POINTER"
+	ffirety := "qtrt.FFITY_POINTER"
 	if retype.CanonicalType().Kind() == clang.Type_Float ||
 		retype.CanonicalType().Kind() == clang.Type_Double {
 		ffirety = "qtrt.FFI_TYPE_DOUBLE"
@@ -1048,13 +1056,18 @@ func (this *GenerateGov2) genNonStaticMethodDv(cursor, parent clang.Cursor, midx
 	if besret {
 		cp.APf("body", "    sretobj := qtrt.Malloc(%d) // %s", retype.SizeOf(), retype.Spelling())
 	}
+
+	// cp.APf("body", "    const qsymcrc uint32 = %s", this.mangler.crc32(cursor))
+	// cp.APf("body", "    const qsymname = \"%s\"", this.mangler.origin(cursor))
 	if retype.Kind() == clang.Type_Record &&
 		(retype.Spelling() == "QSize" || retype.Spelling() == "QSizeF") {
-		cp.APf("body", "    rv, err := qtrt.Qtcc0(\"%s\", %s %s, %s this.GetCthis(), %s)",
-			this.mangler.origin(cursor), ffirety, mvexpr, sretstr, paramStr)
+		cp.APf("body", "    rv, err := qtrt.Qtcc1(%s, \"%s\", %s %s, %s this.GetCthis(), %s)",
+			this.mangler.crc32(cursor), this.mangler.origin(cursor),
+			ffirety, mvexpr, sretstr, paramStr)
 	} else {
-		cp.APf("body", "    rv, err := qtrt.Qtcc0(\"%s\", %s %s, %s this.GetCthis(), %s)",
-			this.mangler.origin(cursor), ffirety, mvexpr, sretstr, paramStr)
+		cp.APf("body", "    rv, err := qtrt.Qtcc1(%s, \"%s\", %s %s, %s this.GetCthis(), %s)",
+			this.mangler.crc32(cursor), this.mangler.origin(cursor),
+			ffirety, mvexpr, sretstr, paramStr)
 	}
 	cp.APf("body", "    qtrt.ErrPrint(err, rv)")
 	if retype.Kind() == clang.Type_Record {
@@ -1089,8 +1102,11 @@ func (this *GenerateGov2) genStaticMethod(cursor, parent clang.Cursor, midx int)
 	if besret {
 		cp.APf("body", "    sretobj := qtrt.Malloc(%d) // %s", rety.SizeOf(), rety.Spelling())
 	}
-	cp.APf("body", "    rv, err := qtrt.Qtcc0(\"%s\", qtrt.FFI_TYPE_POINTER, %s %s)",
-		this.mangler.origin(cursor), sretstr, paramStr)
+
+	// cp.APf("body", "    const qsymcrc uint32 = %s", this.mangler.crc32(cursor))
+	// cp.APf("body", "    const qsymname = \"%s\"", this.mangler.origin(cursor))
+	cp.APf("body", "    rv, err := qtrt.Qtcc1(%s, \"%s\", qtrt.FFITY_POINTER, %s %s)",
+		this.mangler.crc32(cursor), this.mangler.origin(cursor), sretstr, paramStr)
 	cp.APf("body", "    qtrt.ErrPrint(err, rv)")
 	if besret {
 		cp.APf("body", "    rv = qtrt.VRetype(uintptr(sretobj))")
@@ -1126,8 +1142,11 @@ func (this *GenerateGov2) genStaticMethodDv(cursor, parent clang.Cursor, midx in
 	if besret {
 		cp.APf("body", "    sretobj := qtrt.Malloc(%d) // %s", rety.SizeOf(), rety.Spelling())
 	}
-	cp.APf("body", "    rv, err := qtrt.Qtcc0(\"%s\", qtrt.FFI_TYPE_POINTER, %s %s)",
-		this.mangler.origin(cursor), sretstr, paramStr)
+
+	// cp.APf("body", "    const qsymcrc uint32 = %s", this.mangler.crc32(cursor))
+	// cp.APf("body", "    const qsymname = \"%s\"", this.mangler.origin(cursor))
+	cp.APf("body", "    rv, err := qtrt.Qtcc1(%s, \"%s\", qtrt.FFITY_POINTER, %s %s)",
+		this.mangler.crc32(cursor), this.mangler.origin(cursor), sretstr, paramStr)
 	cp.APf("body", "    qtrt.ErrPrint(err, rv)")
 	if besret {
 		cp.APf("body", "    rv = qtrt.VRetype(uintptr(sretobj))")
@@ -2070,7 +2089,7 @@ func (this *GenerateGov2) genFunction(cursor clang.Cursor, olidx int) {
 	this.genBareFunctionSignature(cursor, cursor.SemanticParent(), olidx)
 
 	this.genArgsConvFFI(cursor, cursor.SemanticParent(), olidx)
-	cp.APf("body", "  rv, err := qtrt.InvokeQtFunc6(\"%s\", qtrt.FFI_TYPE_POINTER, %s)",
+	cp.APf("body", "  rv, err := qtrt.InvokeQtFunc6(\"%s\", qtrt.FFITY_POINTER, %s)",
 		cursor.Mangling(), paramStr)
 	cp.APf("body", "  qtrt.ErrPrint(err, rv)")
 

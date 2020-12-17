@@ -636,7 +636,11 @@ func (this *GenerateInlinev0) genMethods(clsctx *GenClassContext, cursor, parent
 		}
 
 		if !cursor.IsFunctionInlined() {
-			continue
+			// 有些在类内没声明inline，但在类外又实现了inline的函数体, QWidget.resize
+			defbody := cursor.Definition()
+			if !defbody.IsFunctionInlined() {
+				continue
+			}
 		}
 
 		this.genMethodHeader(clsctx, cursor, parent)
