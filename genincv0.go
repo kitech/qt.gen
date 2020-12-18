@@ -878,11 +878,11 @@ func (this *GenerateInlinev0) genNonStaticMethod(clsctx *GenClassContext, cursor
 		//this.argDesc[i] = strings.Replace(this.argDesc[i], "&&", "", -1)
 		//this.argDesc[i] = strings.Replace(this.argDesc[i], "&", "", -1)
 		vardc := this.argDesc[i]
-		if pos := strings.Index(vardc, "&&"); pos != -1 {
+		if pos := strings.LastIndex(vardc, "&&"); pos != -1 {
 			vardc = fmt.Sprintf("%s =  static_cast<%s>(*(%s*)this_)",
 				vardc, vardc[:pos+2], vardc[:pos])
 			this.argDesc[i] = vardc
-		} else if pos := strings.Index(vardc, "&"); pos != -1 {
+		} else if pos := strings.LastIndex(vardc, "&"); pos != -1 {
 			vardc = fmt.Sprintf("%s = *(%s*)this_", vardc, vardc[:pos])
 			this.argDesc[i] = vardc
 		} else if pos := strings.LastIndex(vardc, " "); pos != -1 {
@@ -955,11 +955,11 @@ func (this *GenerateInlinev0) genStaticMethod(clsctx *GenClassContext, cursor, p
 		//this.argDesc[i] = strings.Replace(this.argDesc[i], "&&", "", -1)
 		//this.argDesc[i] = strings.Replace(this.argDesc[i], "&", "", -1)
 		vardc := this.argDesc[i]
-		if pos := strings.Index(vardc, "&&"); pos != -1 {
+		if pos := strings.LastIndex(vardc, "&&"); pos != -1 {
 			vardc = fmt.Sprintf("%s =  static_cast<%s>(*(%s*)this_)",
 				vardc, vardc[:pos+2], vardc[:pos])
 			this.argDesc[i] = vardc
-		} else if pos := strings.Index(vardc, "&"); pos != -1 {
+		} else if pos := strings.LastIndex(vardc, "&"); pos != -1 {
 			vardc = fmt.Sprintf("%s = *(%s*)this_", vardc, vardc[:pos])
 			this.argDesc[i] = vardc
 		} else if pos := strings.LastIndex(vardc, " "); pos != -1 {
@@ -1313,11 +1313,11 @@ func (this *GenerateInlinev0) genFunction(cursor clang.Cursor, olidx int) {
 		//this.argDesc[i] = strings.Replace(this.argDesc[i], "&&", "", -1)
 		//this.argDesc[i] = strings.Replace(this.argDesc[i], "&", "", -1)
 		vardc := this.argDesc[i]
-		if pos := strings.Index(vardc, "&&"); pos != -1 {
+		if pos := strings.LastIndex(vardc, "&&"); pos != -1 {
 			vardc = fmt.Sprintf("%s =  static_cast<%s>(*(%s*)this_)",
 				vardc, vardc[:pos+2], vardc[:pos])
 			this.argDesc[i] = vardc
-		} else if pos := strings.Index(vardc, "&"); pos != -1 {
+		} else if pos := strings.LastIndex(vardc, "&"); pos != -1 {
 			vardc = fmt.Sprintf("%s = *(%s*)this_", vardc, vardc[:pos])
 			this.argDesc[i] = vardc
 		} else if pos := strings.LastIndex(vardc, " "); pos != -1 {

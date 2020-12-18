@@ -343,14 +343,16 @@ func is_deleted_method(cursor, parent clang.Cursor) bool {
 		"_ZN24QAbstractOpenGLFunctionsC2ERKS_": 1,
 		"_ZN17QCborStreamReaderaSERKS_":        1, "_ZN17QCborStreamWriteraSERKS_": 1,
 		"_ZN10QCborValueC2EPKv": 1, "_Zls6QDebug15QCborSimpleType": 1,
-		"_ZlsR11QDataStream15QCborSimpleType":                              1,
-		"_ZrsR11QDataStreamR15QCborSimpleType":                             1,
-		"_ZN11QSharedDataaSERKS_":                                          1,
-		"_ZNK14QMessageLogger7noDebugEPKcz":                                1,
-		"_ZNKSt4hashI9QBitArrayEclERKS0_":                                  1,
-		"_ZN15QtSharedPointer20ExternalRefCountData7destroyEv":             1,
-		"_ZN15QtSharedPointer20ExternalRefCountData18checkQObjectSharedEz": 1,
-		"_ZN15QtSharedPointer20ExternalRefCountData16setQObjectSharedEz":   1,
+		"_ZlsR11QDataStream15QCborSimpleType":  1,
+		"_ZrsR11QDataStreamR15QCborSimpleType": 1,
+		"_ZN11QSharedDataaSERKS_":              1,
+		"_ZNK14QMessageLogger7noDebugEPKcz":    1,
+		"_ZNKSt4hashI9QBitArrayEclERKS0_":      1,
+
+		"_ZN15QtSharedPointer20ExternalRefCountData7destroyEv":                     1,
+		"_ZN15QtSharedPointer20ExternalRefCountData18checkQObjectSharedEz":         1,
+		"_ZN15QtSharedPointer20ExternalRefCountData16setQObjectSharedEz":           1,
+		"_Z24qmlRegisterSingletonTypePKciiS0_PF8QJSValueP10QQmlEngineP9QJSEngineE": 1,
 	}
 	mname := _cmgl.origin(cursor)
 	if _, ok := mths[mname]; ok {

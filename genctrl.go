@@ -197,17 +197,17 @@ func (this *GenCtrl) setupEnv() {
 	// 这是要生成的模块表
 	modules := []string{
 		"QtCore", "QtGui", "QtWidgets",
-		// "QtNetwork", "QtQml", "QtQuick",
-		// "QtQuickTemplates2", "QtQuickControls2", "QtQuickWidgets",
+		"QtNetwork", "QtQml", "QtQuick",
+		"QtQuickTemplates2", "QtQuickControls2", "QtQuickWidgets",
 		// for platform dependent modules, need copy headers if not exists
 		// "QtAndroidExtras", // fatal error: 'jni.h' file not found, link /opt/android-ndk/sysroot/usr/include/jni.h -> bsheaders/jni.h
 		// "QtX11Extras",     // 这个包没生成出来什么代码,
 		// "QtWinExtras",     // 缺少QtWinExtracsDepened头文件,link qt-opensource-linux.bin installs to gcc_64
 		// "QtMacExtras",     // 缺少QtMacExtracsDepened头文件
 		// webengines
-		// "QtPositioning", "QtWebChannel", "QtWebEngineCore", "QtWebEngine", "QtWebEngineWidgets",
+		"QtPositioning", "QtWebChannel", "QtWebEngineCore", "QtWebEngine", "QtWebEngineWidgets",
 		// multimedia
-		// "QtSvg", "QtMultimedia",
+		"QtSvg", "QtMultimedia",
 	}
 	// modules = []string{"QtCore", "QtGui", "QtWidgets"} // for test
 
