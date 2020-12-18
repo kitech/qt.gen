@@ -550,6 +550,10 @@ func (this *GenFilterBase2) skipMethodImpl(cursor, parent clang.Cursor) int {
 		cursor.AccessSpecifier() == clang.AccessSpecifier_Private {
 		return 1
 	}
+	dep, _, _, _, _ := cursor.PlatformAvailability(5)
+	if dep {
+		return 555
+	}
 	if is_deleted_method(cursor, parent) {
 		return 2
 	}
@@ -595,18 +599,28 @@ func (this *GenFilterBase2) skipArgImpl(cursor, parent clang.Cursor) int {
 	return 0
 }
 func (this *GenFilterBase2) skipFunc(cursor clang.Cursor) bool {
+	n := this.skipFuncImpl(cursor)
+
+	return n > 0
+}
+func (this *GenFilterBase2) skipFuncImpl(cursor clang.Cursor) int {
 	// _helper结尾的函数，基本算是内部函数，不同qt版本间变动比较大，大概有10个
 	if strings.HasSuffix(cursor.Spelling(), "_helper") && !strings.HasPrefix(cursor.Spelling(), "qt_") {
-		return true
+		return 609
+	}
+
+	dep, _, _, _, _ := cursor.PlatformAvailability(5)
+	if dep {
+		return 614
 	}
 
 	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
 		if this.skipArg(cursor.Argument(uint32(idx)), cursor) {
-			return true
+			return 619
 		}
 	}
 
-	return false
+	return 0
 }
 
 /////

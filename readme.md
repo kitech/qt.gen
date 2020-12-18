@@ -30,6 +30,8 @@ Sometimes need `ulimit -n 10240`
 * [x] go 为所有Qt函数生成一个对应的Go封装函数
 * [ ] gov2 为clipqt(Qt子集)中的函数/方法生成对应的Go封装，减小包大小
 
+C symbol 生成的是所有能够支持的Qt函数，而不是Qt子集
+
 ### TODOs
 * [x] QString arguments as string
 * [x] QString record/reference auto destroy
@@ -39,10 +41,11 @@ Sometimes need `ulimit -n 10240`
 * [x] 用c封装所有的函数，再用ffi调用
 * [x] #define to const
 * [x] global variable 全局变量获取
+* [ ] 有些类不需要生成代理类
 
 ### go-clang TODO
 * [x] 无法检查方法delete属性
-* [ ] 无法检查方法depcreated属性
+* [x] 无法检查方法depcreated属性
 * [x] 参数default value 的获取
 * [ ] ifdef/ifndef块的检测咋用
 * [x] sret 检测

@@ -12,9 +12,9 @@ import (
 	"unsafe"
 
 	"github.com/go-clang/v3.9/clang"
+	"github.com/ianlancetaylor/demangle"
 	"github.com/therecipe/qt/internal/binding/parser"
 	funk "github.com/thoas/go-funk"
-	// "github.com/ianlancetaylor/demangle"
 )
 
 // revert to original pure inline generate, no wrapper
@@ -576,6 +576,9 @@ func (this *GenerateInlinev0) genProxyClass(clsctx *GenClassContext, cursor, par
 
 func (this *GenerateInlinev0) genMethodsProxyed(clsctx *GenClassContext, methods []clang.Cursor) {
 	for midx, method := range methods {
+		if true {
+			continue // dont need
+		}
 		this.genMethodProxyed(clsctx, method, midx)
 	}
 }
@@ -595,6 +598,10 @@ func (this *GenerateInlinev0) genMethodProxyed(clsctx *GenClassContext, cursor c
 func (this *GenerateInlinev0) genMethods(clsctx *GenClassContext, cursor, parent clang.Cursor) {
 	this.cp.APf("header", "// %s has virtual projected: %v", cursor.Spelling(), this.hasVirtualProtected)
 	log.Println("process class:", len(this.methods), cursor.Spelling())
+	this.cp.APf("main", "extern \"C\" // Q_DECL_EXPORT")
+	this.cp.APf("main", "uint64_t ensure_inline_symbol_%s(void* this_) {",
+		strings.ToLower(cursor.Spelling()))
+	this.cp.APf("main", "  uint64_t fnptrsumval = 0;\n")
 
 	cg := clcg // from temp global
 	seeDtor := false
@@ -662,6 +669,8 @@ func (this *GenerateInlinev0) genMethods(clsctx *GenClassContext, cursor, parent
 	if !seeDtor && !is_deleted_class(cursor) && !is_protected_dtor_class(cursor) {
 		this.genDtorNotsee(cursor, parent)
 	}
+	this.cp.APf("main", "  return fnptrsumval;")
+	this.cp.APf("main", "} // end ensure_inline_symbol_%s", strings.ToLower(cursor.Spelling()))
 }
 
 // TODO move to base
@@ -699,13 +708,23 @@ func (this *GenerateInlinev0) genMethodFooter(clsctx *GenClassContext, cursor, p
 func (this *GenerateInlinev0) mthFnptrDesc(cursor, parent clang.Cursor) string {
 	// mgname := this.mangler.origin(cursor)
 	// like this: (int(QString::*)() const) &QString::count;
+
+	mgname := this.mangler.origin(cursor)
+	line, err := demangle.ToString(mgname)
+	gopp.ErrPrint(err)
+
 	filt := cursor.DisplayName() // no return type
+	filt = line
 	pos := strings.Index(filt, "(")
+	fullname := filt[:pos]
+	fullname = strings.Replace(fullname, "[abi:cxx11]", "", -1)
 	signoret := filt[pos:]
 	consted := gopp.IfElseStr(cursor.CXXMethod_IsConst(), "const", "")
-	res := fmt.Sprintf("(%s (%s::*)%s %s) &%s::%s",
-		cursor.ResultType().Spelling(), parent.Spelling(), signoret,
-		consted, parent.Spelling(), cursor.Spelling())
+	consted = "" // mgname contains const if have
+	canrety := cursor.ResultType().CanonicalType()
+	parpfx := gopp.IfElseStr(cursor.CXXMethod_IsStatic(), "", parent.DisplayName()+"::")
+	res := fmt.Sprintf("(%s (%s*)%s %s) &%s",
+		canrety.Spelling(), parpfx, signoret, consted, fullname)
 	return res
 }
 
@@ -730,7 +749,7 @@ func (this *GenerateInlinev0) genCtor(clsctx *GenClassContext, cursor, parent cl
 		this.cp.APf("main", "#if QT_VERSION >= %s", sinceVer2Hex(funco.Since))
 	}
 	// this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
-	this.cp.APf("main", "void* %s(%s) {", this.mangler.crc32p(cursor), argStr)
+	this.cp.APf("main", "/*void* %s(%s)*/{", this.mangler.crc32p(cursor), argStr)
 	pxyclsp := ""
 	if !is_deleted_class(parent) && this.hasVirtualProtected {
 		this.cp.APf("main", "  auto _nilp = (My%s*)(0);", parent.Spelling())
@@ -747,14 +766,31 @@ func (this *GenerateInlinev0) genCtor(clsctx *GenClassContext, cursor, parent cl
 		pureVirtRetstr = ""
 	}
 
+	for i := 0; i < int(len(this.argDesc)); i++ {
+		// this.argDesc[i] = strings.Replace(this.argDesc[i], "&&", "", -1)
+		// this.argDesc[i] = strings.Replace(this.argDesc[i], "&", "", -1)
+		vardc := this.argDesc[i]
+		if pos := strings.Index(vardc, "&&"); pos != -1 {
+			vardc = fmt.Sprintf("%s =  static_cast<%s>(*(%s*)this_)",
+				vardc, vardc[:pos+2], vardc[:pos])
+			this.argDesc[i] = vardc
+		} else if pos := strings.Index(vardc, "&"); pos != -1 {
+			vardc = fmt.Sprintf("%s = *(%s*)this_", vardc, vardc[:pos])
+			this.argDesc[i] = vardc
+		} else if pos := strings.LastIndex(vardc, " "); pos != -1 {
+			vardc = fmt.Sprintf("%s = *(%s*)this_", vardc, vardc[:pos])
+			this.argDesc[i] = vardc
+		}
+	}
+	this.cp.APf("main", "  %s;", strings.Join(this.argDesc, "; "))
 	if strings.HasPrefix(pparent.Spelling(), "Qt") {
 		if pxyclsp == "" {
-			this.cp.APf("main", "  return %s new %s::%s(%s);", pureVirtRetstr, pparent.Spelling(), parent.Spelling(), paramStr)
+			this.cp.APf("main", " this_ = %s new %s::%s(%s);", pureVirtRetstr, pparent.Spelling(), parent.Spelling(), paramStr)
 		} else {
-			this.cp.APf("main", "  return %s new %s%s(%s);", pureVirtRetstr, pxyclsp, parent.Spelling(), paramStr)
+			this.cp.APf("main", "  this_ = %s new %s%s(%s);", pureVirtRetstr, pxyclsp, parent.Spelling(), paramStr)
 		}
 	} else {
-		this.cp.APf("main", "  return %s new %s%s(%s);", pureVirtRetstr, pxyclsp, parent.Type().Spelling(), paramStr)
+		this.cp.APf("main", "  this_ = %s new %s%s(%s);", pureVirtRetstr, pxyclsp, parent.Type().Spelling(), paramStr)
 	}
 	this.cp.APf("main", "}")
 	this.genMethodFooter(clsctx, cursor, parent)
@@ -768,7 +804,7 @@ func (this *GenerateInlinev0) genDtor(clsctx *GenClassContext, cursor, parent cl
 	pparent := parent.SemanticParent()
 
 	// this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
-	this.cp.APf("main", "void %s(void *this_) {", this.mangler.crc32p(cursor))
+	this.cp.APf("main", "/*void %s (void *this_)*/ {", this.mangler.crc32p(cursor))
 	if strings.HasPrefix(pparent.Spelling(), "Qt") {
 		this.cp.APf("main", "  delete (%s::%s*)(this_);", pparent.Spelling(), parent.Spelling())
 	} else {
@@ -784,7 +820,7 @@ func (this *GenerateInlinev0) genDtorNotsee(cursor, parent clang.Cursor) {
 
 	this.cp.APf("main", "")
 	// this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
-	this.cp.APf("main", "void C_ZN%d%sD2Ev(void *this_) {", len(cursor.Spelling()), cursor.Spelling())
+	this.cp.APf("main", "/*void C_ZN%d%sD2Ev(void *this_)*/ {", len(cursor.Spelling()), cursor.Spelling())
 	if strings.HasPrefix(parent.Spelling(), "Qt") {
 		this.cp.APf("main", "  delete (%s::%s*)(this_);", parent.Spelling(), cursor.Spelling())
 	} else {
@@ -836,15 +872,34 @@ func (this *GenerateInlinev0) genNonStaticMethod(clsctx *GenClassContext, cursor
 	}
 	// this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
 	// this.cp.APf("main", `__attribute__((visibility ("hidden")))`)
-	this.cp.APf("main", "static")
-	this.cp.APf("main", "void %s(%s%s) {", this.mangler.crc32p(cursor), argStr, vaargstr)
-	this.cp.APf("main", "  ((%s%s*)0)->%s%s(%s%s);", pparentstr, parent.Type().Spelling(),
+	this.cp.APf("main", "//static")
+	this.cp.APf("main", "/*void %s(%s%s)*/ {", this.mangler.crc32p(cursor), argStr, vaargstr)
+	for i := 0; i < int(len(this.argDesc)); i++ {
+		//this.argDesc[i] = strings.Replace(this.argDesc[i], "&&", "", -1)
+		//this.argDesc[i] = strings.Replace(this.argDesc[i], "&", "", -1)
+		vardc := this.argDesc[i]
+		if pos := strings.Index(vardc, "&&"); pos != -1 {
+			vardc = fmt.Sprintf("%s =  static_cast<%s>(*(%s*)this_)",
+				vardc, vardc[:pos+2], vardc[:pos])
+			this.argDesc[i] = vardc
+		} else if pos := strings.Index(vardc, "&"); pos != -1 {
+			vardc = fmt.Sprintf("%s = *(%s*)this_", vardc, vardc[:pos])
+			this.argDesc[i] = vardc
+		} else if pos := strings.LastIndex(vardc, " "); pos != -1 {
+			vardc = fmt.Sprintf("%s = *(%s*)this_", vardc, vardc[:pos])
+			this.argDesc[i] = vardc
+		}
+	}
+	this.cp.APf("main", "  %s;", strings.Join(this.argDesc, "; "))
+	this.cp.APf("main", "  (void) ((%s%s*)this_)->%s%s(%s%s);", pparentstr, parent.Type().Spelling(),
 		withParentSelector, cursor.Spelling(), paramStr, vaprmstr)
 	if isrefrval { // fix refqualifier rvalue
-		this.cp.APf("main", "  (%s%s{}).%s%s(%s%s);", pparentstr, parent.Type().Spelling(),
+		this.cp.APf("main", "  (void) (%s%s{}).%s%s(%s%s);", pparentstr, parent.Type().Spelling(),
 			withParentSelector, cursor.Spelling(), paramStr, vaprmstr)
 	}
-	this.cp.APf("main", "  //%v auto x = %s;", isrefrval, this.mthFnptrDesc(cursor, parent))
+	commentit := gopp.IfElseStr(cursor.IsOverloadedOperator(), "//", "")
+	this.cp.APf("main", "  %s auto xptr = %s;", commentit, this.mthFnptrDesc(cursor, parent))
+	this.cp.APf("main", "  %s fnptrsumval += (uint64_t)(void*&)xptr;", commentit)
 	this.cp.APf("main", "}")
 	this.genMethodFooter(clsctx, cursor, parent)
 
@@ -894,10 +949,30 @@ func (this *GenerateInlinev0) genStaticMethod(clsctx *GenClassContext, cursor, p
 
 	// this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
 	// this.cp.APf("main", `__attribute__((visibility ("hidden")))`)
-	this.cp.APf("main", "static")
-	this.cp.APf("main", "void %s(%s%s) {", this.mangler.crc32p(cursor), argStr, vaargstr)
-	this.cp.APf("main", "  %s%s::%s(%s%s);",
+	this.cp.APf("main", "//static")
+	this.cp.APf("main", "/*void %s(%s%s)*/ {", this.mangler.crc32p(cursor), argStr, vaargstr)
+	for i := 0; i < int(len(this.argDesc)); i++ {
+		//this.argDesc[i] = strings.Replace(this.argDesc[i], "&&", "", -1)
+		//this.argDesc[i] = strings.Replace(this.argDesc[i], "&", "", -1)
+		vardc := this.argDesc[i]
+		if pos := strings.Index(vardc, "&&"); pos != -1 {
+			vardc = fmt.Sprintf("%s =  static_cast<%s>(*(%s*)this_)",
+				vardc, vardc[:pos+2], vardc[:pos])
+			this.argDesc[i] = vardc
+		} else if pos := strings.Index(vardc, "&"); pos != -1 {
+			vardc = fmt.Sprintf("%s = *(%s*)this_", vardc, vardc[:pos])
+			this.argDesc[i] = vardc
+		} else if pos := strings.LastIndex(vardc, " "); pos != -1 {
+			vardc = fmt.Sprintf("%s = *(%s*)this_", vardc, vardc[:pos])
+			this.argDesc[i] = vardc
+		}
+	}
+	this.cp.APf("main", "  %s;", strings.Join(this.argDesc, "; "))
+	this.cp.APf("main", "  (void) %s%s::%s(%s%s);",
 		pparentstr, parent.Type().Spelling(), cursor.Spelling(), paramStr, vaprmstr)
+	commentit := gopp.IfElseStr(cursor.IsOverloadedOperator(), "//", "")
+	this.cp.APf("main", "  %s auto xptr = %s;", commentit, this.mthFnptrDesc(cursor, parent))
+	this.cp.APf("main", "  %s fnptrsumval += (uint64_t)(void*&)xptr;", commentit)
 	this.cp.APf("main", "}")
 	this.genMethodFooter(clsctx, cursor, parent)
 
@@ -1102,7 +1177,7 @@ func (this *GenerateInlinev0) genFunctions(cursor, parent clang.Cursor) {
 	// this.genHeader(cursor, parent)
 	skipKeys := []string{"QKeySequence", "QVector2D", "QPointingDeviceUniqueId", "QFont", "QMatrix",
 		"QTransform", "QPixelFormat", "QRawFont", "QVector3D", "QVector4D",
-		"QOpenGLVersionStatus", "QOpenGLVersionProfile"}
+		"QOpenGLVersionStatus", "QOpenGLVersionProfile", "QtPrivate"}
 	hasSkipKey := func(c clang.Cursor) bool {
 		for _, k := range skipKeys {
 			if strings.Contains(c.DisplayName(), k) {
@@ -1131,6 +1206,10 @@ func (this *GenerateInlinev0) genFunctions(cursor, parent clang.Cursor) {
 		this.cp.APf("header", "#include <Qt%s>", getIncludeNameByModule(qtmod))
 		this.cp.APf("header", "#include \"hidden_symbols.h\"")
 
+		this.cp.APf("main", "extern \"C\"")
+		this.cp.APf("main", "uint64_t ensure_inline_symbol_%s(void* this_) {", qtmod)
+		this.cp.APf("main", "  uint64_t fnptrsumval = 0;\n")
+
 		sort.Slice(funcs, func(i int, j int) bool {
 			return funcs[i].Mangling() > funcs[j].Mangling()
 		})
@@ -1138,6 +1217,15 @@ func (this *GenerateInlinev0) genFunctions(cursor, parent clang.Cursor) {
 			log.Println(fc.Kind(), fc.Spelling(), fc.Mangling(), fc.DisplayName(), fc.IsCursorDefinition(), fc.SemanticParent().Spelling(), fc.Type().Spelling(), fc.SemanticParent().Kind().String(), fc.NumTemplateArguments())
 			if !is_qt_global_func(fc) {
 				log.Println("skip global function ", fc.Spelling(), fc.IsCursorDefinition(), this.mangler.origin(fc))
+				continue
+			}
+			if !fc.IsFunctionInlined() {
+				continue
+			}
+			if fc.SemanticParent().Spelling() == "QtPrivate" {
+				continue
+			}
+			if fc.SemanticParent().Spelling() == "QAlgorithmsPrivate" {
 				continue
 			}
 
@@ -1164,6 +1252,9 @@ func (this *GenerateInlinev0) genFunctions(cursor, parent clang.Cursor) {
 				//continue
 			}
 
+			if is_deleted_method(fc, fc.SemanticParent()) {
+				continue
+			}
 			if this.filter.skipFunc(fc) {
 				log.Println("skip global function ", fc.Spelling())
 				continue
@@ -1177,7 +1268,8 @@ func (this *GenerateInlinev0) genFunctions(cursor, parent clang.Cursor) {
 			olidx := this.funcMangles[fc.Spelling()]
 			this.genFunction(fc, olidx)
 		}
-
+		this.cp.APf("main", "  return fnptrsumval;")
+		this.cp.APf("main", "} // void ensure_inline_symbol_%s\n", qtmod)
 		this.saveCodeToFile(qtmod, "qfunctions")
 	}
 }
@@ -1214,15 +1306,55 @@ func (this *GenerateInlinev0) genFunction(cursor clang.Cursor, olidx int) {
 	}
 
 	// this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
-	this.cp.APf("main", "void %s%s(%s%s) {",
+	this.cp.APf("main", "/*void %s%s(%s%s)*/ {",
 		this.mangler.crc32p(cursor), overloadSuffix, argStr, vaargstr)
-	this.cp.APf("main", "  %s%s(%s%s);", nsfix, cursor.Spelling(), paramStr, vaprmstr)
+
+	for i := 0; i < int(len(this.argDesc)); i++ {
+		//this.argDesc[i] = strings.Replace(this.argDesc[i], "&&", "", -1)
+		//this.argDesc[i] = strings.Replace(this.argDesc[i], "&", "", -1)
+		vardc := this.argDesc[i]
+		if pos := strings.Index(vardc, "&&"); pos != -1 {
+			vardc = fmt.Sprintf("%s =  static_cast<%s>(*(%s*)this_)",
+				vardc, vardc[:pos+2], vardc[:pos])
+			this.argDesc[i] = vardc
+		} else if pos := strings.Index(vardc, "&"); pos != -1 {
+			vardc = fmt.Sprintf("%s = *(%s*)this_", vardc, vardc[:pos])
+			this.argDesc[i] = vardc
+		} else if pos := strings.LastIndex(vardc, " "); pos != -1 {
+			vardc = fmt.Sprintf("%s = *(%s*)this_", vardc, vardc[:pos])
+			this.argDesc[i] = vardc
+		}
+	}
+	this.cp.APf("main", "  %s;", strings.Join(this.argDesc, "; "))
+	this.cp.APf("main", "  (void) %s%s(%s%s);", nsfix, cursor.Spelling(), paramStr, vaprmstr)
+	this.cp.APf("main", "  auto xptr = %s;", this.funcFnptrDesc(cursor, parent))
+	this.cp.APf("main", "  fnptrsumval += (uint64_t)(void*)xptr;")
 	this.cp.APf("main", "}")
 	this.genMethodFooter(nil, cursor, cursor)
 	if hasLongDoubleArg {
 		this.cp.APf("main", "#endif")
 	}
 	this.cp.APf("main", "")
+}
+
+func (this *GenerateInlinev0) funcFnptrDesc(cursor, parent clang.Cursor) string {
+	// mgname := this.mangler.origin(cursor)
+	// like this: (int(QString::*)() const) &QString::count;
+	mgname := this.mangler.origin(cursor)
+	line, err := demangle.ToString(mgname)
+	gopp.ErrPrint(err)
+
+	filt := cursor.DisplayName() // no return type
+	filt = line
+	pos := strings.Index(filt, "(")
+	signoret := filt[pos:]
+	//consted := gopp.IfElseStr(cursor.CXXMethod_IsConst(), "const", "")
+	consted := ""
+	nsfix := gopp.IfElseStr(parent.Kind() == clang.Cursor_Namespace, parent.Spelling()+"::", "")
+	canrety := cursor.ResultType().CanonicalType()
+	res := fmt.Sprintf("(%s (*)%s %s) &%s%s",
+		canrety.Spelling(), signoret, consted, nsfix, cursor.Spelling())
+	return res
 }
 
 func (this *GenerateInlinev0) genConstantsGlobal(cursor, parent clang.Cursor) {
