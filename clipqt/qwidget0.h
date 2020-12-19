@@ -111,9 +111,9 @@ public:
 /*     void unsetCursor(); */
 /* #endif */
 
-/*     void setMouseTracking(bool enable); */
+    void setMouseTracking(bool enable);
 /*     bool hasMouseTracking() const; */
-/*     bool underMouse() const; */
+    bool underMouse() const;
 
 /*     void setTabletTracking(bool enable); */
 /*     bool hasTabletTracking() const; */
@@ -239,8 +239,8 @@ public Q_SLOTS:
     void update();
     void repaint();
 
-/* public: */
-/*     inline void update(int x, int y, int w, int h); */
+public:
+    inline void update(int x, int y, int w, int h);
 /*     void update(const QRect&); */
 /*     void update(const QRegion&); */
 
@@ -378,13 +378,13 @@ public:
 
 /*     static QWidget *createWindowContainer(QWindow *window, QWidget *parent=nullptr, Qt::WindowFlags flags=Qt::WindowFlags()); */
 
-/* Q_SIGNALS: */
-/*     void windowTitleChanged(const QString &title); */
+Q_SIGNALS:
+    void windowTitleChanged(const QString &title);
 /*     void windowIconChanged(const QIcon &icon); */
 /*     void windowIconTextChanged(const QString &iconText); */
 /*     void customContextMenuRequested(const QPoint &pos); */
 
-/* protected: */
+protected:
 /*     // Event handlers */
 /*     bool event(QEvent *event) override; */
 /*     virtual void mousePressEvent(QMouseEvent *event); */
@@ -481,16 +481,16 @@ public:
     bool isEmpty() const override;
     //void setGeometry(const QRect&) override;
 /*     QRect geometry() const override; */
-/* #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0) */
-/*     QWidget *widget() override; */
-/* #else */
-/*     QWidget *widget() const override; */
-/* #endif */
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+    QWidget *widget() override;
+#else
+    QWidget *widget() const override;
+#endif
 
 /*     bool hasHeightForWidth() const override; */
-/*     int heightForWidth(int) const override; */
+    int heightForWidth(int) const override;
 /*     QSizePolicy::ControlTypes controlTypes() const override; */
-/* protected: */
+protected:
 /*     QWidget *wid; */
 }; // QWidgetItem
 
@@ -597,44 +597,44 @@ class xQAbstractButton : public QAbstractButton
 /*     QKeySequence shortcut() const; */
 /* #endif */
 
-/*     void setCheckable(bool); */
-/*     bool isCheckable() const; */
+    void setCheckable(bool);
+    bool isCheckable() const;
 
-/*     bool isChecked() const; */
+    bool isChecked() const;
 
-/*     void setDown(bool); */
-/*     bool isDown() const; */
+    void setDown(bool);
+    bool isDown() const;
 
-/*     void setAutoRepeat(bool); */
-/*     bool autoRepeat() const; */
+    void setAutoRepeat(bool);
+    bool autoRepeat() const;
 
-/*     void setAutoRepeatDelay(int); */
-/*     int autoRepeatDelay() const; */
+    void setAutoRepeatDelay(int);
+    int autoRepeatDelay() const;
 
-/*     void setAutoRepeatInterval(int); */
-/*     int autoRepeatInterval() const; */
+    void setAutoRepeatInterval(int);
+    int autoRepeatInterval() const;
 
-/*     void setAutoExclusive(bool); */
-/*     bool autoExclusive() const; */
+    void setAutoExclusive(bool);
+    bool autoExclusive() const;
 
 /* #if QT_CONFIG(buttongroup) */
 /*     QButtonGroup *group() const; */
 /* #endif */
 
-/* public Q_SLOTS: */
+public Q_SLOTS:
 /*     void setIconSize(const QSize &size); */
 /*     void animateClick(int msec = 100); */
 /*     void click(); */
-/*     void toggle(); */
-/*     void setChecked(bool); */
+    void toggle();
+    void setChecked(bool);
 
-/* Q_SIGNALS: */
-/*     void pressed(); */
-/*     void released(); */
-/*     void clicked(bool checked = false); */
-/*     void toggled(bool checked); */
+Q_SIGNALS:
+    void pressed();
+    void released();
+    void clicked(bool checked = false);
+    void toggled(bool checked);
 
-/* protected: */
+protected:
 /*     void paintEvent(QPaintEvent *e) override = 0; */
 /*     virtual bool hitButton(const QPoint &pos) const; */
 /*     virtual void checkStateSet(); */
@@ -671,15 +671,15 @@ class xQPushButton : public QPushButton {
 /*     QMenu* menu() const; */
 /* #endif */
 
-/*     void setFlat(bool); */
+    void setFlat(bool);
 /*     bool isFlat() const; */
 
-/*     public Q_SLOTS: */
+    public Q_SLOTS:
 /* #if QT_CONFIG(menu) */
 /*         void showMenu(); */
 /* #endif */
 
-/*  protected: */
+ protected:
 /*         bool event(QEvent *e) override; */
 /*         void paintEvent(QPaintEvent *) override; */
 /*         void keyPressEvent(QKeyEvent *) override; */
@@ -715,18 +715,18 @@ public:
 
 /*     QAction *defaultAction() const; */
 
-/*     void setAutoRaise(bool enable); */
+    void setAutoRaise(bool enable);
 /*     bool autoRaise() const; */
 
-/* public Q_SLOTS: */
+public Q_SLOTS:
 /* #if QT_CONFIG(menu) */
 /*     void showMenu(); */
 /* #endif */
 /*     void setToolButtonStyle(Qt::ToolButtonStyle style); */
 /*     void setDefaultAction(QAction *); */
 
-/* Q_SIGNALS: */
-/*     void triggered(QAction *); */
+Q_SIGNALS:
+    void triggered(QAction *);
 
 /* protected: */
 /*     bool event(QEvent *e) override; */
@@ -764,7 +764,7 @@ public:
 Q_SIGNALS:
     void stateChanged(int);
 
-/* protected: */
+protected:
 /*     bool event(QEvent *e) override; */
 /*     bool hitButton(const QPoint &pos) const override; */
 /*     void checkStateSet() override; */
@@ -786,7 +786,7 @@ class xQRadioButton : public QRadioButton
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;
 
- /* protected: */
+ protected:
  /*    bool event(QEvent *e) override; */
  /*    bool hitButton(const QPoint &) const override; */
  /*    void paintEvent(QPaintEvent *) override; */
@@ -898,11 +898,11 @@ public:
 /*     Qt::Alignment alignment() const; */
 /*     void setAlignment(Qt::Alignment); */
 
-/*     void setWordWrap(bool on); */
+    void setWordWrap(bool on);
 /*     bool wordWrap() const; */
 
 /*     int indent() const; */
-/*     void setIndent(int); */
+    void setIndent(int);
 
 /*     int margin() const; */
 /*     void setMargin(int); */
@@ -918,9 +918,9 @@ public:
 /*     int heightForWidth(int) const override; */
 
 /*     bool openExternalLinks() const; */
-/*     void setOpenExternalLinks(bool open); */
+    void setOpenExternalLinks(bool open);
 
-/*     void setTextInteractionFlags(Qt::TextInteractionFlags flags); */
+    void setTextInteractionFlags(Qt::TextInteractionFlags flags);
 /*     Qt::TextInteractionFlags textInteractionFlags() const; */
 
 /*     void setSelection(int, int); */
@@ -930,7 +930,7 @@ public:
 
 public Q_SLOTS:
     void setText(const QString &);
-/*     void setPixmap(const QPixmap &); */
+    void setPixmap(const QPixmap &);
 /* #ifndef QT_NO_PICTURE */
 /*     void setPicture(const QPicture &); */
 /* #endif */
@@ -941,11 +941,11 @@ public Q_SLOTS:
     void setNum(double);
     void clear();
 
-/* Q_SIGNALS: */
+Q_SIGNALS:
 /*     void linkActivated(const QString& link); */
 /*     void linkHovered(const QString& link); */
 
-/* protected: */
+protected:
 /*     bool event(QEvent *e) override; */
 /*     void keyPressEvent(QKeyEvent *ev) override; */
 /*     void paintEvent(QPaintEvent *) override; */
@@ -991,7 +991,7 @@ class QLineEdit : public QWidget
 /*     void setEchoMode(EchoMode); */
 
 /*     bool isReadOnly() const; */
-/*     void setReadOnly(bool); */
+    void setReadOnly(bool);
 
 /* #ifndef QT_NO_VALIDATOR */
 /*     void setValidator(const QValidator *); */
@@ -1035,7 +1035,7 @@ class QLineEdit : public QWidget
 /*     bool isUndoAvailable() const; */
 /*     bool isRedoAvailable() const; */
 
-/*     void setDragEnabled(bool b); */
+    void setDragEnabled(bool b);
 /*     bool dragEnabled() const; */
 
 /*     void setCursorMoveStyle(Qt::CursorMoveStyle style); */
@@ -1059,8 +1059,8 @@ class QLineEdit : public QWidget
 /*     QAction *addAction(const QIcon &icon, ActionPosition position); */
 /* #endif */
 
-/* public Q_SLOTS: */
-/*     void setText(const QString &); */
+public Q_SLOTS:
+    void setText(const QString &);
 /*     void clear(); */
 /*     void selectAll(); */
 /*     void undo(); */
@@ -1071,23 +1071,23 @@ class QLineEdit : public QWidget
 /*     void paste(); */
 /* #endif */
 
-/* public: */
+public:
 /*     void deselect(); */
 /*     void insert(const QString &); */
 /* #ifndef QT_NO_CONTEXTMENU */
 /*     QMenu *createStandardContextMenu(); */
 /* #endif */
 
-/* Q_SIGNALS: */
-/*     void textChanged(const QString &); */
-/*     void textEdited(const QString &); */
-/*     void cursorPositionChanged(int, int); */
-/*     void returnPressed(); */
-/*     void editingFinished(); */
-/*     void selectionChanged(); */
-/*     void inputRejected(); */
+Q_SIGNALS:
+    void textChanged(const QString &);
+    void textEdited(const QString &);
+    void cursorPositionChanged(int, int);
+    void returnPressed();
+    void editingFinished();
+    void selectionChanged();
+    void inputRejected();
 
-/* protected: */
+protected:
 /*     void mousePressEvent(QMouseEvent *) override; */
 /*     void mouseMoveEvent(QMouseEvent *) override; */
 /*     void mouseReleaseEvent(QMouseEvent *) override; */
@@ -1109,11 +1109,11 @@ class QLineEdit : public QWidget
 
 /*     void inputMethodEvent(QInputMethodEvent *) override; */
 /*     void initStyleOption(QStyleOptionFrame *option) const; */
-/* public: */
+public:
 /*     QVariant inputMethodQuery(Qt::InputMethodQuery) const override; */
 /*     Q_INVOKABLE QVariant inputMethodQuery(Qt::InputMethodQuery property, QVariant argument) const; */
 /*     bool event(QEvent *) override; */
-/* protected: */
+protected:
 /*     QRect cursorRect() const; */
 
 public:
@@ -1143,14 +1143,14 @@ public:
 /*     QScrollBar *horizontalScrollBar() const; */
 /*     void setHorizontalScrollBar(QScrollBar *scrollbar); */
 
-/*     QWidget *cornerWidget() const; */
-/*     void setCornerWidget(QWidget *widget); */
+    QWidget *cornerWidget() const;
+    void setCornerWidget(QWidget *widget);
 
 /*     void addScrollBarWidget(QWidget *widget, Qt::Alignment alignment); */
 /*     QWidgetList scrollBarWidgets(Qt::Alignment alignment); */
 
-/*     QWidget *viewport() const; */
-/*     void setViewport(QWidget *widget); */
+    QWidget *viewport() const;
+    void setViewport(QWidget *widget);
 /*     QSize maximumViewportSize() const; */
 
 /*     QSize minimumSizeHint() const override; */
@@ -1162,7 +1162,7 @@ public:
 /*     SizeAdjustPolicy sizeAdjustPolicy() const; */
 /*     void setSizeAdjustPolicy(SizeAdjustPolicy policy); */
 
-/* protected: */
+protected:
 /*     QAbstractScrollArea(QAbstractScrollAreaPrivate &dd, QWidget *parent = nullptr); */
 /*     void setViewportMargins(int left, int top, int right, int bottom); */
 /*     void setViewportMargins(const QMargins &margins); */
@@ -1209,16 +1209,16 @@ class xQPlainTextEdit : public QPlainTextEdit
 /*     void setDocument(QTextDocument *document); */
 /*     QTextDocument *document() const; */
 
-/*     void setPlaceholderText(const QString &placeholderText); */
-/*     QString placeholderText() const; */
+    void setPlaceholderText(const QString &placeholderText);
+    QString placeholderText() const;
 
 /*     void setTextCursor(const QTextCursor &cursor); */
 /*     QTextCursor textCursor() const; */
 
 /*     bool isReadOnly() const; */
-/*     void setReadOnly(bool ro); */
+    void setReadOnly(bool ro);
 
-/*     void setTextInteractionFlags(Qt::TextInteractionFlags flags); */
+    void setTextInteractionFlags(Qt::TextInteractionFlags flags);
 /*     Qt::TextInteractionFlags textInteractionFlags() const; */
 
 /*     void mergeCurrentCharFormat(const QTextCharFormat &modifier); */
@@ -1250,7 +1250,7 @@ class xQPlainTextEdit : public QPlainTextEdit
 /*     QTextOption::WrapMode wordWrapMode() const; */
 /*     void setWordWrapMode(QTextOption::WrapMode policy); */
 
-/*     void setBackgroundVisible(bool visible); */
+    void setBackgroundVisible(bool visible);
 /*     bool backgroundVisible() const; */
 
 /*     void setCenterOnScroll(bool enabled); */
@@ -1264,10 +1264,9 @@ class xQPlainTextEdit : public QPlainTextEdit
 /*     bool find(const QRegularExpression &exp, QTextDocument::FindFlags options = QTextDocument::FindFlags()); */
 /* #endif */
 
-/*     inline QString toPlainText() const */
-/*     { return document()->toPlainText(); } */
+    inline QString toPlainText() const;
 
-/*     void ensureCursorVisible(); */
+    void ensureCursorVisible();
 
 /*     virtual QVariant loadResource(int type, const QUrl &name); */
 /* #ifndef QT_NO_CONTEXTMENU */
@@ -1308,9 +1307,9 @@ class xQPlainTextEdit : public QPlainTextEdit
 /*     QVariant inputMethodQuery(Qt::InputMethodQuery property) const override; */
 /*     Q_INVOKABLE QVariant inputMethodQuery(Qt::InputMethodQuery query, QVariant argument) const; */
 
-/* public Q_SLOTS: */
+public Q_SLOTS:
 
-/*     void setPlainText(const QString &text); */
+    void setPlainText(const QString &text);
 
 /* #ifndef QT_NO_CLIPBOARD */
 /*     void cut(); */
@@ -1334,8 +1333,8 @@ class xQPlainTextEdit : public QPlainTextEdit
 /*     void zoomIn(int range = 1); */
 /*     void zoomOut(int range = 1); */
 
-/* Q_SIGNALS: */
-/*     void textChanged(); */
+Q_SIGNALS:
+    void textChanged();
 /*     void undoAvailable(bool b); */
 /*     void redoAvailable(bool b); */
 /*     void copyAvailable(bool b); */
@@ -1346,7 +1345,7 @@ class xQPlainTextEdit : public QPlainTextEdit
 /*     void blockCountChanged(int newBlockCount); */
 /*     void modificationChanged(bool); */
 
-/* protected: */
+protected:
 /*     virtual bool event(QEvent *e) override; */
 /*     virtual void timerEvent(QTimerEvent *e) override; */
 /*     virtual void keyPressEvent(QKeyEvent *e) override; */
@@ -1422,8 +1421,8 @@ public:
 /* #endif */
 /* #endif */
 
-/*     bool duplicatesEnabled() const; */
-/*     void setDuplicatesEnabled(bool enable); */
+    bool duplicatesEnabled() const;
+    void setDuplicatesEnabled(bool enable);
 
 /*     void setFrame(bool); */
 /*     bool hasFrame() const; */
@@ -1470,7 +1469,7 @@ public:
 /*     QString placeholderText() const; */
 
 /*     bool isEditable() const; */
-/*     void setEditable(bool editable); */
+    void setEditable(bool editable);
 /*     void setLineEdit(QLineEdit *edit); */
 /*     QLineEdit *lineEdit() const; */
 /* #ifndef QT_NO_VALIDATOR */
@@ -1495,33 +1494,33 @@ public:
 /*     int modelColumn() const; */
 /*     void setModelColumn(int visibleColumn); */
 
-/*     int currentIndex() const; */
-/*     QString currentText() const; */
+    int currentIndex() const;
+    QString currentText() const;
 /*     QVariant currentData(int role = Qt::UserRole) const; */
 
-/*     QString itemText(int index) const; */
+    QString itemText(int index) const;
 /*     QIcon itemIcon(int index) const; */
 /*     QVariant itemData(int index, int role = Qt::UserRole) const; */
 
-/*     inline void addItem(const QString &text, const QVariant &userData = QVariant()); */
+    inline void addItem(const QString &text, const QVariant &userData = QVariant());
 /*     inline void addItem(const QIcon &icon, const QString &text, */
 /*                         const QVariant &userData = QVariant()); */
 /*     inline void addItems(const QStringList &texts) */
 /*         { insertItems(count(), texts); } */
 
-/*     inline void insertItem(int index, const QString &text, const QVariant &userData = QVariant()); */
+    inline void insertItem(int index, const QString &text, const QVariant &userData = QVariant());
 /*     void insertItem(int index, const QIcon &icon, const QString &text, */
 /*                     const QVariant &userData = QVariant()); */
 /*     void insertItems(int index, const QStringList &texts); */
 /*     void insertSeparator(int index); */
 
-/*     void removeItem(int index); */
+    void removeItem(int index);
 
-/*     void setItemText(int index, const QString &text); */
+    void setItemText(int index, const QString &text);
 /*     void setItemIcon(int index, const QIcon &icon); */
 /*     void setItemData(int index, const QVariant &value, int role = Qt::UserRole); */
 
-/*     QAbstractItemView *view() const; */
+    QAbstractItemView *view() const;
 /*     void setView(QAbstractItemView *itemView); */
 
 /*     QSize sizeHint() const override; */
@@ -1534,20 +1533,20 @@ public:
 /*     QVariant inputMethodQuery(Qt::InputMethodQuery) const override; */
 /*     Q_INVOKABLE QVariant inputMethodQuery(Qt::InputMethodQuery query, const QVariant &argument) const; */
 
-/* public Q_SLOTS: */
-/*     void clear(); */
-/*     void clearEditText(); */
-/*     void setEditText(const QString &text); */
-/*     void setCurrentIndex(int index); */
-/*     void setCurrentText(const QString &text); */
+public Q_SLOTS:
+    void clear();
+    void clearEditText();
+    void setEditText(const QString &text);
+    void setCurrentIndex(int index);
+    void setCurrentText(const QString &text);
 
-/* Q_SIGNALS: */
-/*     void editTextChanged(const QString &); */
-/*     void activated(int index); */
-/*     void textActivated(const QString &); */
-/*     void highlighted(int index); */
-/*     void textHighlighted(const QString &); */
-/*     void currentIndexChanged(int index); */
+Q_SIGNALS:
+    void editTextChanged(const QString &);
+    void activated(int index);
+    void textActivated(const QString &);
+    void highlighted(int index);
+    void textHighlighted(const QString &);
+    void currentIndexChanged(int index);
 /* #if QT_DEPRECATED_SINCE(5, 15) */
 /*     QT_DEPRECATED_VERSION_X_5_15( */
 /*             "Use currentIndexChanged(int) instead, and get the text using itemText(index)") */
@@ -1561,7 +1560,7 @@ public:
 /*     void highlighted(const QString &); */
 /* #endif */
 
-/* protected: */
+protected:
 /*     void focusInEvent(QFocusEvent *e) override; */
 /*     void focusOutEvent(QFocusEvent *e) override; */
 /*     void changeEvent(QEvent *e) override; */
@@ -1591,28 +1590,28 @@ public:
     explicit xQGroupBox(const QString &title, QWidget *parent = nullptr);
 /*     ~QGroupBox(); */
 
-/*     QString title() const; */
-/*     void setTitle(const QString &title); */
+    QString title() const;
+    void setTitle(const QString &title);
 
 /*     Qt::Alignment alignment() const; */
 /*     void setAlignment(int alignment); */
 
 /*     QSize minimumSizeHint() const override; */
 
-/*     bool isFlat() const; */
-/*     void setFlat(bool flat); */
-/*     bool isCheckable() const; */
-/*     void setCheckable(bool checkable); */
-/*     bool isChecked() const; */
+    bool isFlat() const;
+    void setFlat(bool flat);
+    bool isCheckable() const;
+    void setCheckable(bool checkable);
+    bool isChecked() const;
 
-/* public Q_SLOTS: */
-/*     void setChecked(bool checked); */
+public Q_SLOTS:
+    void setChecked(bool checked);
 
-/* Q_SIGNALS: */
-/*     void clicked(bool checked = false); */
-/*     void toggled(bool); */
+Q_SIGNALS:
+    void clicked(bool checked = false);
+    void toggled(bool);
 
-/* protected: */
+protected:
 /*     bool event(QEvent *event) override; */
 /*     void childEvent(QChildEvent *event) override; */
 /*     void resizeEvent(QResizeEvent *event) override; */
@@ -1636,7 +1635,7 @@ public:
     explicit xQSpinBox(QWidget *parent = nullptr);
 /*     ~QSpinBox(); */
 
-/*     int value() const; */
+    int value() const;
 
 /*     QString prefix() const; */
 /*     void setPrefix(const QString &prefix); */
@@ -1644,18 +1643,18 @@ public:
 /*     QString suffix() const; */
 /*     void setSuffix(const QString &suffix); */
 
-/*     QString cleanText() const; */
+    QString cleanText() const;
 
 /*     int singleStep() const; */
-/*     void setSingleStep(int val); */
+    void setSingleStep(int val);
 
 /*     int minimum() const; */
-/*     void setMinimum(int min); */
+    void setMinimum(int min);
 
 /*     int maximum() const; */
-/*     void setMaximum(int max); */
+    void setMaximum(int max);
 
-/*     void setRange(int min, int max); */
+    void setRange(int min, int max);
 
 /*     StepType stepType() const; */
 /*     void setStepType(StepType stepType); */
@@ -1663,7 +1662,7 @@ public:
 /*     int displayIntegerBase() const; */
 /*     void setDisplayIntegerBase(int base); */
 
-/* protected: */
+protected:
 /*     bool event(QEvent *event) override; */
 /*     QValidator::State validate(QString &input, int &pos) const override; */
 /*     virtual int valueFromText(const QString &text) const; */
@@ -1671,12 +1670,12 @@ public:
 /*     void fixup(QString &str) const override; */
 
 
-/* public Q_SLOTS: */
-/*     void setValue(int val); */
+public Q_SLOTS:
+    void setValue(int val);
 
-/* Q_SIGNALS: */
-/*     void valueChanged(int); */
-/*     void textChanged(const QString &); */
+Q_SIGNALS:
+    void valueChanged(int);
+    void textChanged(const QString &);
 /* #if QT_DEPRECATED_SINCE(5, 14) */
 /*     QT_DEPRECATED_X("Use textChanged(QString) instead") */
 /*     void valueChanged(const QString &); */
@@ -1690,7 +1689,7 @@ public:
     explicit xQDoubleSpinBox(QWidget *parent = nullptr);
 /*     ~QDoubleSpinBox(); */
 
-/*     double value() const; */
+    double value() const;
 
 /*     QString prefix() const; */
 /*     void setPrefix(const QString &prefix); */
@@ -1698,18 +1697,18 @@ public:
 /*     QString suffix() const; */
 /*     void setSuffix(const QString &suffix); */
 
-/*     QString cleanText() const; */
+    QString cleanText() const;
 
 /*     double singleStep() const; */
-/*     void setSingleStep(double val); */
+    void setSingleStep(double val);
 
 /*     double minimum() const; */
-/*     void setMinimum(double min); */
+    void setMinimum(double min);
 
 /*     double maximum() const; */
-/*     void setMaximum(double max); */
+    void setMaximum(double max);
 
-/*     void setRange(double min, double max); */
+    void setRange(double min, double max);
 
 /*     StepType stepType() const; */
 /*     void setStepType(StepType stepType); */
@@ -1722,12 +1721,12 @@ public:
 /*     virtual QString textFromValue(double val) const; */
 /*     void fixup(QString &str) const override; */
 
-/* public Q_SLOTS: */
-/*     void setValue(double val); */
+public Q_SLOTS:
+    void setValue(double val);
 
-/* Q_SIGNALS: */
-/*     void valueChanged(double); */
-/*     void textChanged(const QString &); */
+Q_SIGNALS:
+    void valueChanged(double);
+    void textChanged(const QString &);
 /* #if QT_DEPRECATED_SINCE(5, 14) */
 /*     QT_DEPRECATED_X("Use textChanged(QString) instead") */
 /*     void valueChanged(const QString &); */
@@ -1765,6 +1764,248 @@ class xQStackedWidget : public QStackedWidget
  /*        bool event(QEvent *e) override; */
 
 }; // QStackedWidget
+
+
+class xQTabBar: public QTabBar
+{
+public:
+    explicit xQTabBar(QWidget *parent = nullptr);
+/*     ~QTabBar(); */
+
+/*     Shape shape() const; */
+/*     void setShape(Shape shape); */
+
+    int addTab(const QString &text);
+/*     int addTab(const QIcon &icon, const QString &text); */
+
+    int insertTab(int index, const QString &text);
+/*     int insertTab(int index, const QIcon&icon, const QString &text); */
+
+    void removeTab(int index);
+    void moveTab(int from, int to);
+
+    bool isTabEnabled(int index) const;
+    void setTabEnabled(int index, bool enabled);
+
+    bool isTabVisible(int index) const;
+    void setTabVisible(int index, bool visible);
+
+    QString tabText(int index) const;
+    void setTabText(int index, const QString &text);
+
+/*     QColor tabTextColor(int index) const; */
+/*     void setTabTextColor(int index, const QColor &color); */
+
+/*     QIcon tabIcon(int index) const; */
+/*     void setTabIcon(int index, const QIcon &icon); */
+
+/*     Qt::TextElideMode elideMode() const; */
+/*     void setElideMode(Qt::TextElideMode mode); */
+
+/* #ifndef QT_NO_TOOLTIP */
+/*     void setTabToolTip(int index, const QString &tip); */
+/*     QString tabToolTip(int index) const; */
+/* #endif */
+
+/* #if QT_CONFIG(whatsthis) */
+/*     void setTabWhatsThis(int index, const QString &text); */
+/*     QString tabWhatsThis(int index) const; */
+/* #endif */
+
+/*     void setTabData(int index, const QVariant &data); */
+/*     QVariant tabData(int index) const; */
+
+/*     QRect tabRect(int index) const; */
+/*     int tabAt(const QPoint &pos) const; */
+
+    int currentIndex() const;
+    int count() const;
+
+/*     QSize sizeHint() const override; */
+/*     QSize minimumSizeHint() const override; */
+
+/*     void setDrawBase(bool drawTheBase); */
+/*     bool drawBase() const; */
+
+/*     QSize iconSize() const; */
+/*     void setIconSize(const QSize &size); */
+
+/*     bool usesScrollButtons() const; */
+/*     void setUsesScrollButtons(bool useButtons); */
+
+/*     bool tabsClosable() const; */
+/*     void setTabsClosable(bool closable); */
+
+/*     void setTabButton(int index, ButtonPosition position, QWidget *widget); */
+/*     QWidget *tabButton(int index, ButtonPosition position) const; */
+
+/*     SelectionBehavior selectionBehaviorOnRemove() const; */
+/*     void setSelectionBehaviorOnRemove(SelectionBehavior behavior); */
+
+/*     bool expanding() const; */
+/*     void setExpanding(bool enabled); */
+
+    bool isMovable() const;
+    void setMovable(bool movable);
+
+/*     bool documentMode() const; */
+/*     void setDocumentMode(bool set); */
+
+    bool autoHide() const;
+    void setAutoHide(bool hide);
+
+/*     bool changeCurrentOnDrag() const; */
+/*     void setChangeCurrentOnDrag(bool change); */
+
+/* #ifndef QT_NO_ACCESSIBILITY */
+/*     QString accessibleTabName(int index) const; */
+/*     void setAccessibleTabName(int index, const QString &name); */
+/* #endif */
+
+public Q_SLOTS:
+    void setCurrentIndex(int index);
+
+Q_SIGNALS:
+    void currentChanged(int index);
+    void tabCloseRequested(int index);
+    void tabMoved(int from, int to);
+    void tabBarClicked(int index);
+    void tabBarDoubleClicked(int index);
+
+protected:
+/*     virtual QSize tabSizeHint(int index) const; */
+/*     virtual QSize minimumTabSizeHint(int index) const; */
+/*     virtual void tabInserted(int index); */
+/*     virtual void tabRemoved(int index); */
+/*     virtual void tabLayoutChange(); */
+
+/*     bool event(QEvent *) override; */
+/*     void resizeEvent(QResizeEvent *) override; */
+/*     void showEvent(QShowEvent *) override; */
+/*     void hideEvent(QHideEvent *) override; */
+/*     void paintEvent(QPaintEvent *) override; */
+/*     void mousePressEvent (QMouseEvent *) override; */
+/*     void mouseMoveEvent (QMouseEvent *) override; */
+/*     void mouseReleaseEvent (QMouseEvent *) override; */
+/* #if QT_CONFIG(wheelevent) */
+/*     void wheelEvent(QWheelEvent *event) override; */
+/* #endif */
+/*     void keyPressEvent(QKeyEvent *) override; */
+/*     void changeEvent(QEvent *) override; */
+/*     void timerEvent(QTimerEvent *event) override; */
+/*     void initStyleOption(QStyleOptionTab *option, int tabIndex) const; */
+
+};
+
+class xQTabWidget : public QTabWidget
+{
+public:
+    explicit xQTabWidget(QWidget *parent = nullptr);
+/*     ~QTabWidget(); */
+
+    int addTab(QWidget *widget, const QString &);
+/*     int addTab(QWidget *widget, const QIcon& icon, const QString &label); */
+
+    int insertTab(int index, QWidget *widget, const QString &);
+/*     int insertTab(int index, QWidget *widget, const QIcon& icon, const QString &label); */
+
+    void removeTab(int index);
+
+    bool isTabEnabled(int index) const;
+    void setTabEnabled(int index, bool enabled);
+
+    bool isTabVisible(int index) const;
+    void setTabVisible(int index, bool visible);
+
+    QString tabText(int index) const;
+    void setTabText(int index, const QString &text);
+
+/*     QIcon tabIcon(int index) const; */
+/*     void setTabIcon(int index, const QIcon & icon); */
+
+/* #ifndef QT_NO_TOOLTIP */
+/*     void setTabToolTip(int index, const QString & tip); */
+/*     QString tabToolTip(int index) const; */
+/* #endif */
+
+/* #if QT_CONFIG(whatsthis) */
+/*     void setTabWhatsThis(int index, const QString &text); */
+/*     QString tabWhatsThis(int index) const; */
+/* #endif */
+
+    int currentIndex() const;
+    QWidget *currentWidget() const;
+    QWidget *widget(int index) const;
+    int indexOf(QWidget *widget) const;
+    int count() const;
+
+/*     enum TabPosition { North, South, West, East }; */
+/*     Q_ENUM(TabPosition) */
+/*     TabPosition tabPosition() const; */
+/*     void setTabPosition(TabPosition position); */
+
+    bool tabsClosable() const;
+    void setTabsClosable(bool closeable);
+
+    bool isMovable() const;
+    void setMovable(bool movable);
+
+/*     enum TabShape { Rounded, Triangular }; */
+/*     Q_ENUM(TabShape) */
+/*     TabShape tabShape() const; */
+/*     void setTabShape(TabShape s); */
+
+/*     QSize sizeHint() const override; */
+/*     QSize minimumSizeHint() const override; */
+/*     int heightForWidth(int width) const override; */
+/*     bool hasHeightForWidth() const override; */
+
+/*     void setCornerWidget(QWidget * w, Qt::Corner corner = Qt::TopRightCorner); */
+/*     QWidget * cornerWidget(Qt::Corner corner = Qt::TopRightCorner) const; */
+
+/*     Qt::TextElideMode elideMode() const; */
+/*     void setElideMode(Qt::TextElideMode mode); */
+
+/*     QSize iconSize() const; */
+/*     void setIconSize(const QSize &size); */
+
+/*     bool usesScrollButtons() const; */
+/*     void setUsesScrollButtons(bool useButtons); */
+
+/*     bool documentMode() const; */
+/*     void setDocumentMode(bool set); */
+
+/*     bool tabBarAutoHide() const; */
+/*     void setTabBarAutoHide(bool enabled); */
+
+/*     void clear(); */
+
+/*     QTabBar* tabBar() const; */
+
+public Q_SLOTS:
+    void setCurrentIndex(int index);
+    void setCurrentWidget(QWidget *widget);
+
+Q_SIGNALS:
+    void currentChanged(int index);
+    void tabCloseRequested(int index);
+    void tabBarClicked(int index);
+    void tabBarDoubleClicked(int index);
+
+protected:
+/*     virtual void tabInserted(int index); */
+/*     virtual void tabRemoved(int index); */
+
+/*     void showEvent(QShowEvent *) override; */
+/*     void resizeEvent(QResizeEvent *) override; */
+/*     void keyPressEvent(QKeyEvent *) override; */
+/*     void paintEvent(QPaintEvent *) override; */
+/*     void setTabBar(QTabBar *); */
+/*     void changeEvent(QEvent *) override; */
+/*     bool event(QEvent *) override; */
+/*     void initStyleOption(QStyleOptionTabWidgetFrame *option) const; */
+
+};
 
 
 class xQGraphicsItem : public QGraphicsItem {
@@ -2074,10 +2315,10 @@ public:
 /*     void reset() override; */
 /*     void setRootIndex(const QModelIndex &index) override; */
 
-/* Q_SIGNALS: */
+Q_SIGNALS:
 /*     void indexesMoved(const QModelIndexList &indexes); */
 
-/* protected: */
+protected:
 /*     QListView(QListViewPrivate &, QWidget *parent = nullptr); */
 
 /*     bool event(QEvent *e) override; */
@@ -2136,7 +2377,7 @@ public:
     explicit xQTreeView(QWidget *parent = nullptr);
     //    ~QTreeView();
 
-/*     void setModel(QAbstractItemModel *model) override; */
+    void setModel(QAbstractItemModel *model) override;
 /*     void setRootIndex(const QModelIndex &index) override; */
 /*     void setSelectionModel(QItemSelectionModel *selectionModel) override; */
 
@@ -2212,16 +2453,16 @@ public:
 /*     void dataChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight, const QVector<int> &roles = QVector<int>()) override; */
 /*     void selectAll() override; */
 
-/* Q_SIGNALS: */
+Q_SIGNALS:
 /*     void expanded(const QModelIndex &index); */
 /*     void collapsed(const QModelIndex &index); */
 
-/* public Q_SLOTS: */
-/*     void hideColumn(int column); */
-/*     void showColumn(int column); */
-/*     void expand(const QModelIndex &index); */
-/*     void collapse(const QModelIndex &index); */
-/*     void resizeColumnToContents(int column); */
+public Q_SLOTS:
+    void hideColumn(int column);
+    void showColumn(int column);
+    void expand(const QModelIndex &index);
+    void collapse(const QModelIndex &index);
+    void resizeColumnToContents(int column);
 /* #if QT_DEPRECATED_SINCE(5, 13) */
 /*     QT_DEPRECATED_X ("Use QTreeView::sortByColumn(int column, Qt::SortOrder order) instead") */
 /*     void sortByColumn(int column); */
@@ -2232,7 +2473,7 @@ public:
 /*     void collapseAll(); */
 /*     void expandToDepth(int depth); */
 
-/* protected Q_SLOTS: */
+protected Q_SLOTS:
 /*     void columnResized(int column, int oldSize, int newSize); */
 /*     void columnCountChanged(int oldCount, int newCount); */
 /*     void columnMoved(); */
@@ -2240,7 +2481,7 @@ public:
 /*     void rowsRemoved(const QModelIndex &parent, int first, int last); */
 /*     void verticalScrollbarValueChanged(int value) override; */
 
-/* protected: */
+protected:
 /*     QTreeView(QTreeViewPrivate &dd, QWidget *parent = nullptr); */
 /*     void scrollContentsBy(int dx, int dy) override; */
 /*     void rowsInserted(const QModelIndex &parent, int start, int end) override; */
@@ -2354,61 +2595,6 @@ public:
 /*         return QSizePolicy(bits.transposed()); */
 /*     } */
 
-/* private: */
-/* #ifndef QT_NO_DATASTREAM */
-/*     friend Q_WIDGETS_EXPORT QDataStream &operator<<(QDataStream &, const QSizePolicy &); */
-/*     friend Q_WIDGETS_EXPORT QDataStream &operator>>(QDataStream &, QSizePolicy &); */
-/* #endif */
-/*     QT_SIZEPOLICY_CONSTEXPR QSizePolicy(int i) noexcept : data(i) { } */
-/*     struct Bits; */
-/*     QT_SIZEPOLICY_CONSTEXPR explicit QSizePolicy(Bits b) noexcept : bits(b) { } */
-
-/*     static Q_DECL_RELAXED_CONSTEXPR quint32 toControlTypeFieldValue(ControlType type) noexcept */
-/*     { */
-/*         /\* */
-/*           The control type is a flag type, with values 0x1, 0x2, 0x4, 0x8, 0x10, */
-/*           etc. In memory, we pack it onto the available bits (CTSize) in */
-/*           setControlType(), and unpack it here. */
-
-/*           Example: */
-
-/*           0x00000001 maps to 0 */
-/*           0x00000002 maps to 1 */
-/*           0x00000004 maps to 2 */
-/*           0x00000008 maps to 3 */
-/*           etc. */
-/*         *\/ */
-
-/*         return qCountTrailingZeroBits(static_cast<quint32>(type)); */
-/*     } */
-
-/*     struct Bits { */
-/*         quint32 horStretch : 8; */
-/*         quint32 verStretch : 8; */
-/*         quint32 horPolicy : 4; */
-/*         quint32 verPolicy : 4; */
-/*         quint32 ctype : 5; */
-/*         quint32 hfw : 1; */
-/*         quint32 wfh : 1; */
-/*         quint32 retainSizeWhenHidden : 1; */
-
-/*         QT_SIZEPOLICY_CONSTEXPR_AND_UNIFORM_INIT */
-/*         Bits transposed() const noexcept */
-/*         { */
-/*             return {verStretch, // \ swap */
-/*                     horStretch, // / */
-/*                     verPolicy, // \ swap */
-/*                     horPolicy, // / */
-/*                     ctype, */
-/*                     hfw, // \ don't swap (historic behavior) */
-/*                     wfh, // / */
-/*                     retainSizeWhenHidden}; */
-/*         } */
-/*     }; */
-/*     union { */
-/*         Bits bits; */
-/*         quint32 data; */
-/*     }; */
 }; // QSizePolicy
 
 class xQProgressBar : public QProgressBar
@@ -2417,14 +2603,14 @@ public:
     explicit xQProgressBar(QWidget *parent = nullptr);
 /*     ~QProgressBar(); */
 
-/*     int minimum() const; */
-/*     int maximum() const; */
+    int minimum() const;
+    int maximum() const;
 
-/*     int value() const; */
+    int value() const;
 
-/*     virtual QString text() const; */
-/*     void setTextVisible(bool visible); */
-/*     bool isTextVisible() const; */
+    virtual QString text() const;
+    void setTextVisible(bool visible);
+    bool isTextVisible() const;
 
 /*     Qt::Alignment alignment() const; */
 /*     void setAlignment(Qt::Alignment alignment); */
@@ -2443,18 +2629,18 @@ public:
 /*     void resetFormat(); */
 /*     QString format() const; */
 
-/* public Q_SLOTS: */
-/*     void reset(); */
-/*     void setRange(int minimum, int maximum); */
-/*     void setMinimum(int minimum); */
-/*     void setMaximum(int maximum); */
-/*     void setValue(int value); */
-/*     void setOrientation(Qt::Orientation); */
+public Q_SLOTS:
+    void reset();
+    void setRange(int minimum, int maximum);
+    void setMinimum(int minimum);
+    void setMaximum(int maximum);
+    void setValue(int value);
+    void setOrientation(Qt::Orientation);
 
-/* Q_SIGNALS: */
-/*     void valueChanged(int value); */
+Q_SIGNALS:
+    void valueChanged(int value);
 
-/* protected: */
+protected:
 /*     bool event(QEvent *e) override; */
 /*     void paintEvent(QPaintEvent *) override; */
 /*     void initStyleOption(QStyleOptionProgressBar *option) const; */
@@ -2468,8 +2654,8 @@ public:
     explicit xQToolBar(QWidget *parent = nullptr);
 /*     ~QToolBar(); */
 
-/*     void setMovable(bool movable); */
-/*     bool isMovable() const; */
+    void setMovable(bool movable);
+    bool isMovable() const;
 
 /*     void setAllowedAreas(Qt::ToolBarAreas areas); */
 /*     Qt::ToolBarAreas allowedAreas() const; */
@@ -2557,11 +2743,11 @@ public:
 /*     void setFloatable(bool floatable); */
 /*     bool isFloating() const; */
 
-/* public Q_SLOTS: */
+public Q_SLOTS:
 /*     void setIconSize(const QSize &iconSize); */
 /*     void setToolButtonStyle(Qt::ToolButtonStyle toolButtonStyle); */
 
-/* Q_SIGNALS: */
+Q_SIGNALS:
 /*     void actionTriggered(QAction *action); */
 /*     void movableChanged(bool movable); */
 /*     void allowedAreasChanged(Qt::ToolBarAreas allowedAreas); */
@@ -2571,7 +2757,7 @@ public:
 /*     void topLevelChanged(bool topLevel); */
 /*     void visibilityChanged(bool visible); */
 
-/* protected: */
+protected:
 /*     void actionEvent(QActionEvent *event) override; */
 /*     void changeEvent(QEvent *event) override; */
 /*     void paintEvent(QPaintEvent *event) override; */
@@ -2585,26 +2771,26 @@ public:
     explicit xQStatusBar(QWidget *parent = nullptr);
 /*     virtual ~QStatusBar(); */
 
-/*     void addWidget(QWidget *widget, int stretch = 0); */
-/*     int insertWidget(int index, QWidget *widget, int stretch = 0); */
-/*     void addPermanentWidget(QWidget *widget, int stretch = 0); */
-/*     int insertPermanentWidget(int index, QWidget *widget, int stretch = 0); */
-/*     void removeWidget(QWidget *widget); */
+    void addWidget(QWidget *widget, int stretch = 0);
+    int insertWidget(int index, QWidget *widget, int stretch = 0);
+    void addPermanentWidget(QWidget *widget, int stretch = 0);
+    int insertPermanentWidget(int index, QWidget *widget, int stretch = 0);
+    void removeWidget(QWidget *widget);
 
-/*     void setSizeGripEnabled(bool); */
-/*     bool isSizeGripEnabled() const; */
+    void setSizeGripEnabled(bool);
+    bool isSizeGripEnabled() const;
 
-/*     QString currentMessage() const; */
+    QString currentMessage() const;
 
-/* public Q_SLOTS: */
-/*     void showMessage(const QString &text, int timeout = 0); */
-/*     void clearMessage(); */
+public Q_SLOTS:
+    void showMessage(const QString &text, int timeout = 0);
+    void clearMessage();
 
 
-/* Q_SIGNALS: */
-/*     void messageChanged(const QString &text); */
+Q_SIGNALS:
+    void messageChanged(const QString &text);
 
-/* protected: */
+protected:
 /*     void showEvent(QShowEvent *) override; */
 /*     void paintEvent(QPaintEvent *) override; */
 /*     void resizeEvent(QResizeEvent *) override; */
@@ -2631,17 +2817,17 @@ public:
 /*     void setIcon(const QIcon &icon); */
 /*     QIcon icon() const; */
 
-/*     void setText(const QString &text); */
-/*     QString text() const; */
+    void setText(const QString &text);
+    QString text() const;
 
-/*     void setIconText(const QString &text); */
-/*     QString iconText() const; */
+    void setIconText(const QString &text);
+    QString iconText() const;
 
-/*     void setToolTip(const QString &tip); */
-/*     QString toolTip() const; */
+    void setToolTip(const QString &tip);
+    QString toolTip() const;
 
-/*     void setStatusTip(const QString &statusTip); */
-/*     QString statusTip() const; */
+    void setStatusTip(const QString &statusTip);
+    QString statusTip() const;
 
 /*     void setWhatsThis(const QString &what); */
 /*     QString whatsThis() const; */
@@ -2675,17 +2861,17 @@ public:
 /*     void setFont(const QFont &font); */
 /*     QFont font() const; */
 
-/*     void setCheckable(bool); */
-/*     bool isCheckable() const; */
+    void setCheckable(bool);
+    bool isCheckable() const;
 
 /*     QVariant data() const; */
 /*     void setData(const QVariant &var); */
 
-/*     bool isChecked() const; */
+    bool isChecked() const;
 
-/*     bool isEnabled() const; */
+    bool isEnabled() const;
 
-/*     bool isVisible() const; */
+    bool isVisible() const;
 
 /*     enum ActionEvent { Trigger, Hover }; */
 /*     void activate(ActionEvent event); */
@@ -2707,24 +2893,24 @@ public:
 /*     QList<QGraphicsWidget *> associatedGraphicsWidgets() const; // ### suboptimal */
 /* #endif */
 
-/* protected: */
+protected:
 /*     bool event(QEvent *) override; */
 /*     QAction(QActionPrivate &dd, QObject *parent); */
 
-/* public Q_SLOTS: */
-/*     void trigger() { activate(Trigger); } */
-/*     void hover() { activate(Hover); } */
-/*     void setChecked(bool); */
-/*     void toggle(); */
-/*     void setEnabled(bool); */
-/*     inline void setDisabled(bool b) { setEnabled(!b); } */
-/*     void setVisible(bool); */
+public Q_SLOTS:
+    void trigger() { activate(Trigger); }
+    void hover() { activate(Hover); }
+    void setChecked(bool);
+    void toggle();
+    void setEnabled(bool);
+    inline void setDisabled(bool b) { setEnabled(!b); }
+    void setVisible(bool);
 
-/* Q_SIGNALS: */
-/*     void changed(); */
-/*     void triggered(bool checked = false); */
-/*     void hovered(); */
-/*     void toggled(bool); */
+Q_SIGNALS:
+    void changed();
+    void triggered(bool checked = false);
+    void hovered();
+    void toggled(bool);
 
 }; // QAction
 
@@ -2736,7 +2922,7 @@ public:
 /*     ~QMenu(); */
 
 /*     using QWidget::addAction; */
-/*     QAction *addAction(const QString &text); */
+    QAction *addAction(const QString &text);
 /*     QAction *addAction(const QIcon &icon, const QString &text); */
 /*     QAction *addAction(const QString &text, const QObject *receiver, const char* member, const QKeySequence &shortcut = 0); */
 /*     QAction *addAction(const QIcon &icon, const QString &text, const QObject *receiver, const char* member, const QKeySequence &shortcut = 0); */
@@ -2809,11 +2995,11 @@ public:
 /*     } */
 /* #endif // !Q_CLANG_QDOC */
 
-/*     QAction *addMenu(QMenu *menu); */
-/*     QMenu *addMenu(const QString &title); */
+    QAction *addMenu(QMenu *menu);
+    QMenu *addMenu(const QString &title);
 /*     QMenu *addMenu(const QIcon &icon, const QString &title); */
 
-/*     QAction *addSeparator(); */
+    QAction *addSeparator();
 
 /*     QAction *addSection(const QString &text); */
 /*     QAction *addSection(const QIcon &icon, const QString &text); */
@@ -2823,8 +3009,8 @@ public:
 /*     QAction *insertSection(QAction *before, const QString &text); */
 /*     QAction *insertSection(QAction *before, const QIcon &icon, const QString &text); */
 
-/*     bool isEmpty() const; */
-/*     void clear(); */
+    bool isEmpty() const;
+    void clear();
 
 /*     void setTearOffEnabled(bool); */
 /*     bool isTearOffEnabled() const; */
@@ -2857,8 +3043,8 @@ public:
 
 /*     QAction *menuAction() const; */
 
-/*     QString title() const; */
-/*     void setTitle(const QString &title); */
+    QString title() const;
+    void setTitle(const QString &title);
 
 /*     QIcon icon() const; */
 /*     void setIcon(const QIcon &icon); */
@@ -2878,13 +3064,13 @@ public:
 /*     bool toolTipsVisible() const; */
 /*     void setToolTipsVisible(bool visible); */
 
-/* Q_SIGNALS: */
-/*     void aboutToShow(); */
-/*     void aboutToHide(); */
-/*     void triggered(QAction *action); */
-/*     void hovered(QAction *action); */
+Q_SIGNALS:
+    void aboutToShow();
+    void aboutToHide();
+    void triggered(QAction *action);
+    void hovered(QAction *action);
 
-/* protected: */
+protected:
 /*     int columnCount() const; */
 
 /*     void changeEvent(QEvent *) override; */
@@ -2914,7 +3100,7 @@ public:
 /*     ~QMenuBar(); */
 
 /*     using QWidget::addAction; */
-/*     QAction *addAction(const QString &text); */
+    QAction *addAction(const QString &text);
 /*     QAction *addAction(const QString &text, const QObject *receiver, const char* member); */
 
 /* #ifdef Q_CLANG_QDOC */
@@ -2943,17 +3129,17 @@ public:
 /*     } */
 /* #endif // !Q_CLANG_QDOC */
 
-/*     QAction *addMenu(QMenu *menu); */
-/*     QMenu *addMenu(const QString &title); */
-/*     QMenu *addMenu(const QIcon &icon, const QString &title); */
+    QAction *addMenu(QMenu *menu);
+    QMenu *addMenu(const QString &title);
+    QMenu *addMenu(const QIcon &icon, const QString &title);
 
 
-/*     QAction *addSeparator(); */
-/*     QAction *insertSeparator(QAction *before); */
+    QAction *addSeparator();
+    QAction *insertSeparator(QAction *before);
 
-/*     QAction *insertMenu(QAction *before, QMenu *menu); */
+    QAction *insertMenu(QAction *before, QMenu *menu);
 
-/*     void clear(); */
+    void clear();
 
 /*     QAction *activeAction() const; */
 /*     void setActiveAction(QAction *action); */
@@ -2978,14 +3164,14 @@ public:
 /*     bool isNativeMenuBar() const; */
 /*     void setNativeMenuBar(bool nativeMenuBar); */
 /*     QPlatformMenuBar *platformMenuBar(); */
-/* public Q_SLOTS: */
-/*     void setVisible(bool visible) override; */
+public Q_SLOTS:
+    void setVisible(bool visible) override;
 
-/* Q_SIGNALS: */
-/*     void triggered(QAction *action); */
-/*     void hovered(QAction *action); */
+Q_SIGNALS:
+    void triggered(QAction *action);
+    void hovered(QAction *action);
 
-/* protected: */
+protected:
 /*     void changeEvent(QEvent *) override; */
 /*     void keyPressEvent(QKeyEvent *) override; */
 /*     void mouseReleaseEvent(QMouseEvent *) override; */
@@ -3047,11 +3233,11 @@ public Q_SLOTS:
     void showMessage(const QString &title, const QString &msg,
                      QSystemTrayIcon::MessageIcon icon = QSystemTrayIcon::Information, int msecs = 10000);
 
-/* Q_SIGNALS: */
-/*     void activated(QSystemTrayIcon::ActivationReason reason); */
-/*     void messageClicked(); */
+Q_SIGNALS:
+    void activated(QSystemTrayIcon::ActivationReason reason);
+    void messageClicked();
 
-/* protected: */
+protected:
 /*     bool event(QEvent *event) override; */
 
 }; // QSystemTrayIcon
@@ -3159,7 +3345,7 @@ class xQMainWindow : public QMainWindow
 /*     virtual QMenu *createPopupMenu(); */
 /* #endif */
 
-/* public Q_SLOTS: */
+public Q_SLOTS:
 /* #if QT_CONFIG(dockwidget) */
 /*     void setAnimated(bool enabled); */
 /*     void setDockNestingEnabled(bool enabled); */
@@ -3168,14 +3354,14 @@ class xQMainWindow : public QMainWindow
 /*     void setUnifiedTitleAndToolBarOnMac(bool set); */
 /* #endif */
 
-/* Q_SIGNALS: */
+Q_SIGNALS:
 /*     void iconSizeChanged(const QSize &iconSize); */
 /*     void toolButtonStyleChanged(Qt::ToolButtonStyle toolButtonStyle); */
 /* #if QT_CONFIG(dockwidget) */
 /*     void tabifiedDockWidgetActivated(QDockWidget *dockWidget); */
 /* #endif */
 
-/* protected: */
+protected:
 /* #ifndef QT_NO_CONTEXTMENU */
 /*     void contextMenuEvent(QContextMenuEvent *event) override; */
 /* #endif */
@@ -3231,7 +3417,7 @@ class xQApplication : public QApplication {
 /*     static QWidget *topLevelAt(const QPoint &p); */
 /*     static inline QWidget *topLevelAt(int x, int y)  { return topLevelAt(QPoint(x, y)); } */
 
-/*     static void beep(); */
+    static void beep();
 /*     static void alert(QWidget *widget, int duration = 0); */
 
 /*     static void setCursorFlashTime(int); */
@@ -3257,7 +3443,7 @@ class xQApplication : public QApplication {
 /*     static void setEffectEnabled(Qt::UIEffect, bool enable = true); */
 
 
-    static int exec();
+//    static int exec();
 /*     bool notify(QObject *, QEvent *) override; */
 
 /* #ifdef QT_KEYPAD_NAVIGATION */
@@ -3265,21 +3451,21 @@ class xQApplication : public QApplication {
 /*     static Qt::NavigationMode navigationMode(); */
 /* #endif */
 
-/* Q_SIGNALS: */
-/*     void focusChanged(QWidget *old, QWidget *now); */
+Q_SIGNALS:
+    void focusChanged(QWidget *old, QWidget *now);
 
-/* public: */
-/*     QString styleSheet() const; */
-/* public Q_SLOTS: */
-/* #ifndef QT_NO_STYLE_STYLESHEET */
-/*     void setStyleSheet(const QString& sheet); */
-/* #endif */
+public:
+    QString styleSheet() const;
+public Q_SLOTS:
+#ifndef QT_NO_STYLE_STYLESHEET
+    void setStyleSheet(const QString& sheet);
+#endif
 /*     void setAutoSipEnabled(const bool enabled); */
 /*     bool autoSipEnabled() const; */
 /*     static void closeAllWindows(); */
-/*     static void aboutQt(); */
+    static void aboutQt();
 
-/* protected: */
+protected:
 /*     bool event(QEvent *) override; */
 /*     bool compressEvent(QEvent *, QObject *receiver, QPostEventList *) override; */
 

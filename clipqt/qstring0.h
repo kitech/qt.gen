@@ -18,6 +18,275 @@ class xQString : public QString {
 
 class xQVariant : public QVariant {
 public:
+    xQVariant() noexcept ;
+//     ~QVariant();
+//     QVariant(Type type);
+//     QVariant(int typeId, const void *copy);
+//     QVariant(int typeId, const void *copy, uint flags);
+//     QVariant(const QVariant &other);
+
+// #ifndef QT_NO_DATASTREAM
+//     QVariant(QDataStream &s);
+// #endif
+
+//     QVariant(int i);
+//     QVariant(uint ui);
+//     QVariant(qlonglong ll);
+//     QVariant(qulonglong ull);
+//     QVariant(bool b);
+//     QVariant(double d);
+//     QVariant(float f);
+// #ifndef QT_NO_CAST_FROM_ASCII
+//     QT_ASCII_CAST_WARN QVariant(const char *str);
+// #endif
+
+//     QVariant(const QByteArray &bytearray);
+//     QVariant(const QBitArray &bitarray);
+//     QVariant(const QString &string);
+//     QVariant(QLatin1String string);
+//     QVariant(const QStringList &stringlist);
+//     QVariant(QChar qchar);
+//     QVariant(const QDate &date);
+//     QVariant(const QTime &time);
+//     QVariant(const QDateTime &datetime);
+//     QVariant(const QList<QVariant> &list);
+//     QVariant(const QMap<QString,QVariant> &map);
+//     QVariant(const QHash<QString,QVariant> &hash);
+// #ifndef QT_NO_GEOM_VARIANT
+//     QVariant(const QSize &size);
+//     QVariant(const QSizeF &size);
+//     QVariant(const QPoint &pt);
+//     QVariant(const QPointF &pt);
+//     QVariant(const QLine &line);
+//     QVariant(const QLineF &line);
+//     QVariant(const QRect &rect);
+//     QVariant(const QRectF &rect);
+// #endif
+//     QVariant(const QLocale &locale);
+// #ifndef QT_NO_REGEXP
+//     QVariant(const QRegExp &regExp);
+// #endif // QT_NO_REGEXP
+// #if QT_CONFIG(regularexpression)
+//     QVariant(const QRegularExpression &re);
+// #endif // QT_CONFIG(regularexpression)
+// #if QT_CONFIG(easingcurve)
+//     QVariant(const QEasingCurve &easing);
+// #endif
+//     QVariant(const QUuid &uuid);
+// #ifndef QT_BOOTSTRAPPED
+//     QVariant(const QUrl &url);
+//     QVariant(const QJsonValue &jsonValue);
+//     QVariant(const QJsonObject &jsonObject);
+//     QVariant(const QJsonArray &jsonArray);
+//     QVariant(const QJsonDocument &jsonDocument);
+// #endif // QT_BOOTSTRAPPED
+// #if QT_CONFIG(itemmodel)
+//     QVariant(const QModelIndex &modelIndex);
+//     QVariant(const QPersistentModelIndex &modelIndex);
+// #endif
+
+//     QVariant& operator=(const QVariant &other);
+//     inline QVariant(QVariant &&other) noexcept : d(other.d)
+//     { other.d = Private(); }
+//     inline QVariant &operator=(QVariant &&other) noexcept
+//     { qSwap(d, other.d); return *this; }
+
+//     inline void swap(QVariant &other) noexcept { qSwap(d, other.d); }
+
+//     Type type() const;
+//     int userType() const;
+//     const char *typeName() const;
+
+//     bool canConvert(int targetTypeId) const;
+//     bool convert(int targetTypeId);
+
+//     inline bool isValid() const;
+//     bool isNull() const;
+
+//     void clear();
+
+//     void detach();
+//     inline bool isDetached() const;
+
+//     int toInt(bool *ok = nullptr) const;
+//     uint toUInt(bool *ok = nullptr) const;
+//     qlonglong toLongLong(bool *ok = nullptr) const;
+//     qulonglong toULongLong(bool *ok = nullptr) const;
+//     bool toBool() const;
+//     double toDouble(bool *ok = nullptr) const;
+//     float toFloat(bool *ok = nullptr) const;
+//     qreal toReal(bool *ok = nullptr) const;
+//     QByteArray toByteArray() const;
+//     QBitArray toBitArray() const;
+//     QString toString() const;
+//     QStringList toStringList() const;
+//     QChar toChar() const;
+//     QDate toDate() const;
+//     QTime toTime() const;
+//     QDateTime toDateTime() const;
+//     QList<QVariant> toList() const;
+//     QMap<QString, QVariant> toMap() const;
+//     QHash<QString, QVariant> toHash() const;
+
+// #ifndef QT_NO_GEOM_VARIANT
+//     QPoint toPoint() const;
+//     QPointF toPointF() const;
+//     QRect toRect() const;
+//     QSize toSize() const;
+//     QSizeF toSizeF() const;
+//     QLine toLine() const;
+//     QLineF toLineF() const;
+//     QRectF toRectF() const;
+// #endif
+//     QLocale toLocale() const;
+// #ifndef QT_NO_REGEXP
+//     QRegExp toRegExp() const;
+// #endif // QT_NO_REGEXP
+// #if QT_CONFIG(regularexpression)
+//     QRegularExpression toRegularExpression() const;
+// #endif // QT_CONFIG(regularexpression)
+// #if QT_CONFIG(easingcurve)
+//     QEasingCurve toEasingCurve() const;
+// #endif
+//     QUuid toUuid() const;
+// #ifndef QT_BOOTSTRAPPED
+//     QUrl toUrl() const;
+//     QJsonValue toJsonValue() const;
+//     QJsonObject toJsonObject() const;
+//     QJsonArray toJsonArray() const;
+//     QJsonDocument toJsonDocument() const;
+// #endif // QT_BOOTSTRAPPED
+// #if QT_CONFIG(itemmodel)
+//     QModelIndex toModelIndex() const;
+//     QPersistentModelIndex toPersistentModelIndex() const;
+// #endif
+
+// #ifndef QT_NO_DATASTREAM
+//     void load(QDataStream &ds);
+//     void save(QDataStream &ds) const;
+// #endif
+//     static const char *typeToName(int typeId);
+//     static Type nameToType(const char *name);
+
+//     void *data();
+//     const void *constData() const;
+//     inline const void *data() const { return constData(); }
+
+//     template<typename T>
+//     inline void setValue(const T &value);
+
+//     template<typename T>
+//     inline T value() const
+//     { return qvariant_cast<T>(*this); }
+
+//     template<typename T>
+//     static inline QVariant fromValue(const T &value)
+//     { return QVariant(qMetaTypeId<T>(), &value, QTypeInfo<T>::isPointer); }
+
+// #if (__has_include(<variant>) && __cplusplus >= 201703L) || defined(Q_CLANG_QDOC)
+//     template<typename... Types>
+//     static inline QVariant fromStdVariant(const std::variant<Types...> &value)
+//     {
+//         if (value.valueless_by_exception())
+//             return QVariant();
+//         return std::visit([](const auto &arg) { return fromValue(arg); }, value);
+//     }
+// #endif
+
+//     template<typename T>
+//     bool canConvert() const
+//     { return canConvert(qMetaTypeId<T>()); }
+
+//  public:
+//     struct PrivateShared
+//     {
+//         inline PrivateShared(void *v) : ptr(v), ref(1) { }
+//         void *ptr;
+//         QAtomicInt ref;
+//     };
+//     struct Private
+//     {
+//         inline Private() noexcept : type(Invalid), is_shared(false), is_null(true)
+//         { data.ptr = nullptr; }
+
+//         // Internal constructor for initialized variants.
+//         explicit inline Private(uint variantType) noexcept
+//             : type(variantType), is_shared(false), is_null(false)
+//         {}
+
+// #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+//         Private(const Private &other) noexcept
+//             : data(other.data), type(other.type),
+//               is_shared(other.is_shared), is_null(other.is_null)
+//         {}
+//         Private &operator=(const Private &other) noexcept = default;
+// #endif
+//         union Data
+//         {
+//             char c;
+//             uchar uc;
+//             short s;
+//             signed char sc;
+//             ushort us;
+//             int i;
+//             uint u;
+//             long l;
+//             ulong ul;
+//             bool b;
+//             double d;
+//             float f;
+//             qreal real;
+//             qlonglong ll;
+//             qulonglong ull;
+//             QObject *o;
+//             void *ptr;
+//             PrivateShared *shared;
+//         } data;
+//         uint type : 30;
+//         uint is_shared : 1;
+//         uint is_null : 1;
+//     };
+//  public:
+//     typedef void (*f_construct)(Private *, const void *);
+//     typedef void (*f_clear)(Private *);
+//     typedef bool (*f_null)(const Private *);
+// #ifndef QT_NO_DATASTREAM
+//     typedef void (*f_load)(Private *, QDataStream &);
+//     typedef void (*f_save)(const Private *, QDataStream &);
+// #endif
+//     typedef bool (*f_compare)(const Private *, const Private *);
+//     typedef bool (*f_convert)(const QVariant::Private *d, int t, void *, bool *);
+//     typedef bool (*f_canConvert)(const QVariant::Private *d, int t);
+//     typedef void (*f_debugStream)(QDebug, const QVariant &);
+//     struct Handler {
+//         f_construct construct;
+//         f_clear clear;
+//         f_null isNull;
+// #ifndef QT_NO_DATASTREAM
+//         f_load load;
+//         f_save save;
+// #endif
+//         f_compare compare;
+//         f_convert convert;
+//         f_canConvert canConvert;
+//         f_debugStream debugStream;
+//     };
+
+//     inline bool operator==(const QVariant &v) const
+//     { return cmp(v); }
+//     inline bool operator!=(const QVariant &v) const
+//     { return !cmp(v); }
+// #if QT_DEPRECATED_SINCE(5, 15)
+//     QT_DEPRECATED inline bool operator<(const QVariant &v) const
+//     { return compare(v) < 0; }
+//     QT_DEPRECATED inline bool operator<=(const QVariant &v) const
+//     { return compare(v) <= 0; }
+//     QT_DEPRECATED inline bool operator>(const QVariant &v) const
+//     { return compare(v) > 0; }
+//     QT_DEPRECATED inline bool operator>=(const QVariant &v) const
+//     { return compare(v) >= 0; }
+// #endif
+
 }; // QVariant
 
 class xQUrl : public QUrl {
