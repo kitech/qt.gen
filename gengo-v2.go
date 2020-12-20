@@ -847,7 +847,7 @@ func (this *GenerateGov2) genCtorFromptr(cursor, parent clang.Cursor, midx int) 
 	bcs := find_base_classes(parent)
 	bcs = this.filter_base_classes(bcs)
 
-	this.cp.APf("body", "func %sFromptr(cthis unsafe.Pointer) *%s {",
+	this.cp.APf("body", "func %sFromptr(cthis Voidptr) *%s {",
 		cursor.Spelling(), cursor.Spelling())
 	if len(bcs) == 0 {
 		this.cp.APf("body", "    return &%s{&qtrt.CObject{cthis}}", cursor.Spelling())
@@ -870,7 +870,7 @@ func (this *GenerateGov2) genYaCtorFromptr(cursor, parent clang.Cursor, midx int
 		return
 	}
 	// can use ((*Qxxx)nil).Fromptr
-	this.cp.APf("body", "func (*%s) Fromptr(cthis unsafe.Pointer) *%s {",
+	this.cp.APf("body", "func (*%s) Fromptr(cthis Voidptr) *%s {",
 		cursor.Spelling(), cursor.Spelling())
 	this.cp.APf("body", "    return %sFromptr(cthis)", cursor.Spelling())
 	this.cp.APf("body", "}")
@@ -888,7 +888,7 @@ func (this *GenerateGov2) genGetCthis(cursor, parent clang.Cursor, midx int) {
 		return // just inherit from parent
 	}
 
-	this.cp.APf("body", "func (this *%s) GetCthis() unsafe.Pointer {", parent.Spelling())
+	this.cp.APf("body", "func (this *%s) GetCthis() Voidptr {", parent.Spelling())
 	if len(bcs) == 0 {
 		this.cp.APf("body", "    if this == nil{ return nil } else { return this.Cthis }")
 	} else {
@@ -914,7 +914,7 @@ func (this *GenerateGov2) genSetCthis(cursor, parent clang.Cursor, midx int) {
 		return // just inherit from parent
 	}
 
-	this.cp.APf("body", "func (this *%s) SetCthis(cthis unsafe.Pointer) {", parent.Spelling())
+	this.cp.APf("body", "func (this *%s) SetCthis(cthis Voidptr) {", parent.Spelling())
 	if len(bcs) == 0 {
 		this.cp.APf("body", "    if this.CObject == nil {")
 		this.cp.APf("body", "        this.CObject = &qtrt.CObject{cthis}")
@@ -1241,7 +1241,7 @@ func (this *GenerateGov2) genProtectedCallback(cursor, parent clang.Cursor, midx
 	cp.APf("extern", "extern void callback%s(void* fnptr %s);", cursor.Mangling(), argStrSign)
 	cp.APf("body", "// %s %s", getTyDesc(cursor.ResultType(), ArgTyDesc_CPP_SIGNAUTE, cursor), cursor.DisplayName())
 	cp.APf("body", "//export callback%s", cursor.Mangling())
-	cp.APf("body", "func callback%s(cthis unsafe.Pointer %s) {", cursor.Mangling(), argStr)
+	cp.APf("body", "func callback%s(cthis Voidptr %s) {", cursor.Mangling(), argStr)
 	cp.APf("body", "  // log.Println(cthis, \"%s.%s\")", parent.Spelling(), cursor.Spelling())
 	cp.APf("body", "  rvx := qtrt.CallbackAllInherits(cthis, \"%s\" %s)", cursor.Spelling(), prmStr)
 	cp.APf("body", "  qtrt.ErrPrint(nil, rvx)")
@@ -1297,7 +1297,7 @@ func (this *GenerateGov2) genArg(cursor, parent clang.Cursor, idx int) {
 		} else {
 			if cursor.Type().Kind() == clang.Type_IncompleteArray ||
 				cursor.Type().Kind() == clang.Type_ConstantArray {
-				this.argDesc = append(this.argDesc, fmt.Sprintf("%s unsafe.Pointer",
+				this.argDesc = append(this.argDesc, fmt.Sprintf("%s Voidptr",
 					cursor.Spelling()))
 				// log.Println(cursor.Type().Spelling(), cursor.Type().ArrayElementType().Spelling())
 				// idx := strings.Index(cursor.Type().Spelling(), " [")
@@ -1423,7 +1423,7 @@ func (this *GenerateGov2) genArgConvFFI(cursor, parent clang.Cursor, midx, aidx 
 		} else if usemod == "core" && refmod == "widgets" {
 		} else if usemod == "gui" && refmod == "widgets" {
 		} else {
-			cp.APf("body", "    var convArg%d unsafe.Pointer", aidx)
+			cp.APf("body", "    var convArg%d Voidptr", aidx)
 			cp.APf("body", "    if %s != nil && %s.%s_PTR() != nil {",
 				this.genParamRefName(cursor, parent, aidx),
 				this.genParamRefName(cursor, parent, aidx), barety.Spelling())
@@ -1465,8 +1465,8 @@ func (this *GenerateGov2) genArgConvFFIDv(cursor, parent clang.Cursor, midx, aid
 		"SO_Default":       "QStyleOption__SO_Default",
 		"SO_Complex":       "QStyleOption__SO_Complex",
 		"ApplicationFlags": "0",
-		"Q_NULLPTR":        "unsafe.Pointer(nil)",
-		"nullptr":          "unsafe.Pointer(nil)",
+		"Q_NULLPTR":        "Voidptr(nil)",
+		"nullptr":          "Voidptr(nil)",
 		"Type":             "0",
 		"USHRT_MAX":        "-1",
 		"ULONG_MAX":        "-1",
@@ -1481,7 +1481,7 @@ func (this *GenerateGov2) genArgConvFFIDv(cursor, parent clang.Cursor, midx, aid
 		cp.APf("body", "    var convArg%d = qtrt.StringSliceToCCharPP(%s)", aidx,
 			this.genParamRefName(cursor, parent, aidx))
 	} else if TypeIsCharPtr(argty) {
-		cp.APf("body", "    var convArg%d unsafe.Pointer", aidx)
+		cp.APf("body", "    var convArg%d Voidptr", aidx)
 	} else if funk.Contains([]clang.TypeKind{clang.Type_Enum, clang.Type_Elaborated}, argty.Kind()) {
 		cp.APf("body", "    %s := 0", this.genParamRefName(cursor, parent, aidx))
 	} else if argty.Kind() == clang.Type_LValueReference &&
@@ -1508,7 +1508,7 @@ func (this *GenerateGov2) genArgConvFFIDv(cursor, parent clang.Cursor, midx, aid
 	} else if funk.Contains([]clang.TypeKind{clang.Type_Char_S}, argty.Kind()) {
 		cp.APf("body", "    %s := %s", this.genParamRefName(cursor, parent, aidx), argdv)
 	} else if TypeIsBoolPtr(argty) || TypeIsVoidPtr(argty) || TypeIsIntPtr(argty) || TypeIsUCharPtr(argty) {
-		cp.APf("body", "    var %s unsafe.Pointer", this.genParamRefName(cursor, parent, aidx))
+		cp.APf("body", "    var %s Voidptr", this.genParamRefName(cursor, parent, aidx))
 	} else if TypeIsQFlags(argty) {
 		cp.APf("body", "    %s := 0", this.genParamRefName(cursor, parent, aidx))
 	} else if is_qt_class(argty) &&
@@ -1531,19 +1531,19 @@ func (this *GenerateGov2) genArgConvFFIDv(cursor, parent clang.Cursor, midx, aid
 		log.Println("kkkkk", refmod, usemod, parent.Spelling())
 		if _, ok := privClasses[argty.PointeeType().Spelling()]; ok {
 		} else if usemod == "core" && refmod == "widgets" {
-			cp.APf("body", "    var %s unsafe.Pointer", this.genParamRefName(cursor, parent, aidx))
+			cp.APf("body", "    var %s Voidptr", this.genParamRefName(cursor, parent, aidx))
 		} else if usemod == "gui" && refmod == "widgets" {
-			cp.APf("body", "    var %s unsafe.Pointer", this.genParamRefName(cursor, parent, aidx))
+			cp.APf("body", "    var %s Voidptr", this.genParamRefName(cursor, parent, aidx))
 		} else {
-			cp.APf("body", "    var convArg%d unsafe.Pointer", aidx)
+			cp.APf("body", "    var convArg%d Voidptr", aidx)
 		}
 	} else if argty.Spelling() == "WId" {
-		cp.APf("body", "    var %s unsafe.Pointer ", this.genParamRefName(cursor, parent, aidx))
+		cp.APf("body", "    var %s Voidptr ", this.genParamRefName(cursor, parent, aidx))
 	} else if barety.Kind() == clang.Type_Typedef && TypeIsFuncPointer(undty) {
-		cp.APf("body", "    var %s unsafe.Pointer ", this.genParamRefName(cursor, parent, aidx))
+		cp.APf("body", "    var %s Voidptr ", this.genParamRefName(cursor, parent, aidx))
 	} else { // no convert needed
 		// log.Fatalln("wtf", argty.Kind(), argty.Spelling(), parent.Spelling())
-		cp.APf("body", "    // var %s unsafe.Pointer // 111", this.genParamRefName(cursor, parent, aidx))
+		cp.APf("body", "    // var %s Voidptr // 111", this.genParamRefName(cursor, parent, aidx))
 	}
 }
 
@@ -1662,16 +1662,16 @@ func (this *GenerateGov2) genRetFFI(cursor, parent clang.Cursor, midx int) {
 			if strings.HasPrefix(rety.Spelling(), "QWidget") || strings.HasPrefix(rety.Spelling(), "QGraphicsItem") {
 				pkgPrefix = "/*222*/"
 			}
-			cp.APf("body", "    rv2 := %s%sFromptr(unsafe.Pointer(uintptr(rv))) //5551",
+			cp.APf("body", "    rv2 := %s%sFromptr(Voidptr(uintptr(rv))) //5551",
 				pkgPrefix, gopp.IfElseStr(TypeIsConsted(rety), rety.Spelling()[6:], rety.Spelling()))
 			cp.APf("body", "    return rv2")
 		} else if is_qt_class(rety.CanonicalType()) {
-			cp.APf("body", "    rv2 := %s%sFromptr(unsafe.Pointer(uintptr(rv))) //555",
+			cp.APf("body", "    rv2 := %s%sFromptr(Voidptr(uintptr(rv))) //555",
 				// pkgPrefix, rety.Spelling())
 				pkgPrefix, get_bare_type(rety.CanonicalType()).Spelling())
 			cp.APf("body", "    return rv2")
 		} else if TypeIsFuncPointer(rety.CanonicalType()) {
-			cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+			cp.APf("body", "    return Voidptr(uintptr(rv))")
 		} else if rety.Spelling() == "qreal" {
 			cp.APf("body", "    return qtrt.Cretval2go(\"%s\", rv).(%s) // 1111",
 				this.tyconver.toDest(rety, cursor), this.tyconver.toDest(rety, cursor))
@@ -1679,39 +1679,39 @@ func (this *GenerateGov2) genRetFFI(cursor, parent clang.Cursor, midx int) {
 			cp.APf("body", "    return qtrt.GoStringI(rv)")
 			// TODO iterator is pointer, don't convert to string
 		} else if TypeIsPtr(rety.CanonicalType()) {
-			cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+			cp.APf("body", "    return Voidptr(uintptr(rv))")
 		} else if TypeIsIter(rety.CanonicalType()) {
-			cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+			cp.APf("body", "    return Voidptr(uintptr(rv))")
 		} else if strings.HasPrefix(this.tyconver.toDest(rety, cursor), "unsafe.Pointer") {
-			cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+			cp.APf("body", "    return Voidptr(uintptr(rv))")
 		} else {
 			cp.APf("body", "    return %s(rv) // 222", this.tyconver.toDest(rety, cursor))
 		}
 	case clang.Type_Record:
 		if is_qt_class(rety) && get_bare_type(rety).Spelling() == "QString" {
-			cp.APf("body", "    rv2 := %sQStringFromptr(unsafe.Pointer(uintptr(rv)))", pkgPrefix)
+			cp.APf("body", "    rv2 := %sQStringFromptr(Voidptr(uintptr(rv)))", pkgPrefix)
 			cp.APf("body", "    rv3 := rv2.ToUtf8().Data()")
 			cp.APf("body", "    %sDeleteQString(rv2)", pkgPrefix)
 			cp.APf("body", "    return rv3")
 		} else if is_qt_class(rety) {
 			barety := get_bare_type(rety)
-			cp.APf("body", "    rv2 := %s%sFromptr(unsafe.Pointer(uintptr(rv))) // 333",
+			cp.APf("body", "    rv2 := %s%sFromptr(Voidptr(uintptr(rv))) // 333",
 				pkgPrefix, barety.Spelling())
 			cp.APf("body", "    qtrt.SetFinalizer(rv2, %sDelete%s)", pkgPrefix, barety.Spelling())
 			cp.APf("body", "    return rv2")
 		} else {
-			cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+			cp.APf("body", "    return Voidptr(uintptr(rv))")
 		}
 
 	case clang.Type_LValueReference:
 		if is_qt_class(rety) && get_bare_type(rety).Spelling() == "QString" {
-			cp.APf("body", "    rv2 := %sQStringFromptr(unsafe.Pointer(uintptr(rv)))", pkgPrefix)
+			cp.APf("body", "    rv2 := %sQStringFromptr(Voidptr(uintptr(rv)))", pkgPrefix)
 			cp.APf("body", "    rv3 := rv2.ToUtf8().Data()")
 			cp.APf("body", "    %sDeleteQString(rv2)", pkgPrefix)
 			cp.APf("body", "    return rv3")
 		} else if is_qt_class(rety) {
 			barety := get_bare_type(rety)
-			cp.APf("body", "    rv2 := %s%sFromptr(unsafe.Pointer(uintptr(rv))) // 4441",
+			cp.APf("body", "    rv2 := %s%sFromptr(Voidptr(uintptr(rv))) // 4441",
 				pkgPrefix, barety.Spelling())
 			cp.APf("body", "    qtrt.SetFinalizer(rv2, %sDelete%s)", pkgPrefix, barety.Spelling())
 			cp.APf("body", "    return rv2")
@@ -1722,48 +1722,48 @@ func (this *GenerateGov2) genRetFFI(cursor, parent clang.Cursor, midx int) {
 		} else if rety.PointeeType().CanonicalType().Kind() == clang.Type_UShort {
 			cp.APf("body", "    return uint16(rv)")
 		} else if isPrimitiveType(rety.PointeeType()) {
-			// int(*(*C.int)(unsafe.Pointer(uintptr(rv))))
+			// int(*(*C.int)(Voidptr(uintptr(rv))))
 			cp.APf("body", "    return qtrt.Cpretval2go(\"%s\", rv).(%s) // 3331",
 				this.tyconver.toDest(rety.PointeeType(), cursor),
 				this.tyconver.toDest(rety.PointeeType(), cursor))
 			// this.cp.APf("body", "    return %s(rv) // 3331", this.tyconver.toDest(rety.PointeeType(), cursor))
 		} else {
-			cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+			cp.APf("body", "    return Voidptr(uintptr(rv))")
 		}
 	case clang.Type_Pointer:
 		if is_qt_class(rety) && get_bare_type(rety).Spelling() == "QString" {
-			cp.APf("body", "    rv2 := %sQStringFromptr(unsafe.Pointer(uintptr(rv)))", pkgPrefix)
+			cp.APf("body", "    rv2 := %sQStringFromptr(Voidptr(uintptr(rv)))", pkgPrefix)
 			cp.APf("body", "    rv3 := rv2.ToUtf8().Data()")
 			cp.APf("body", "    %sDeleteQString(rv2)", pkgPrefix)
 			cp.APf("body", "    return rv3")
 		} else if is_qt_class(rety) {
 			if _, ok := privClasses[rety.PointeeType().Spelling()]; ok {
-				cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+				cp.APf("body", "    return Voidptr(uintptr(rv))")
 			} else if usemod == "core" && defmod == "widgets" {
-				cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+				cp.APf("body", "    return Voidptr(uintptr(rv))")
 			} else if usemod == "gui" && defmod == "widgets" {
-				cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+				cp.APf("body", "    return Voidptr(uintptr(rv))")
 			} else {
 				barety := get_bare_type(rety)
-				cp.APf("body", "    return %s%sFromptr(unsafe.Pointer(uintptr(rv))) // 444",
+				cp.APf("body", "    return %s%sFromptr(Voidptr(uintptr(rv))) // 444",
 					pkgPrefix, barety.Spelling())
 			}
 		} else if TypeIsCharPtrPtr(rety) {
-			cp.APf("body", "    return qtrt.CCharPPToStringSlice(unsafe.Pointer(uintptr(rv)))")
+			cp.APf("body", "    return qtrt.CCharPPToStringSlice(Voidptr(uintptr(rv)))")
 		} else if TypeIsCharPtr(rety) {
 			cp.APf("body", "    return qtrt.GoStringI(rv)")
 		} else if rety.PointeeType().CanonicalType().Kind() == clang.Type_UChar {
-			cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+			cp.APf("body", "    return Voidptr(uintptr(rv))")
 		} else if rety.PointeeType().CanonicalType().Kind() == clang.Type_UShort {
-			cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+			cp.APf("body", "    return Voidptr(uintptr(rv))")
 		} else if isPrimitiveType(rety.PointeeType()) {
-			cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+			cp.APf("body", "    return Voidptr(uintptr(rv))")
 			// this.cp.APf("body", "    return %s(rv) // 333", this.tyconver.toDest(rety.PointeeType(), cursor))
 		} else {
-			cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
+			cp.APf("body", "    return Voidptr(uintptr(rv))")
 		}
 	case clang.Type_RValueReference:
-		cp.APf("body", "    return unsafe.Pointer(uintptr(rv)) //777")
+		cp.APf("body", "    return Voidptr(uintptr(rv)) //777")
 	case clang.Type_Bool:
 		cp.APf("body", "    return rv!=0")
 	case clang.Type_Enum:
@@ -1772,7 +1772,7 @@ func (this *GenerateGov2) genRetFFI(cursor, parent clang.Cursor, midx int) {
 		cp.APf("body", "    return int(rv)")
 	case clang.Type_Unexposed:
 		if strings.HasPrefix(rety.Spelling(), "QList<") {
-			cp.APf("body", "    rv2 := %s%sListFromptr(unsafe.Pointer(uintptr(rv))) //5552",
+			cp.APf("body", "    rv2 := %s%sListFromptr(Voidptr(uintptr(rv))) //5552",
 				pkgPrefix, strings.TrimRight(rety.Spelling()[6:], " *>"))
 			cp.APf("body", "    return rv2")
 		} else {
@@ -2018,7 +2018,7 @@ func (this *GenerateGov2) genFunctions(cursor clang.Cursor, parent clang.Cursor)
 			}
 			cp.APf("header", "func init_unused_%d(){", this.nextclsidx())
 			cp.APf("header", "  if false{_=unsafe.Pointer(uintptr(0))}")
-			cp.APf("header", "  if false{qtrt.KeepMe()}")
+			cp.APf("header", "  if false{_=Voidptr(uintptr(0))}")
 			cp.APf("header", "  if false{qtrt.KeepMe()}")
 			for _, dep := range modDeps[qtmod] {
 				cp.APf("header", "if false {qt%s.KeepMe()}", dep)
