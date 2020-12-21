@@ -29,6 +29,7 @@ type GenerateGov2 struct {
 	cpcs        map[string]*CodePager // mod =>
 	argDesc     []string              // origin c/c++ language syntax
 	paramDesc   []string
+	argFfito    []string // qtrt.FFITO_
 	destArgDesc []string // dest language syntax
 
 	GenBase
@@ -437,6 +438,7 @@ func (this *GenerateGov2) genClassDef(cursor, parent clang.Cursor) {
 	// 仅在多继承的情况下需要实现一下GetCthis/SetCthis方法，否则不需要
 	this.genGetCthis(cursor, cursor, 0) // 只要定义了结构体，就有GetCthis方法
 	this.genSetCthis(cursor, cursor, 0) // 只要定义了结构体，就有GetCthis方法
+	this.genGetCaddr(cursor, cursor, 0)
 	this.genCtorFromptr(cursor, cursor, 0)
 	this.genYaCtorFromptr(cursor, cursor, 0)
 }
@@ -771,21 +773,22 @@ func (this *GenerateGov2) genCtor(cursor, parent clang.Cursor, midx int) {
 	this.genMethodSignature(cursor, parent, midx)
 
 	this.genParamsFFI(cursor, parent)
-	paramStr := strings.Join(this.paramDesc, ", ")
+	paramStr := strings.Join(append(this.argFfito, this.paramDesc...), ", ")
 	_ = paramStr
 	var cp = this.getpropercp(cursor)
 
 	if parent.Type().SizeOf() > this.maxClassSize {
 		this.maxClassSize = parent.Type().SizeOf()
 	}
-	// this.cp.APf("body", "    cthis := qtrt.Calloc(1, 256) // %d", parent.Type().SizeOf())
+
 	this.genArgsConvFFI(cursor, parent, midx)
 	// cp.APf("body", "    const qsymcrc uint32 = %s", this.mangler.crc32(cursor))
 	// cp.APf("body", "    const qsymname = \"%s\"", this.mangler.origin(cursor))
+
 	cp.APf("body", "    cthis := qtrt.Malloc(%d)", parent.Type().SizeOf())
-	cp.APf("body", "    rv, err := qtrt.Qtcc1(%s, \"%s\", qtrt.FFITY_POINTER, cthis, %s)",
+	cp.APf("body", "    rv, err := qtrt.Qtcc3(%s, \"%s\", qtrt.FFITO_POINTER,\n %s)",
 		this.mangler.crc32(cursor), this.mangler.origin(cursor), paramStr)
-	cp.APf("body", "    qtrt.ErrPrint(err, rv)")
+	cp.APf("body", "    qtrt.ErrPrint2(err, rv)")
 	cp.APf("body", "    gothis := %sFromptr(cthis)", parent.Spelling())
 	if !has_qobject_base_class(parent) {
 		cp.APf("body", "    qtrt.SetFinalizer(gothis, Delete%s)", parent.Spelling())
@@ -814,7 +817,7 @@ func (this *GenerateGov2) genCtorDv(cursor, parent clang.Cursor, midx int, dvidx
 	this.genMethodSignatureDv(cursor, parent, midx, dvidx)
 
 	this.genParamsFFI(cursor, parent)
-	paramStr := strings.Join(this.paramDesc, ", ")
+	paramStr := strings.Join(append(this.argFfito, this.paramDesc...), ", ")
 	_ = paramStr
 	var cp = this.getpropercp(cursor)
 
@@ -823,12 +826,13 @@ func (this *GenerateGov2) genCtorDv(cursor, parent clang.Cursor, midx int, dvidx
 	}
 
 	this.genArgsConvFFIDv(cursor, parent, midx, dvidx)
+
 	// cp.APf("body", "    const qsymcrc uint32 = %s", this.mangler.crc32(cursor))
 	// cp.APf("body", "    const qsymname = \"%s\"", this.mangler.origin(cursor))
 	cp.APf("body", "    cthis := qtrt.Malloc(%d)", parent.Type().SizeOf())
-	cp.APf("body", "    rv, err := qtrt.Qtcc1(%s, \"%s\", qtrt.FFITY_POINTER, cthis, %s)",
+	cp.APf("body", "    rv, err := qtrt.Qtcc3(%s, \"%s\", qtrt.FFITO_POINTER,\n %s)",
 		this.mangler.crc32(cursor), this.mangler.origin(cursor), paramStr)
-	cp.APf("body", "    qtrt.ErrPrint(err, rv)")
+	cp.APf("body", "    qtrt.ErrPrint2(err, rv)")
 	cp.APf("body", "    gothis := %sFromptr(cthis)", parent.Spelling())
 	if !has_qobject_base_class(parent) {
 		cp.APf("body", "    qtrt.SetFinalizer(gothis, Delete%s)", parent.Spelling())
@@ -899,6 +903,29 @@ func (this *GenerateGov2) genGetCthis(cursor, parent clang.Cursor, midx int) {
 	}
 	this.cp.APf("body", "}")
 }
+func (this *GenerateGov2) genGetCaddr(cursor, parent clang.Cursor, midx int) {
+	if midx > 0 { // 忽略更多重载
+		return
+	}
+	bcs := find_base_classes(parent)
+	bcs = this.filter_base_classes(bcs)
+
+	if len(bcs) < 2 {
+		this.cp.APf("body", "  // ignore GetCthis for %d base", len(bcs))
+		return // just inherit from parent
+	}
+
+	this.cp.APf("body", "func (this *%s) Addr() Voidptr {", parent.Spelling())
+	if len(bcs) == 0 {
+		this.cp.APf("body", "    if this == nil{ return nil } else { return this.Cthis }")
+	} else {
+		for _, bc := range bcs {
+			this.cp.APf("body", "    if this == nil {return nil} else {return this.%s.Addr() }", bc.Spelling())
+			break
+		}
+	}
+	this.cp.APf("body", "}")
+}
 
 // 用于动态生成实例，new(Qxxx).SetCthis(cthis)
 // 像QxxxFromptr，但是可以先创建空实例，再初始化
@@ -938,9 +965,9 @@ func (this *GenerateGov2) genDtor(cursor, parent clang.Cursor, midx int) {
 
 	// cp.APf("body", "    const qsymcrc uint32 = %s", this.mangler.crc32(cursor))
 	// cp.APf("body", "    const qsymname = \"%s\"", this.mangler.origin(cursor))
-	cp.APf("body", "    rv, err := qtrt.Qtcc1(%s, \"%s\", qtrt.FFITY_VOID, this.GetCthis())", this.mangler.crc32(cursor), this.mangler.origin(cursor))
+	cp.APf("body", "    rv, err := qtrt.Qtcc3(%s, \"%s\", qtrt.FFITY_VOID, qtrt.FFITO_POINTER, this.Addr()", this.mangler.crc32(cursor), this.mangler.origin(cursor))
 	cp.APf("body", "    qtrt.Cmemset(this.GetCthis(), 9, %d)", parent.Type().SizeOf())
-	cp.APf("body", "    qtrt.ErrPrint(err, rv)")
+	cp.APf("body", "    qtrt.ErrPrint2(err, rv)")
 	cp.APf("body", "    this.SetCthis(nil)")
 
 	this.genMethodFooterFFI(cursor, parent, midx)
@@ -957,7 +984,7 @@ func (this *GenerateGov2) genDtorNoCode(cursor, parent clang.Cursor, midx int) {
 	// cp.APf("body", "    const qsymcrc uint32 = %d", symcrc32(symname))
 	// cp.APf("body", "    const qsymname = \"%s\"", symname)
 	cp.APf("body", "    rv, err := qtrt.Qtcc1(%s, \"_ZN%d%sD2Ev\", qtrt.FFITY_VOID, this.GetCthis())", this.mangler.crc32(cursor), len(cursor.Spelling()), cursor.Spelling())
-	cp.APf("body", "    qtrt.ErrPrint(err, rv)")
+	cp.APf("body", "    qtrt.ErrPrint2(err, rv)")
 	cp.APf("body", "    this.SetCthis(nil)")
 
 	this.genMethodFooterFFI(cursor, parent, midx)
@@ -965,7 +992,7 @@ func (this *GenerateGov2) genDtorNoCode(cursor, parent clang.Cursor, midx int) {
 
 func (this *GenerateGov2) genNonStaticMethod(cursor, parent clang.Cursor, midx int) {
 	this.genParamsFFI(cursor, parent)
-	paramStr := strings.Join(this.paramDesc, ", ")
+	paramStr := strings.Join(append(this.argFfito, this.paramDesc...), ", ")
 	_ = paramStr
 
 	if cursor.IsVariadic() && cursor.NumArguments() > 0 {
@@ -979,14 +1006,12 @@ func (this *GenerateGov2) genNonStaticMethod(cursor, parent clang.Cursor, midx i
 	this.genArgsConvFFI(cursor, parent, midx)
 
 	retype := cursor.ResultType() // move like sementic, compiler auto behaiver
-	mvexpr := ""                  // move expr
 	besret := MethodHasStructRet(cursor)
-	sretstr := gopp.IfElseStr(besret, "sretobj,", "")
 
-	ffirety := "qtrt.FFITY_POINTER"
+	ffirety := "qtrt.FFITO_POINTER"
 	if retype.CanonicalType().Kind() == clang.Type_Float ||
 		retype.CanonicalType().Kind() == clang.Type_Double {
-		ffirety = "qtrt.FFI_TYPE_DOUBLE"
+		ffirety = "qtrt.FFITO_DOUBLE"
 	}
 
 	if besret {
@@ -997,15 +1022,15 @@ func (this *GenerateGov2) genNonStaticMethod(cursor, parent clang.Cursor, midx i
 	// cp.APf("body", "    const qsymname = \"%s\"", this.mangler.origin(cursor))
 	if retype.Kind() == clang.Type_Record &&
 		(retype.Spelling() == "QSize" || retype.Spelling() == "QSizeF") {
-		cp.APf("body", "    rv, err := qtrt.Qtcc1(%s, \"%s\", %s %s, %s this.GetCthis(), %s)",
+		cp.APf("body", "    rv, err := qtrt.Qtcc3(%s, \"%s\", %s,\n %s)",
 			this.mangler.crc32(cursor), this.mangler.origin(cursor),
-			ffirety, mvexpr, sretstr, paramStr)
+			ffirety, paramStr)
 	} else {
-		cp.APf("body", "    rv, err := qtrt.Qtcc1(%s, \"%s\", %s %s, %s this.GetCthis(), %s)",
+		cp.APf("body", "    rv, err := qtrt.Qtcc3(%s, \"%s\", %s,\n %s)",
 			this.mangler.crc32(cursor), this.mangler.origin(cursor),
-			ffirety, mvexpr, sretstr, paramStr)
+			ffirety, paramStr)
 	}
-	cp.APf("body", "    qtrt.ErrPrint(err, rv)")
+	cp.APf("body", "    qtrt.ErrPrint2(err, rv)")
 	if retype.Kind() == clang.Type_Record {
 		// this.cp.APf("body", "   rv = uint64(uintptr(mv))")
 	}
@@ -1030,29 +1055,24 @@ func (this *GenerateGov2) genNonStaticMethodDvs(cursor, parent clang.Cursor, mid
 // dvidx keep default argument num
 func (this *GenerateGov2) genNonStaticMethodDv(cursor, parent clang.Cursor, midx int, dvidx int) {
 	this.genParamsFFI(cursor, parent)
-	paramStr := strings.Join(this.paramDesc, ", ")
-	_ = paramStr
 
 	this.genMethodHeader(cursor, parent, midx)
 	this.genMethodSignatureDv(cursor, parent, midx, dvidx)
 
 	this.genArgsConvFFIDv(cursor, parent, midx, dvidx)
+	paramStr := strings.Join(append(this.argFfito, this.paramDesc...), ", ")
+	_ = paramStr
 	var cp = this.getpropercp(cursor)
 
 	retype := cursor.ResultType() // move like sementic, compiler auto behaiver
-	mvexpr := ""                  // move expr
-	if retype.Kind() == clang.Type_Record {
-		// this.cp.APf("body", "    mv := qtrt.Calloc(1, 256)")
-		// mvexpr = ", mv"
-	}
 	besret := MethodHasStructRet(cursor)
-	sretstr := gopp.IfElseStr(besret, "sretobj,", "")
 
-	ffirety := "qtrt.FFITY_POINTER"
+	ffirety := "qtrt.FFITO_POINTER"
 	if retype.CanonicalType().Kind() == clang.Type_Float ||
 		retype.CanonicalType().Kind() == clang.Type_Double {
-		ffirety = "qtrt.FFI_TYPE_DOUBLE"
+		ffirety = "qtrt.FFITO_DOUBLE"
 	}
+
 	if besret {
 		cp.APf("body", "    sretobj := qtrt.Malloc(%d) // %s", retype.SizeOf(), retype.Spelling())
 	}
@@ -1061,15 +1081,15 @@ func (this *GenerateGov2) genNonStaticMethodDv(cursor, parent clang.Cursor, midx
 	// cp.APf("body", "    const qsymname = \"%s\"", this.mangler.origin(cursor))
 	if retype.Kind() == clang.Type_Record &&
 		(retype.Spelling() == "QSize" || retype.Spelling() == "QSizeF") {
-		cp.APf("body", "    rv, err := qtrt.Qtcc1(%s, \"%s\", %s %s, %s this.GetCthis(), %s)",
+		cp.APf("body", "    rv, err := qtrt.Qtcc3(%s, \"%s\", %s,\n %s)",
 			this.mangler.crc32(cursor), this.mangler.origin(cursor),
-			ffirety, mvexpr, sretstr, paramStr)
+			ffirety, paramStr)
 	} else {
-		cp.APf("body", "    rv, err := qtrt.Qtcc1(%s, \"%s\", %s %s, %s this.GetCthis(), %s)",
+		cp.APf("body", "    rv, err := qtrt.Qtcc3(%s, \"%s\", %s,\n %s)",
 			this.mangler.crc32(cursor), this.mangler.origin(cursor),
-			ffirety, mvexpr, sretstr, paramStr)
+			ffirety, paramStr)
 	}
-	cp.APf("body", "    qtrt.ErrPrint(err, rv)")
+	cp.APf("body", "    qtrt.ErrPrint2(err, rv)")
 	if retype.Kind() == clang.Type_Record {
 		// this.cp.APf("body", "   rv = uint64(uintptr(mv))")
 	}
@@ -1083,7 +1103,6 @@ func (this *GenerateGov2) genNonStaticMethodDv(cursor, parent clang.Cursor, midx
 
 func (this *GenerateGov2) genStaticMethod(cursor, parent clang.Cursor, midx int) {
 	this.genParamsFFI(cursor, parent)
-	paramStr := strings.Join(this.paramDesc, ", ")
 
 	if cursor.IsVariadic() && cursor.NumArguments() > 0 {
 	}
@@ -1093,11 +1112,11 @@ func (this *GenerateGov2) genStaticMethod(cursor, parent clang.Cursor, midx int)
 	}
 
 	this.genArgsConvFFI(cursor, parent, midx)
+	paramStr := strings.Join(append(this.argFfito, this.paramDesc...), ", ")
 	var cp = this.getpropercp(cursor)
 
 	rety := cursor.ResultType()
 	besret := MethodHasStructRet(cursor)
-	sretstr := gopp.IfElseStr(besret, "sretobj,", "")
 
 	if besret {
 		cp.APf("body", "    sretobj := qtrt.Malloc(%d) // %s", rety.SizeOf(), rety.Spelling())
@@ -1105,9 +1124,9 @@ func (this *GenerateGov2) genStaticMethod(cursor, parent clang.Cursor, midx int)
 
 	// cp.APf("body", "    const qsymcrc uint32 = %s", this.mangler.crc32(cursor))
 	// cp.APf("body", "    const qsymname = \"%s\"", this.mangler.origin(cursor))
-	cp.APf("body", "    rv, err := qtrt.Qtcc1(%s, \"%s\", qtrt.FFITY_POINTER, %s %s)",
-		this.mangler.crc32(cursor), this.mangler.origin(cursor), sretstr, paramStr)
-	cp.APf("body", "    qtrt.ErrPrint(err, rv)")
+	cp.APf("body", "    rv, err := qtrt.Qtcc3(%s, \"%s\", qtrt.FFITO_POINTER,\n %s)",
+		this.mangler.crc32(cursor), this.mangler.origin(cursor), paramStr)
+	cp.APf("body", "    qtrt.ErrPrint2(err, rv)")
 	if besret {
 		cp.APf("body", "    rv = qtrt.VRetype(uintptr(sretobj))")
 	}
@@ -1128,7 +1147,6 @@ func (this *GenerateGov2) genStaticMethodDvs(cursor, parent clang.Cursor, midx i
 
 func (this *GenerateGov2) genStaticMethodDv(cursor, parent clang.Cursor, midx int, dvidx int) {
 	this.genParamsFFI(cursor, parent)
-	paramStr := strings.Join(this.paramDesc, ", ")
 
 	this.genMethodHeader(cursor, parent, midx)
 	this.genMethodSignatureDv(cursor, parent, midx, dvidx)
@@ -1137,17 +1155,17 @@ func (this *GenerateGov2) genStaticMethodDv(cursor, parent clang.Cursor, midx in
 
 	rety := cursor.ResultType()
 	besret := MethodHasStructRet(cursor)
-	sretstr := gopp.IfElseStr(besret, "sretobj,", "")
 
 	if besret {
 		cp.APf("body", "    sretobj := qtrt.Malloc(%d) // %s", rety.SizeOf(), rety.Spelling())
 	}
+	paramStr := strings.Join(append(this.argFfito, this.paramDesc...), ", ")
 
 	// cp.APf("body", "    const qsymcrc uint32 = %s", this.mangler.crc32(cursor))
 	// cp.APf("body", "    const qsymname = \"%s\"", this.mangler.origin(cursor))
-	cp.APf("body", "    rv, err := qtrt.Qtcc1(%s, \"%s\", qtrt.FFITY_POINTER, %s %s)",
-		this.mangler.crc32(cursor), this.mangler.origin(cursor), sretstr, paramStr)
-	cp.APf("body", "    qtrt.ErrPrint(err, rv)")
+	cp.APf("body", "    rv, err := qtrt.Qtcc3(%s, \"%s\", qtrt.FFITO_POINTER,\n %s)",
+		this.mangler.crc32(cursor), this.mangler.origin(cursor), paramStr)
+	cp.APf("body", "    qtrt.ErrPrint2(err, rv)")
 	if besret {
 		cp.APf("body", "    rv = qtrt.VRetype(uintptr(sretobj))")
 	}
@@ -1244,7 +1262,7 @@ func (this *GenerateGov2) genProtectedCallback(cursor, parent clang.Cursor, midx
 	cp.APf("body", "func callback%s(cthis Voidptr %s) {", cursor.Mangling(), argStr)
 	cp.APf("body", "  // log.Println(cthis, \"%s.%s\")", parent.Spelling(), cursor.Spelling())
 	cp.APf("body", "  rvx := qtrt.CallbackAllInherits(cthis, \"%s\" %s)", cursor.Spelling(), prmStr)
-	cp.APf("body", "  qtrt.ErrPrint(nil, rvx)")
+	cp.APf("body", "  qtrt.ErrPrint2(nil, rvx)")
 	cp.APf("body", "}")
 	cp.APf("body", "func init(){ qtrt.SetInheritCallback2c(\"%s\", C.callback%s /*nil*/) }", cursor.Mangling(), cursor.Mangling())
 	cp.APf("body", "")
@@ -1433,6 +1451,21 @@ func (this *GenerateGov2) genArgConvFFI(cursor, parent clang.Cursor, midx, aidx 
 		}
 	} else { // no convert needed
 		// log.Fatalln("wtf", argty.Kind(), argty.Spelling(), parent.Spelling())
+
+		// int => &int
+		useand := argty.Kind() == clang.Type_LValueReference &&
+			isPrimitiveType(argty.PointeeType())
+		if argty.Kind() == clang.Type_Pointer && isPrimitiveType(argty.PointeeType()) &&
+			argty.PointeeType().Kind() == clang.Type_UChar { // UChar, SChar是字符串或者字节串
+			useand = false
+		} else if argty.Kind() == clang.Type_Pointer && isPrimitiveType(argty.PointeeType()) &&
+			argty.PointeeType().Kind() == clang.Type_Bool {
+			useand = false
+		}
+		if useand {
+			cp.APf("body", "  var convArg%d = Voidptr(&%s)", aidx,
+				this.genParamRefName(cursor, parent, aidx))
+		}
 	}
 }
 
@@ -1571,6 +1604,23 @@ func (this *GenerateGov2) genParamRefName(cursor, _ clang.Cursor, aidx int) stri
 
 func (this *GenerateGov2) genParamsFFI(cursor, parent clang.Cursor) {
 	this.paramDesc = make([]string, 0)
+	this.argFfito = make([]string, 0)
+	switch cursor.Kind() {
+	case clang.Cursor_Constructor:
+		this.paramDesc = append(this.paramDesc, "Voidptr(&cthis)")
+		this.argFfito = append(this.argFfito, "qtrt.FFITO_POINTER")
+	default:
+		besret := MethodHasStructRet(cursor)
+		if besret {
+			this.paramDesc = append(this.paramDesc, "Voidptr(&sretobj)")
+			this.argFfito = append(this.argFfito, "qtrt.FFITO_POINTER")
+		}
+
+		if !cursor.CXXMethod_IsStatic() {
+			this.paramDesc = append(this.paramDesc, "this.Addr()")
+			this.argFfito = append(this.argFfito, "qtrt.FFITO_POINTER")
+		}
+	}
 	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
 		argc := cursor.Argument(uint32(idx))
 		this.genParamFFI(argc, cursor, idx)
@@ -1579,6 +1629,7 @@ func (this *GenerateGov2) genParamsFFI(cursor, parent clang.Cursor) {
 
 func (this *GenerateGov2) genParamFFI(cursor, parent clang.Cursor, idx int) {
 	argty := cursor.Type()
+	ffito := "qtrt.FFITO_POINTER"
 	if TypeIsCharPtrPtr(argty) {
 		this.paramDesc = append(this.paramDesc, fmt.Sprintf("convArg%d", idx))
 	} else if TypeIsCharPtr(argty) {
@@ -1609,11 +1660,30 @@ func (this *GenerateGov2) genParamFFI(cursor, parent clang.Cursor, idx int) {
 			argty.PointeeType().Kind() == clang.Type_Bool {
 			useand = false
 		}
-		andop := gopp.IfElseStr(useand, "&", "")
-		this.paramDesc = append(this.paramDesc,
-			andop+gopp.IfElseStr(cursor.Spelling() == "",
-				fmt.Sprintf("arg%d", idx), fmt.Sprintf("%s", argName)))
+		if useand {
+			this.paramDesc = append(this.paramDesc, fmt.Sprintf("convArg%d", idx))
+		} else {
+			andop := gopp.IfElseStr(useand, "&", "")
+			this.paramDesc = append(this.paramDesc,
+				andop+gopp.IfElseStr(cursor.Spelling() == "",
+					fmt.Sprintf("arg%d", idx), fmt.Sprintf("%s", argName)))
+		}
 	}
+	// get address
+	lastidx := len(this.paramDesc) - 1
+	item := this.paramDesc[lastidx]
+	item = fmt.Sprintf("Voidptr(&%s)", item)
+	this.paramDesc[lastidx] = item
+
+	switch argty.Kind() {
+	case clang.Type_Int:
+		ffito = "qtrt.FFITO_INT"
+	case clang.Type_Float:
+		ffito = "qtrt.FFITO_FLOAT"
+	case clang.Type_Double:
+		ffito = "qtrt.FFITO_DOUBLE"
+	}
+	this.argFfito = append(this.argFfito, ffito)
 }
 
 func (this *GenerateGov2) genRetFFI(cursor, parent clang.Cursor, midx int) {
@@ -2091,7 +2161,7 @@ func (this *GenerateGov2) genFunction(cursor clang.Cursor, olidx int) {
 	this.genArgsConvFFI(cursor, cursor.SemanticParent(), olidx)
 	cp.APf("body", "  rv, err := qtrt.InvokeQtFunc6(\"%s\", qtrt.FFITY_POINTER, %s)",
 		cursor.Mangling(), paramStr)
-	cp.APf("body", "  qtrt.ErrPrint(err, rv)")
+	cp.APf("body", "  qtrt.ErrPrint2(err, rv)")
 
 	this.genRetFFI(cursor, cursor.SemanticParent(), olidx)
 	this.genMethodFooterFFI(cursor, cursor.SemanticParent(), olidx)

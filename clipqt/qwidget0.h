@@ -3371,7 +3371,7 @@ protected:
 
 class xQApplication : public QApplication {
  public:
-    xQApplication(int &argc, char **argv, int = ApplicationFlags);
+    //    xQApplication(int &argc, char **argv, int = ApplicationFlags);
 
 /*     static QStyle *style(); */
 /*     static void setStyle(QStyle*); */
