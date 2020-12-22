@@ -56,6 +56,7 @@ type GenBase struct {
 	hasProjectedDtor    bool
 	hasExplictDtor      bool
 	hasNominMethod      bool
+	isTemplateClass     bool
 
 	funcMangles map[string]int
 

@@ -76,6 +76,7 @@ func (this *GenerateInlinev0) genClass(cursor, parent clang.Cursor) {
 
 	this.isPureVirtualClass = false
 	this.hasMyCls = false
+	this.isTemplateClass = TypeIsTemplate(cursor.Type())
 	this.genFileHeader(clsctx, cursor, parent)
 	this.walkClass(clsctx, cursor, parent)
 	this.genProtectedCallbacks(clsctx, cursor, parent)
@@ -305,6 +306,7 @@ func (this *GenerateInlinev0) collectProxyMethod(clsctx *GenClassContext, cursor
 }
 
 func (this *GenerateInlinev0) genProxyClass(clsctx *GenClassContext, cursor, parent clang.Cursor) {
+	this.hasMyCls = false
 	this.hasVirtualProtected = false
 	if is_deleted_class(cursor) {
 		return
@@ -643,12 +645,21 @@ func (this *GenerateInlinev0) genMethods(clsctx *GenClassContext, cursor, parent
 			}
 		}
 
-		if !cursor.IsFunctionInlined() {
-			// 有些在类内没声明inline，但在类外又实现了inline的函数体, QWidget.resize
-			defbody := cursor.Definition()
-			if !defbody.IsFunctionInlined() {
-				continue
-			}
+		// 有些在类内没声明inline，但在类外又实现了inline的函数体, QWidget.resize
+		inlined := cursor.IsFunctionInlined() || cursor.Definition().IsFunctionInlined()
+		isctor := cursor.Kind() == clang.Cursor_Constructor
+		istmplcls := this.isTemplateClass
+		if isctor && this.isPureVirtualClass {
+			continue
+		}
+		if isctor && istmplcls {
+			continue
+		}
+		if isctor || inlined {
+			// go on
+			// for ctor, need gen proxy class symbol
+		} else {
+			continue
 		}
 
 		this.genMethodHeader(clsctx, cursor, parent)
@@ -754,8 +765,8 @@ func (this *GenerateInlinev0) genCtor(clsctx *GenClassContext, cursor, parent cl
 	if !is_deleted_class(parent) && this.hasVirtualProtected {
 		this.cp.APf("main", "  auto _nilp = (My%s*)(0);", parent.Spelling())
 		pxyclsp = "My"
-		// pxyclsp = "" // TODO
 	}
+
 	isobjsub := has_qobject_base_class(parent)
 	pureVirtRetstr := gopp.IfElseStr(this.isPureVirtualClass, "0; //", "")
 	pureVirtRetstr = gopp.IfElseStr(this.isPureVirtualClass || !this.hasMyCls, "0; //", "")
@@ -765,17 +776,28 @@ func (this *GenerateInlinev0) genCtor(clsctx *GenClassContext, cursor, parent cl
 		pxyclsp = "My"
 		pureVirtRetstr = ""
 	}
+	pxyclsp = "" // TODO
 
 	for i := 0; i < int(len(this.argDesc)); i++ {
 		// this.argDesc[i] = strings.Replace(this.argDesc[i], "&&", "", -1)
 		// this.argDesc[i] = strings.Replace(this.argDesc[i], "&", "", -1)
 		vardc := this.argDesc[i]
+		part := strings.Split(vardc, " ")
+		name := part[len(part)-1]
 		if pos := strings.Index(vardc, "&&"); pos != -1 {
 			vardc = fmt.Sprintf("%s =  static_cast<%s>(*(%s*)this_)",
 				vardc, vardc[:pos+2], vardc[:pos])
 			this.argDesc[i] = vardc
 		} else if pos := strings.Index(vardc, "&"); pos != -1 {
 			vardc = fmt.Sprintf("%s = *(%s*)this_", vardc, vardc[:pos])
+			this.argDesc[i] = vardc
+		} else if pos := strings.Index(vardc, "(*)("); pos != -1 {
+			fnty := strings.Join(part[:len(part)-1], " ")
+			vardc = fmt.Sprintf("%s = (%s)this_", refmtFuncptr(fnty, name), fnty)
+			this.argDesc[i] = vardc
+		} else if pos := strings.LastIndex(vardc, "[]"); pos != -1 {
+			vardc = strings.Replace(vardc, "const", " ", -1)
+			vardc = strings.Replace(vardc, "[]", "*", -1)
 			this.argDesc[i] = vardc
 		} else if pos := strings.LastIndex(vardc, " "); pos != -1 {
 			vardc = fmt.Sprintf("%s = *(%s*)this_", vardc, vardc[:pos])
@@ -791,6 +813,9 @@ func (this *GenerateInlinev0) genCtor(clsctx *GenClassContext, cursor, parent cl
 		}
 	} else {
 		this.cp.APf("main", "  this_ = %s new %s%s(%s);", pureVirtRetstr, pxyclsp, parent.Type().Spelling(), paramStr)
+		if this.hasMyCls {
+			this.cp.APf("main", "  this_ = %s new %sMy%s(%s);", pureVirtRetstr, pxyclsp, parent.Type().Spelling(), paramStr)
+		}
 	}
 	this.cp.APf("main", "}")
 	this.genMethodFooter(clsctx, cursor, parent)
@@ -1055,13 +1080,15 @@ func (this *GenerateInlinev0) genArgs(cursor, parent clang.Cursor) {
 	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
 		argc := cursor.Argument(uint32(idx))
 		argty := argc.Type()
-		log.Println(parent.Spelling(), cursor.Spelling(),
-			idx, argc.HasDefaultArg(), argty.Kind(), argty)
-		isfuncptrty := argty.IsFunctionPointerType()
-		unconstty := argty.RemoveLocalConst()
-		log.Println(parent.Spelling(), cursor.Spelling(),
-			idx, argc.HasDefaultArg(), isfuncptrty,
-			argty.Spelling(), unconstty.Spelling())
+		if false {
+			log.Println(parent.Spelling(), cursor.Spelling(),
+				idx, argc.HasDefaultArg(), argty.Kind(), argty)
+			isfuncptrty := argty.IsFunctionPointerType() // still crash sometimes
+			unconstty := argty.RemoveLocalConst()
+			log.Println(parent.Spelling(), cursor.Spelling(),
+				idx, argc.HasDefaultArg(), isfuncptrty,
+				argty.Spelling(), unconstty.Spelling())
+		}
 		this.genArg(argc, cursor, idx)
 	}
 	// log.Println(strings.Join(this.argDesc, ", "), this.mangler.convTo(cursor))

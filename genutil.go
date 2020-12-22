@@ -528,6 +528,10 @@ func TypeIsFuncPointer(ty clang.Type) bool {
 	return strings.Contains(ty.Spelling(), " (*)(")
 }
 
+func refmtFuncptr(fnty string, name string) string {
+	return strings.Replace(fnty, " (*)(", fmt.Sprintf(" (*%s)(", name), 1)
+}
+
 func TypeIsConsted(ty clang.Type) bool {
 	return ty.IsConstQualifiedType() || strings.HasPrefix(ty.Spelling(), "const ")
 }
