@@ -53,7 +53,7 @@ func NewGenCtrl() *GenCtrl {
 	return this
 }
 
-var genLang string = ""  // c0(only inline), c(c binding), go (go binding), rs (rust binding)
+var genLang string = ""  // c0(only inline), ch, c(c binding), go (go binding), rs (rust binding)
 var genQtdir string = "" // format: /home/me/Qt5.10.1 or /usr
 var genQtver string = "" // format: 5.10.1
 

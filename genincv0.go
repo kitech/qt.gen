@@ -301,7 +301,14 @@ func (this *GenerateInlinev0) collectProxyMethod(clsctx *GenClassContext, cursor
 	})
 
 	// gopp.Assert(mthmap.Size() == mthlst.Size(), "", mthmap.Size(), mthlst.Size(), cursor.Spelling())
-	mthlst.Each(func(index int, value interface{}) { pxymths = append(pxymths, value.(clang.Cursor)) })
+	mthlst.Each(func(index int, value interface{}) {
+		c := value.(clang.Cursor)
+		pxymths = append(pxymths, value.(clang.Cursor))
+		if c.AccessSpecifier() == clang.AccessSpecifier_Protected &&
+			c.CXXMethod_IsVirtual() {
+			this.hasVirtualProtected = true
+		}
+	})
 	return
 }
 
@@ -314,6 +321,10 @@ func (this *GenerateInlinev0) genProxyClass(clsctx *GenClassContext, cursor, par
 	isqobjcls := has_qobject_base_class(cursor)
 	_ = isqobjcls
 	// 需要proxy的类：QObject的子类
+	overrideMethods := this.collectProxyMethod(clsctx, cursor, parent)
+	if !this.hasVirtualProtected {
+		return
+	}
 
 	this.hasMyCls = true
 	this.cp.APf("main", "struct qt_meta_stringdata_My%s_t {", cursor.Spelling())
@@ -401,7 +412,6 @@ func (this *GenerateInlinev0) genProxyClass(clsctx *GenClassContext, cursor, par
 	}
 
 	// override 目标，1. 让该类能够new, 2. 能够在binding端override可以override的方法
-	overrideMethods := this.collectProxyMethod(clsctx, cursor, parent)
 	proxyedMethods := []clang.Cursor{} // 这个要生成相应的公开调用封装函数
 	for _, mcs := range overrideMethods {
 		if mcs.Kind() == clang.Cursor_Constructor {
@@ -422,7 +432,7 @@ func (this *GenerateInlinev0) genProxyClass(clsctx *GenClassContext, cursor, par
 		}
 
 		if mcs.AccessSpecifier() == clang.AccessSpecifier_Protected {
-			this.hasVirtualProtected = true
+			//this.hasVirtualProtected = true
 		}
 		rety := mcs.ResultType()
 		this.cp.APf("main", "// %s", strings.Join(this.getFuncQulities(mcs), " "))
@@ -571,7 +581,7 @@ func (this *GenerateInlinev0) genProxyClass(clsctx *GenClassContext, cursor, par
 
 	// a hotfix
 	if this.hasVirtualProtected && cursor.Spelling() == "QVariant" {
-		this.hasVirtualProtected = false
+		// this.hasVirtualProtected = false
 	}
 	this.genMethodsProxyed(clsctx, proxyedMethods)
 }
@@ -653,6 +663,9 @@ func (this *GenerateInlinev0) genMethods(clsctx *GenClassContext, cursor, parent
 			continue
 		}
 		if isctor && istmplcls {
+			continue
+		}
+		if isctor && cursor.IsDeleted() {
 			continue
 		}
 		if isctor || inlined {
@@ -769,7 +782,7 @@ func (this *GenerateInlinev0) genCtor(clsctx *GenClassContext, cursor, parent cl
 
 	isobjsub := has_qobject_base_class(parent)
 	pureVirtRetstr := gopp.IfElseStr(this.isPureVirtualClass, "0; //", "")
-	pureVirtRetstr = gopp.IfElseStr(this.isPureVirtualClass || !this.hasMyCls, "0; //", "")
+	//pureVirtRetstr = gopp.IfElseStr(this.isPureVirtualClass || !this.hasMyCls, "0; //", "")
 	// TODO 要判断的，1,是否能加My前缀，2,不能加的情况，2-1,是否能new，2-2,不能new要加注册
 	if isobjsub && !strings.ContainsAny(parent.Type().Spelling(), "<>") &&
 		!funk.ContainsString([]string{"QAbstractEventDispatcher"}, parent.Type().Spelling()) {

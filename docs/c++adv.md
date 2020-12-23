@@ -19,3 +19,8 @@
 
 * 关闭忽略返回值时的警告， (void)fn();
 
+### C++ virtual方法hook
+* https://www.codeproject.com/articles/1100579/polyhook-the-cplusplus-x-x-hooking-library
+* https://github.com/stevemk14ebr/PolyHook_2_0
+
+

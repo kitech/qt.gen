@@ -56,6 +56,7 @@ C symbol 生成的是所有能够支持的Qt函数，而不是Qt子集
 * [ ] isFunctionType/isFunctionPointerType/isMemberFunctionPointerType
 * [x] isTemplateType
 * [x] MSVC always passes 'sret' after 'this', unlike GCC
+* [ ] 获取虚方法在vtable中的偏移
 
 ### depends
 * therecipe/qt@a76e7081468b0d9d554349b66b4971929f036ce7
