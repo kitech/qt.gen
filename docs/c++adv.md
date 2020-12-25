@@ -17,10 +17,14 @@
 
 * 方法函数指针转 void*: (void*&)memfnptr;
 
-* 关闭忽略返回值时的警告， (void)fn();
+* 关闭忽略返回值时的警告， (void) fn();
 
 ### C++ virtual方法hook
+* 可以用于实现类似C++的继承功能
 * https://www.codeproject.com/articles/1100579/polyhook-the-cplusplus-x-x-hooking-library
 * https://github.com/stevemk14ebr/PolyHook_2_0
-
+* https://github.com/Thordin/vtable-hook/blob/master/vtablehook.h
+* https://github.com/gfreivasc/VMTHook
+* 得到虚函数偏移量的两种方式，libclang VTableBuilder封装， vtable-dumper并做适当的转换
+* 非虚函数也可以其他方式hook，像plthook，
 
