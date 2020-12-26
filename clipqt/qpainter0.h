@@ -982,6 +982,8 @@ public:
 
 }; // QImage
 
+
+
 class xQClipboard : public QClipboard
 {
 public:

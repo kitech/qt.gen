@@ -313,6 +313,62 @@ class xQSize : public QSize
 };
 
 
+class xQEvent : public QEvent            // event base class
+{
+public:
+    // explicit QEvent(Type type);
+    // QEvent(const QEvent &other);
+    // virtual ~QEvent();
+    // QEvent &operator=(const QEvent &other);
+    inline Type type() const { return static_cast<Type>(t); }
+    inline bool spontaneous() const { return spont; }
+
+    inline void setAccepted(bool accepted) { m_accept = accepted; }
+    inline bool isAccepted() const { return m_accept; }
+
+    inline void accept() { m_accept = true; }
+    inline void ignore() { m_accept = false; }
+
+    static int registerEventType(int hint = -1) noexcept;
+};
+
+class xQTimerEvent : public QTimerEvent
+{
+public:
+    // explicit QTimerEvent( int timerId );
+    // ~QTimerEvent();
+    // int timerId() const { return id; }
+};
+
+class xQChildEvent : public QChildEvent
+{
+public:
+    // QChildEvent( Type type, QObject *child );
+    // ~QChildEvent();
+    // QObject *child() const { return c; }
+    // bool added() const { return type() == ChildAdded; }
+    // bool polished() const { return type() == ChildPolished; }
+    // bool removed() const { return type() == ChildRemoved; }
+};
+
+class xQDynamicPropertyChangeEvent : public QDynamicPropertyChangeEvent
+{
+public:
+    // explicit QDynamicPropertyChangeEvent(const QByteArray &name);
+    // ~QDynamicPropertyChangeEvent();
+
+    // inline QByteArray propertyName() const { return n; }
+};
+
+class xQDeferredDeleteEvent : public QDeferredDeleteEvent
+{
+public:
+    // explicit QDeferredDeleteEvent();
+    // ~QDeferredDeleteEvent();
+    // int loopLevel() const { return level; }
+};
+
+
 class xQMetaClassInfo : public QMetaClassInfo {
 public:
 };

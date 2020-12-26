@@ -11,6 +11,7 @@
 #ifdef GEN_GO_QT_GUI_LIB
 #include <QtGui>
 #include <qpainter0.h>
+#include <qevent0.h>
 #endif
 #if QT_VERSION >= 0x050000
     #ifdef GEN_GO_QT_WIDGETS_LIB
