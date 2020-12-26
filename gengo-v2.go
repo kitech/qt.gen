@@ -965,7 +965,7 @@ func (this *GenerateGov2) genDtor(cursor, parent clang.Cursor, midx int) {
 
 	// cp.APf("body", "    const qsymcrc uint32 = %s", this.mangler.crc32(cursor))
 	// cp.APf("body", "    const qsymname = \"%s\"", this.mangler.origin(cursor))
-	cp.APf("body", "    rv, err := qtrt.Qtcc3(%s, \"%s\", qtrt.FFITY_VOID, qtrt.FFITO_POINTER, this.Addr()", this.mangler.crc32(cursor), this.mangler.origin(cursor))
+	cp.APf("body", "    rv, err := qtrt.Qtcc3(%s, \"%s\", qtrt.FFITO_VOID, qtrt.FFITO_POINTER, this.Addr()", this.mangler.crc32(cursor), this.mangler.origin(cursor))
 	cp.APf("body", "    qtrt.Cmemset(this.GetCthis(), 9, %d)", parent.Type().SizeOf())
 	cp.APf("body", "    qtrt.ErrPrint2(err, rv)")
 	cp.APf("body", "    this.SetCthis(nil)")
@@ -979,13 +979,13 @@ func (this *GenerateGov2) genDtorNoCode(cursor, parent clang.Cursor, midx int) {
 	var cp = this.getpropercp(cursor)
 
 	cp.APf("body", "")
-	// symname := fmt.Sprintf("_ZN%d%sD2Ev", len(cursor.Spelling()), cursor.Spelling())
+	symname := fmt.Sprintf("_ZN%d%sD2Ev", len(cursor.Spelling()), cursor.Spelling())
 	cp.APf("body", "func Delete%s(this *%s) {", cursor.Spelling(), cursor.Spelling())
 	// cp.APf("body", "    const qsymcrc uint32 = %d", symcrc32(symname))
 	// cp.APf("body", "    const qsymname = \"%s\"", symname)
-	cp.APf("body", "    rv, err := qtrt.Qtcc1(%s, \"_ZN%d%sD2Ev\", qtrt.FFITY_VOID, this.GetCthis())", this.mangler.crc32(cursor), len(cursor.Spelling()), cursor.Spelling())
+	cp.APf("body", "    rv, err := qtrt.Qtcc3(%d, \"_ZN%d%sD2Ev\", qtrt.FFITO_VOID, qtrt.FFITO_POINTER, this.Addr())", symcrc32(symname), len(cursor.Spelling()), cursor.Spelling())
 	cp.APf("body", "    qtrt.ErrPrint2(err, rv)")
-	cp.APf("body", "    this.SetCthis(nil)")
+	cp.APf("body", "    //this.SetCthis(nil)")
 
 	this.genMethodFooterFFI(cursor, parent, midx)
 }
