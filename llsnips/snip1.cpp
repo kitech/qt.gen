@@ -44,6 +44,10 @@ QJsonValue foo14_QJsonValue() { return QJsonValue(); }
 QPoint foo15_QPoint() { return QPoint(); }
 QPointF foo16_QPointF() { return QPointF(); }
 
-QRect foo17_QRect() { return QRect(); }
+QRect foo17_QRect() {
+    QRect* r1 = new QRect();
+    delete r1;
+    return QRect();
+}
 QRectF foo18_QRectF() { return QRectF(); }
 

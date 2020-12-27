@@ -13,7 +13,7 @@
 * 右值引用初始化， T&& v = static_cast<T&&>(*(T*)voidptrval);
 
 * 取非静态方法指针 auto x = (void(Class::**)(types)) &Classs::method
-* 不能取构造函数指针
+* 不能取构造函数指针，不能取析构函数指针
 
 * 方法函数指针转 void*: (void*&)memfnptr;
 

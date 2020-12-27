@@ -60,6 +60,7 @@ C symbol 生成的是所有能够支持的Qt函数，而不是Qt子集
 * [ ] 获取虚方法在vtable中的偏移
    * [ ] libclang实现
    * [x] 运行时实现 , qtrt/mthook3.c
+* [ ] 是否有 complete dtor: \_ZN5QRectD2Ev
 
 ### depends
 * therecipe/qt@a76e7081468b0d9d554349b66b4971929f036ce7

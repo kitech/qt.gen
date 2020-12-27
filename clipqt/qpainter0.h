@@ -86,9 +86,9 @@ class xQPainter : public QPainter
 /*     QFontMetrics fontMetrics() const; */
 /*     QFontInfo fontInfo() const; */
 
-/*     void setPen(const QColor &color); */
-/*     void setPen(const QPen &pen); */
-/*     void setPen(Qt::PenStyle style); */
+    void setPen(const QColor &color);
+    void setPen(const QPen &pen);
+    void setPen(Qt::PenStyle style);
 /*     const QPen &pen() const; */
 
 /*     void setBrush(const QBrush &brush); */

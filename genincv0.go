@@ -695,6 +695,9 @@ func (this *GenerateInlinev0) genMethods(clsctx *GenClassContext, cursor, parent
 	}
 	this.cp.APf("main", "  return fnptrsumval;")
 	this.cp.APf("main", "} // end ensure_inline_symbol_%s", strings.ToLower(cursor.Spelling()))
+	// 有些类竟然不需要 析构函数符号，直接 ::operator delete(void*)
+	// this.cp.APf("main", "// hasSimpleDtor %v, userDtor %v, deleted %v",
+	//	cursor.HasSimpleDestructor(), cursor.HasUserDeclaredDestructor(), cursor)
 }
 
 // TODO move to base
@@ -827,7 +830,7 @@ func (this *GenerateInlinev0) genCtor(clsctx *GenClassContext, cursor, parent cl
 	} else {
 		this.cp.APf("main", "  this_ = %s new %s%s(%s);", pureVirtRetstr, pxyclsp, parent.Type().Spelling(), paramStr)
 		if this.hasMyCls {
-			this.cp.APf("main", "  this_ = %s new %sMy%s(%s);", pureVirtRetstr, pxyclsp, parent.Type().Spelling(), paramStr)
+			// this.cp.APf("main", "  this_ = %s new %sMy%s(%s);", pureVirtRetstr, pxyclsp, parent.Type().Spelling(), paramStr)
 		}
 	}
 	this.cp.APf("main", "}")
