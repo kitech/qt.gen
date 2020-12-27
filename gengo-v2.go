@@ -788,7 +788,7 @@ func (this *GenerateGov2) genCtor(cursor, parent clang.Cursor, midx int) {
 	cp.APf("body", "    cthis := qtrt.Malloc(%d)", parent.Type().SizeOf())
 	cp.APf("body", "    rv, err := qtrt.Qtcc3(%s, \"%s\", qtrt.FFITO_POINTER,\n %s)",
 		this.mangler.crc32(cursor), this.mangler.origin(cursor), paramStr)
-	cp.APf("body", "    qtrt.ErrPrint2(err, rv)")
+	cp.APf("body", "    qtrt.ErrPrint3(err, rv)")
 	cp.APf("body", "    gothis := %sFromptr(cthis)", parent.Spelling())
 	if !has_qobject_base_class(parent) {
 		cp.APf("body", "    qtrt.SetFinalizer(gothis, Delete%s)", parent.Spelling())
@@ -832,7 +832,7 @@ func (this *GenerateGov2) genCtorDv(cursor, parent clang.Cursor, midx int, dvidx
 	cp.APf("body", "    cthis := qtrt.Malloc(%d)", parent.Type().SizeOf())
 	cp.APf("body", "    rv, err := qtrt.Qtcc3(%s, \"%s\", qtrt.FFITO_POINTER,\n %s)",
 		this.mangler.crc32(cursor), this.mangler.origin(cursor), paramStr)
-	cp.APf("body", "    qtrt.ErrPrint2(err, rv)")
+	cp.APf("body", "    qtrt.ErrPrint3(err, rv)")
 	cp.APf("body", "    gothis := %sFromptr(cthis)", parent.Spelling())
 	if !has_qobject_base_class(parent) {
 		cp.APf("body", "    qtrt.SetFinalizer(gothis, Delete%s)", parent.Spelling())
@@ -967,8 +967,8 @@ func (this *GenerateGov2) genDtor(cursor, parent clang.Cursor, midx int) {
 	// cp.APf("body", "    const qsymname = \"%s\"", this.mangler.origin(cursor))
 	cp.APf("body", "    rv, err := qtrt.Qtcc3(%s, \"%s\", qtrt.FFITO_VOID, qtrt.FFITO_POINTER, this.Addr()", this.mangler.crc32(cursor), this.mangler.origin(cursor))
 	cp.APf("body", "    qtrt.Cmemset(this.GetCthis(), 9, %d)", parent.Type().SizeOf())
-	cp.APf("body", "    qtrt.ErrPrint2(err, rv)")
-	cp.APf("body", "    this.SetCthis(nil)")
+	cp.APf("body", "    qtrt.ErrPrint3(err, rv)")
+	cp.APf("body", "    //this.SetCthis(nil)")
 
 	this.genMethodFooterFFI(cursor, parent, midx)
 }
@@ -984,7 +984,7 @@ func (this *GenerateGov2) genDtorNoCode(cursor, parent clang.Cursor, midx int) {
 	// cp.APf("body", "    const qsymcrc uint32 = %d", symcrc32(symname))
 	// cp.APf("body", "    const qsymname = \"%s\"", symname)
 	cp.APf("body", "    rv, err := qtrt.Qtcc3(%d, \"_ZN%d%sD2Ev\", qtrt.FFITO_VOID, qtrt.FFITO_POINTER, this.Addr())", symcrc32(symname), len(cursor.Spelling()), cursor.Spelling())
-	cp.APf("body", "    qtrt.ErrPrint2(err, rv)")
+	cp.APf("body", "    qtrt.ErrPrint3(err, rv)")
 	cp.APf("body", "    //this.SetCthis(nil)")
 
 	this.genMethodFooterFFI(cursor, parent, midx)
@@ -1030,12 +1030,13 @@ func (this *GenerateGov2) genNonStaticMethod(cursor, parent clang.Cursor, midx i
 			this.mangler.crc32(cursor), this.mangler.origin(cursor),
 			ffirety, paramStr)
 	}
-	cp.APf("body", "    qtrt.ErrPrint2(err, rv)")
+	cp.APf("body", "    qtrt.ErrPrint3(err, rv)")
 	if retype.Kind() == clang.Type_Record {
 		// this.cp.APf("body", "   rv = uint64(uintptr(mv))")
 	}
 	if besret {
-		cp.APf("body", "    rv = qtrt.VRetype(uintptr(sretobj))")
+		//cp.APf("body", "    rv = qtrt.VRetype(uintptr(sretobj))")
+		cp.APf("body", "    rv.High = uint64(uintptr(sretobj))")
 	}
 	this.genRetFFI(cursor, parent, midx)
 	this.genMethodFooterFFI(cursor, parent, midx)
@@ -1089,12 +1090,13 @@ func (this *GenerateGov2) genNonStaticMethodDv(cursor, parent clang.Cursor, midx
 			this.mangler.crc32(cursor), this.mangler.origin(cursor),
 			ffirety, paramStr)
 	}
-	cp.APf("body", "    qtrt.ErrPrint2(err, rv)")
+	cp.APf("body", "    qtrt.ErrPrint3(err, rv)")
 	if retype.Kind() == clang.Type_Record {
 		// this.cp.APf("body", "   rv = uint64(uintptr(mv))")
 	}
 	if besret {
-		cp.APf("body", "    rv = qtrt.VRetype(uintptr(sretobj))")
+		// cp.APf("body", "    rv = qtrt.VRetype(uintptr(sretobj))")
+		cp.APf("body", "    rv.High = uint64(uintptr(sretobj))")
 	}
 
 	this.genRetFFI(cursor, parent, midx)
@@ -1126,9 +1128,10 @@ func (this *GenerateGov2) genStaticMethod(cursor, parent clang.Cursor, midx int)
 	// cp.APf("body", "    const qsymname = \"%s\"", this.mangler.origin(cursor))
 	cp.APf("body", "    rv, err := qtrt.Qtcc3(%s, \"%s\", qtrt.FFITO_POINTER,\n %s)",
 		this.mangler.crc32(cursor), this.mangler.origin(cursor), paramStr)
-	cp.APf("body", "    qtrt.ErrPrint2(err, rv)")
+	cp.APf("body", "    qtrt.ErrPrint3(err, rv)")
 	if besret {
-		cp.APf("body", "    rv = qtrt.VRetype(uintptr(sretobj))")
+		//cp.APf("body", "    rv = qtrt.VRetype(uintptr(sretobj))")
+		cp.APf("body", "    rv.High = uint64(uintptr(sretobj))")
 	}
 
 	this.genRetFFI(cursor, parent, midx)
@@ -1165,9 +1168,10 @@ func (this *GenerateGov2) genStaticMethodDv(cursor, parent clang.Cursor, midx in
 	// cp.APf("body", "    const qsymname = \"%s\"", this.mangler.origin(cursor))
 	cp.APf("body", "    rv, err := qtrt.Qtcc3(%s, \"%s\", qtrt.FFITO_POINTER,\n %s)",
 		this.mangler.crc32(cursor), this.mangler.origin(cursor), paramStr)
-	cp.APf("body", "    qtrt.ErrPrint2(err, rv)")
+	cp.APf("body", "    qtrt.ErrPrint3(err, rv)")
 	if besret {
-		cp.APf("body", "    rv = qtrt.VRetype(uintptr(sretobj))")
+		//cp.APf("body", "    rv = qtrt.VRetype(uintptr(sretobj))")
+		cp.APf("body", "    rv.High = uint64(uintptr(sretobj))")
 	}
 
 	this.genRetFFI(cursor, parent, midx)
@@ -1262,7 +1266,7 @@ func (this *GenerateGov2) genProtectedCallback(cursor, parent clang.Cursor, midx
 	cp.APf("body", "func callback%s(cthis Voidptr %s) {", cursor.Mangling(), argStr)
 	cp.APf("body", "  // log.Println(cthis, \"%s.%s\")", parent.Spelling(), cursor.Spelling())
 	cp.APf("body", "  rvx := qtrt.CallbackAllInherits(cthis, \"%s\" %s)", cursor.Spelling(), prmStr)
-	cp.APf("body", "  qtrt.ErrPrint2(nil, rvx)")
+	cp.APf("body", "  qtrt.ErrPrint3(nil, rvx)")
 	cp.APf("body", "}")
 	cp.APf("body", "func init(){ qtrt.SetInheritCallback2c(\"%s\", C.callback%s /*nil*/) }", cursor.Mangling(), cursor.Mangling())
 	cp.APf("body", "")
@@ -1711,18 +1715,23 @@ func (this *GenerateGov2) genRetFFI(cursor, parent clang.Cursor, midx int) {
 	log.Println("hhhhh use ==? ref", retybare.Spelling(), defmod, usemod, rety.Spelling(), cursor.DisplayName(), parent.Spelling())
 	pkgPrefix := gopp.IfElseStr(defmod == usemod, "/*==*/", fmt.Sprintf("qt%s.", defmod))
 
+	besret := MethodHasStructRet(cursor)
+
 	switch rety.Kind() {
 	case clang.Type_Void:
 	case clang.Type_Int, clang.Type_UInt, clang.Type_Long, clang.Type_ULong,
 		clang.Type_Short, clang.Type_UShort,
 		clang.Type_Char_S, clang.Type_Char_U, clang.Type_UChar,
 		clang.Type_Float, clang.Type_Double, clang.Type_LongDouble:
-		cp.APf("body", "    return qtrt.Cretval2go(\"%s\", rv).(%s) // 1111",
-			this.tyconver.toDest(rety, cursor), this.tyconver.toDest(rety, cursor))
+		//cp.APf("body", "    return qtrt.Cretval2go(\"%s\", rv).(%s) // 1111",
+		//	this.tyconver.toDest(rety, cursor), this.tyconver.toDest(rety, cursor))
+		cp.APf("body", "    return rv.%s() // 1111",
+			strings.Title(this.tyconver.toDest(rety, cursor)))
 		// cp.APf("body", "    return %s(rv) // 111", this.tyconver.toDest(rety, cursor))
 	case clang.Type_Typedef:
 		if TypeIsQFlags(rety) {
-			cp.APf("body", "    return int(rv)")
+			cp.APf("body", "    return rv.Int()")
+			//cp.APf("body", "    return int(rv)")
 		} else if is_qt_class(rety.CanonicalType()) &&
 			(rety.Spelling() == "QObjectList" || rety.Spelling() == "QModelIndexList" ||
 				rety.Spelling() == "QFileInfoList" || rety.Spelling() == "QVariantList" ||
@@ -1732,117 +1741,120 @@ func (this *GenerateGov2) genRetFFI(cursor, parent clang.Cursor, midx int) {
 			if strings.HasPrefix(rety.Spelling(), "QWidget") || strings.HasPrefix(rety.Spelling(), "QGraphicsItem") {
 				pkgPrefix = "/*222*/"
 			}
-			cp.APf("body", "    rv2 := %s%sFromptr(Voidptr(uintptr(rv))) //5551",
+			cp.APf("body", "    rv2 := %s%sFromptr(rv.Ptr()) //5551",
 				pkgPrefix, gopp.IfElseStr(TypeIsConsted(rety), rety.Spelling()[6:], rety.Spelling()))
 			cp.APf("body", "    return rv2")
 		} else if is_qt_class(rety.CanonicalType()) {
-			cp.APf("body", "    rv2 := %s%sFromptr(Voidptr(uintptr(rv))) //555",
+			cp.APf("body", "    rv2 := %s%sFromptr(rv.Ptr()) //555",
 				// pkgPrefix, rety.Spelling())
 				pkgPrefix, get_bare_type(rety.CanonicalType()).Spelling())
 			cp.APf("body", "    return rv2")
 		} else if TypeIsFuncPointer(rety.CanonicalType()) {
-			cp.APf("body", "    return Voidptr(uintptr(rv))")
+			cp.APf("body", "    return rv.Ptr()")
 		} else if rety.Spelling() == "qreal" {
-			cp.APf("body", "    return qtrt.Cretval2go(\"%s\", rv).(%s) // 1111",
-				this.tyconver.toDest(rety, cursor), this.tyconver.toDest(rety, cursor))
+			cp.APf("body", "    return rv.Float64() // 1111")
 		} else if TypeIsCharPtr(rety.CanonicalType()) {
-			cp.APf("body", "    return qtrt.GoStringI(rv)")
+			cp.APf("body", "    return qtrt.GoStringI(rv.Uint64())")
 			// TODO iterator is pointer, don't convert to string
 		} else if TypeIsPtr(rety.CanonicalType()) {
-			cp.APf("body", "    return Voidptr(uintptr(rv))")
+			cp.APf("body", "    return rv.Ptr()")
 		} else if TypeIsIter(rety.CanonicalType()) {
-			cp.APf("body", "    return Voidptr(uintptr(rv))")
+			cp.APf("body", "    return rv.Ptr()")
 		} else if strings.HasPrefix(this.tyconver.toDest(rety, cursor), "unsafe.Pointer") {
-			cp.APf("body", "    return Voidptr(uintptr(rv))")
+			cp.APf("body", "    return rv.Ptr()")
 		} else {
-			cp.APf("body", "    return %s(rv) // 222", this.tyconver.toDest(rety, cursor))
+			cp.APf("body", "    return rv.%s() // 222", strings.Title(this.tyconver.toDest(rety, cursor)))
 		}
 	case clang.Type_Record:
 		if is_qt_class(rety) && get_bare_type(rety).Spelling() == "QString" {
-			cp.APf("body", "    rv2 := %sQStringFromptr(Voidptr(uintptr(rv)))", pkgPrefix)
+			cp.APf("body", "    rv2 := %sQStringFromptr(rv.Ptr())", pkgPrefix)
 			cp.APf("body", "    rv3 := rv2.ToUtf8().Data()")
 			cp.APf("body", "    %sDeleteQString(rv2)", pkgPrefix)
 			cp.APf("body", "    return rv3")
 		} else if is_qt_class(rety) {
 			barety := get_bare_type(rety)
-			cp.APf("body", "    rv2 := %s%sFromptr(Voidptr(uintptr(rv))) // 333",
-				pkgPrefix, barety.Spelling())
+			if !besret { // TODO, what about x86 size?
+				cp.APf("body", "    cthis := qtrt.Malloc(%d)", rety.SizeOf())
+				cp.APf("body", "    qtrt.Cmemcpy(cthis, rv.Addr(), %d)", rety.SizeOf())
+			}
+			ptrstr := gopp.IfElseStr(!besret, "cthis", "rv.Ptr()")
+			cp.APf("body", "    rv2 := %s%sFromptr(%s) // 333",
+				pkgPrefix, barety.Spelling(), ptrstr)
 			cp.APf("body", "    qtrt.SetFinalizer(rv2, %sDelete%s)", pkgPrefix, barety.Spelling())
 			cp.APf("body", "    return rv2")
 		} else {
-			cp.APf("body", "    return Voidptr(uintptr(rv))")
+			cp.APf("body", "    return rv.Ptr()")
 		}
 
 	case clang.Type_LValueReference:
 		if is_qt_class(rety) && get_bare_type(rety).Spelling() == "QString" {
-			cp.APf("body", "    rv2 := %sQStringFromptr(Voidptr(uintptr(rv)))", pkgPrefix)
+			cp.APf("body", "    rv2 := %sQStringFromptr(rv.Ptr())", pkgPrefix)
 			cp.APf("body", "    rv3 := rv2.ToUtf8().Data()")
 			cp.APf("body", "    %sDeleteQString(rv2)", pkgPrefix)
 			cp.APf("body", "    return rv3")
 		} else if is_qt_class(rety) {
 			barety := get_bare_type(rety)
-			cp.APf("body", "    rv2 := %s%sFromptr(Voidptr(uintptr(rv))) // 4441",
+			cp.APf("body", "    rv2 := %s%sFromptr(rv.Ptr()) // 4441",
 				pkgPrefix, barety.Spelling())
 			cp.APf("body", "    qtrt.SetFinalizer(rv2, %sDelete%s)", pkgPrefix, barety.Spelling())
 			cp.APf("body", "    return rv2")
 		} else if TypeIsCharPtr(rety) {
-			cp.APf("body", "    return qtrt.GoStringI(rv)")
+			cp.APf("body", "    return qtrt.GoStringI(rv.Uint64())")
 		} else if rety.PointeeType().CanonicalType().Kind() == clang.Type_UChar {
-			cp.APf("body", "    return byte(rv) /*2221*/")
+			cp.APf("body", "    return rv.Byte() /*2221*/")
 		} else if rety.PointeeType().CanonicalType().Kind() == clang.Type_UShort {
-			cp.APf("body", "    return uint16(rv)")
+			cp.APf("body", "    return rv.Uint16(rv)")
 		} else if isPrimitiveType(rety.PointeeType()) {
 			// int(*(*C.int)(Voidptr(uintptr(rv))))
-			cp.APf("body", "    return qtrt.Cpretval2go(\"%s\", rv).(%s) // 3331",
-				this.tyconver.toDest(rety.PointeeType(), cursor),
-				this.tyconver.toDest(rety.PointeeType(), cursor))
+			cp.APf("body", "    return rv.%s() // 3331",
+				strings.Title(this.tyconver.toDest(rety.PointeeType(), cursor)))
 			// this.cp.APf("body", "    return %s(rv) // 3331", this.tyconver.toDest(rety.PointeeType(), cursor))
 		} else {
-			cp.APf("body", "    return Voidptr(uintptr(rv))")
+			cp.APf("body", "    return rv.Ptr()")
 		}
 	case clang.Type_Pointer:
 		if is_qt_class(rety) && get_bare_type(rety).Spelling() == "QString" {
-			cp.APf("body", "    rv2 := %sQStringFromptr(Voidptr(uintptr(rv)))", pkgPrefix)
+			cp.APf("body", "    rv2 := %sQStringFromptr(rv.Ptr())", pkgPrefix)
 			cp.APf("body", "    rv3 := rv2.ToUtf8().Data()")
 			cp.APf("body", "    %sDeleteQString(rv2)", pkgPrefix)
 			cp.APf("body", "    return rv3")
 		} else if is_qt_class(rety) {
 			if _, ok := privClasses[rety.PointeeType().Spelling()]; ok {
-				cp.APf("body", "    return Voidptr(uintptr(rv))")
+				cp.APf("body", "    return rv.Ptr()")
 			} else if usemod == "core" && defmod == "widgets" {
-				cp.APf("body", "    return Voidptr(uintptr(rv))")
+				cp.APf("body", "    return rv.Ptr()")
 			} else if usemod == "gui" && defmod == "widgets" {
-				cp.APf("body", "    return Voidptr(uintptr(rv))")
+				cp.APf("body", "    return rv.Ptr()")
 			} else {
 				barety := get_bare_type(rety)
-				cp.APf("body", "    return %s%sFromptr(Voidptr(uintptr(rv))) // 444",
+				cp.APf("body", "    return %s%sFromptr(rv.Ptr()) // 444",
 					pkgPrefix, barety.Spelling())
 			}
 		} else if TypeIsCharPtrPtr(rety) {
-			cp.APf("body", "    return qtrt.CCharPPToStringSlice(Voidptr(uintptr(rv)))")
+			cp.APf("body", "    return qtrt.CCharPPToStringSlice(rv.Ptr())")
 		} else if TypeIsCharPtr(rety) {
-			cp.APf("body", "    return qtrt.GoStringI(rv)")
+			cp.APf("body", "    return qtrt.GoStringI(rv.Uint64())")
 		} else if rety.PointeeType().CanonicalType().Kind() == clang.Type_UChar {
-			cp.APf("body", "    return Voidptr(uintptr(rv))")
+			cp.APf("body", "    return rv.Ptr()")
 		} else if rety.PointeeType().CanonicalType().Kind() == clang.Type_UShort {
-			cp.APf("body", "    return Voidptr(uintptr(rv))")
+			cp.APf("body", "    return rv.Ptr()")
 		} else if isPrimitiveType(rety.PointeeType()) {
-			cp.APf("body", "    return Voidptr(uintptr(rv))")
+			cp.APf("body", "    return rv.Ptr()")
 			// this.cp.APf("body", "    return %s(rv) // 333", this.tyconver.toDest(rety.PointeeType(), cursor))
 		} else {
-			cp.APf("body", "    return Voidptr(uintptr(rv))")
+			cp.APf("body", "    return rv.Ptr()")
 		}
 	case clang.Type_RValueReference:
-		cp.APf("body", "    return Voidptr(uintptr(rv)) //777")
+		cp.APf("body", "    return rv.Ptr() //777")
 	case clang.Type_Bool:
-		cp.APf("body", "    return rv!=0")
+		cp.APf("body", "    return rv.Bool()")
 	case clang.Type_Enum:
-		cp.APf("body", "    return int(rv)")
+		cp.APf("body", "    return rv.Int()")
 	case clang.Type_Elaborated:
-		cp.APf("body", "    return int(rv)")
+		cp.APf("body", "    return rv.Int()")
 	case clang.Type_Unexposed:
 		if strings.HasPrefix(rety.Spelling(), "QList<") {
-			cp.APf("body", "    rv2 := %s%sListFromptr(Voidptr(uintptr(rv))) //5552",
+			cp.APf("body", "    rv2 := %s%sListFromptr(rv.Ptr()) //5552",
 				pkgPrefix, strings.TrimRight(rety.Spelling()[6:], " *>"))
 			cp.APf("body", "    return rv2")
 		} else {
@@ -2161,7 +2173,7 @@ func (this *GenerateGov2) genFunction(cursor clang.Cursor, olidx int) {
 	this.genArgsConvFFI(cursor, cursor.SemanticParent(), olidx)
 	cp.APf("body", "  rv, err := qtrt.InvokeQtFunc6(\"%s\", qtrt.FFITY_POINTER, %s)",
 		cursor.Mangling(), paramStr)
-	cp.APf("body", "  qtrt.ErrPrint2(err, rv)")
+	cp.APf("body", "  qtrt.ErrPrint3(err, rv)")
 
 	this.genRetFFI(cursor, cursor.SemanticParent(), olidx)
 	this.genMethodFooterFFI(cursor, cursor.SemanticParent(), olidx)

@@ -33,7 +33,7 @@ public:
 
 class  xQMouseEvent : public QMouseEvent
 {
-/* public: */
+public:
 /*     QMouseEvent(Type type, const QPointF &localPos, Qt::MouseButton button, */
 /*                 Qt::MouseButtons buttons, Qt::KeyboardModifiers modifiers); */
 /*     QMouseEvent(Type type, const QPointF &localPos, const QPointF &screenPos, */
@@ -47,17 +47,17 @@ class  xQMouseEvent : public QMouseEvent
 /*                 Qt::KeyboardModifiers modifiers, Qt::MouseEventSource source); */
 /*     ~QMouseEvent(); */
 
-/* #ifndef QT_NO_INTEGER_EVENT_COORDINATES */
-/*     inline QPoint pos() const { return l.toPoint(); } */
-/*     inline QPoint globalPos() const { return s.toPoint(); } */
-/*     inline int x() const { return qRound(l.x()); } */
-/*     inline int y() const { return qRound(l.y()); } */
-/*     inline int globalX() const { return qRound(s.x()); } */
-/*     inline int globalY() const { return qRound(s.y()); } */
-/* #endif */
-/*     const QPointF &localPos() const { return l; } */
-/*     const QPointF &windowPos() const { return w; } */
-/*     const QPointF &screenPos() const { return s; } */
+#ifndef QT_NO_INTEGER_EVENT_COORDINATES
+    inline QPoint pos() const;
+    inline QPoint globalPos() const;
+    inline int x() const;
+    inline int y() const;
+    inline int globalX() const;
+    inline int globalY() const;
+#endif
+    const QPointF &localPos() const;
+    const QPointF &windowPos() const;
+    const QPointF &screenPos() const;
 
     Qt::MouseButton button() const;
     Qt::MouseButtons buttons() const;
@@ -94,11 +94,11 @@ public:
     /* ~QWheelEvent(); */
 
 
-    /* inline QPoint pixelDelta() const { return pixelD; } */
-    /* inline QPoint angleDelta() const { return angleD; } */
+    inline QPoint pixelDelta() const;
+    inline QPoint angleDelta() const;
 
-    /* inline QPointF position() const { return p; } */
-    /* inline QPointF globalPosition() const { return g; } */
+    inline QPointF position() const;
+    inline QPointF globalPosition() const;
 
     Qt::MouseButtons buttons() const;
 
