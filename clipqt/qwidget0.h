@@ -2556,8 +2556,8 @@ public:
 /*     QT_SIZEPOLICY_CONSTEXPR Policy verticalPolicy() const noexcept { return static_cast<Policy>(bits.verPolicy); } */
 /*     ControlType controlType() const noexcept; */
 
-/*     Q_DECL_RELAXED_CONSTEXPR void setHorizontalPolicy(Policy d) noexcept { bits.horPolicy = d; } */
-/*     Q_DECL_RELAXED_CONSTEXPR void setVerticalPolicy(Policy d) noexcept { bits.verPolicy = d; } */
+/*      void setHorizontalPolicy(Policy d) noexcept { bits.horPolicy = d; } */
+/*      void setVerticalPolicy(Policy d) noexcept { bits.verPolicy = d; } */
 /*     void setControlType(ControlType type) noexcept; */
 
 /*     QT_SIZEPOLICY_CONSTEXPR Qt::Orientations expandingDirections() const noexcept { */
@@ -2565,9 +2565,9 @@ public:
 /*              | ( (horizontalPolicy() & ExpandFlag) ? Qt::Horizontal : Qt::Orientations() ) ; */
 /*     } */
 
-/*     Q_DECL_RELAXED_CONSTEXPR void setHeightForWidth(bool b) noexcept { bits.hfw = b;  } */
+/*      void setHeightForWidth(bool b) noexcept { bits.hfw = b;  } */
 /*     QT_SIZEPOLICY_CONSTEXPR bool hasHeightForWidth() const noexcept { return bits.hfw; } */
-/*     Q_DECL_RELAXED_CONSTEXPR void setWidthForHeight(bool b) noexcept { bits.wfh = b;  } */
+/*      void setWidthForHeight(bool b) noexcept { bits.wfh = b;  } */
 /*     QT_SIZEPOLICY_CONSTEXPR bool hasWidthForHeight() const noexcept { return bits.wfh; } */
 
 /*     QT_SIZEPOLICY_CONSTEXPR bool operator==(const QSizePolicy& s) const noexcept { return data == s.data; } */
@@ -2579,14 +2579,14 @@ public:
 
 /*     QT_SIZEPOLICY_CONSTEXPR int horizontalStretch() const noexcept { return static_cast<int>(bits.horStretch); } */
 /*     QT_SIZEPOLICY_CONSTEXPR int verticalStretch() const noexcept { return static_cast<int>(bits.verStretch); } */
-/*     Q_DECL_RELAXED_CONSTEXPR void setHorizontalStretch(int stretchFactor) { bits.horStretch = static_cast<quint32>(qBound(0, stretchFactor, 255)); } */
-/*     Q_DECL_RELAXED_CONSTEXPR void setVerticalStretch(int stretchFactor) { bits.verStretch = static_cast<quint32>(qBound(0, stretchFactor, 255)); } */
+/*      void setHorizontalStretch(int stretchFactor) { bits.horStretch = static_cast<quint32>(qBound(0, stretchFactor, 255)); } */
+/*      void setVerticalStretch(int stretchFactor) { bits.verStretch = static_cast<quint32>(qBound(0, stretchFactor, 255)); } */
 
 /*     QT_SIZEPOLICY_CONSTEXPR bool retainSizeWhenHidden() const noexcept { return bits.retainSizeWhenHidden; } */
-/*     Q_DECL_RELAXED_CONSTEXPR void setRetainSizeWhenHidden(bool retainSize) noexcept { bits.retainSizeWhenHidden = retainSize; } */
+/*      void setRetainSizeWhenHidden(bool retainSize) noexcept { bits.retainSizeWhenHidden = retainSize; } */
 
-/*     Q_DECL_RELAXED_CONSTEXPR void transpose() noexcept { *this = transposed(); } */
-/*     Q_REQUIRED_RESULT */
+/*      void transpose() noexcept { *this = transposed(); } */
+/*      */
 /* #ifndef Q_QDOC */
 /*     QT_SIZEPOLICY_CONSTEXPR_AND_UNIFORM_INIT */
 /* #endif */
@@ -3197,14 +3197,6 @@ public:
     xQSystemTrayIcon(QObject *parent = nullptr);
     //xQSystemTrayIcon(const QIcon &icon, QObject *parent = nullptr);
     //~QSystemTrayIcon();
-
-/*     enum ActivationReason { */
-/*         Unknown, */
-/*         Context, */
-/*         DoubleClick, */
-/*         Trigger, */
-/*         MiddleClick */
-/*     }; */
 
 #if QT_CONFIG(menu)
     void setContextMenu(QMenu *menu);

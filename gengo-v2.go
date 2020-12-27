@@ -1009,6 +1009,9 @@ func (this *GenerateGov2) genNonStaticMethod(cursor, parent clang.Cursor, midx i
 	besret := MethodHasStructRet(cursor)
 
 	ffirety := "qtrt.FFITO_POINTER"
+	if retype.Kind() == clang.Type_Record && retype.SizeOf() > 8 && !besret {
+		ffirety = "qtrt.FFITO_UINT128"
+	}
 	if retype.CanonicalType().Kind() == clang.Type_Float ||
 		retype.CanonicalType().Kind() == clang.Type_Double {
 		ffirety = "qtrt.FFITO_DOUBLE"
@@ -1069,6 +1072,9 @@ func (this *GenerateGov2) genNonStaticMethodDv(cursor, parent clang.Cursor, midx
 	besret := MethodHasStructRet(cursor)
 
 	ffirety := "qtrt.FFITO_POINTER"
+	if retype.Kind() == clang.Type_Record && retype.SizeOf() > 8 && !besret {
+		ffirety = "qtrt.FFITO_UINT128"
+	}
 	if retype.CanonicalType().Kind() == clang.Type_Float ||
 		retype.CanonicalType().Kind() == clang.Type_Double {
 		ffirety = "qtrt.FFITO_DOUBLE"
@@ -1117,17 +1123,21 @@ func (this *GenerateGov2) genStaticMethod(cursor, parent clang.Cursor, midx int)
 	paramStr := strings.Join(append(this.argFfito, this.paramDesc...), ", ")
 	var cp = this.getpropercp(cursor)
 
-	rety := cursor.ResultType()
+	retype := cursor.ResultType()
 	besret := MethodHasStructRet(cursor)
 
+	ffirety := "qtrt.FFITO_POINTER"
+	if retype.Kind() == clang.Type_Record && retype.SizeOf() > 8 && !besret {
+		ffirety = "qtrt.FFITO_UINT128"
+	}
 	if besret {
-		cp.APf("body", "    sretobj := qtrt.Malloc(%d) // %s", rety.SizeOf(), rety.Spelling())
+		cp.APf("body", "    sretobj := qtrt.Malloc(%d) // %s", retype.SizeOf(), retype.Spelling())
 	}
 
 	// cp.APf("body", "    const qsymcrc uint32 = %s", this.mangler.crc32(cursor))
 	// cp.APf("body", "    const qsymname = \"%s\"", this.mangler.origin(cursor))
-	cp.APf("body", "    rv, err := qtrt.Qtcc3(%s, \"%s\", qtrt.FFITO_POINTER,\n %s)",
-		this.mangler.crc32(cursor), this.mangler.origin(cursor), paramStr)
+	cp.APf("body", "    rv, err := qtrt.Qtcc3(%s, \"%s\", %s,\n %s)",
+		this.mangler.crc32(cursor), this.mangler.origin(cursor), ffirety, paramStr)
 	cp.APf("body", "    qtrt.ErrPrint3(err, rv)")
 	if besret {
 		//cp.APf("body", "    rv = qtrt.VRetype(uintptr(sretobj))")

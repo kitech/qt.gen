@@ -30,6 +30,41 @@ class xQPaintEngine : public QPaintEngine
 
 };
 
+class xQTextOption : public QTextOption
+{
+public:
+    xQTextOption();
+    // QTextOption(Qt::Alignment alignment);
+    // ~QTextOption();
+
+    // QTextOption(const QTextOption &o);
+    // QTextOption &operator=(const QTextOption &o);
+
+    // inline void setAlignment(Qt::Alignment alignment);
+    // inline Qt::Alignment alignment() const { return Qt::Alignment(align); }
+
+    // inline void setTextDirection(Qt::LayoutDirection aDirection) { this->direction = aDirection; }
+    // inline Qt::LayoutDirection textDirection() const { return Qt::LayoutDirection(direction); }
+
+    // inline void setWrapMode(WrapMode wrap) { wordWrap = wrap; }
+    // inline WrapMode wrapMode() const { return static_cast<WrapMode>(wordWrap); }
+
+    // inline void setFlags(Flags flags);
+    // inline Flags flags() const { return Flags(f); }
+
+    // inline void setTabStopDistance(qreal tabStopDistance);
+    // inline qreal tabStopDistance() const { return tab; }
+
+    // void setTabArray(const QList<qreal> &tabStops);
+    // QList<qreal> tabArray() const;
+
+    // void setTabs(const QList<Tab> &tabStops);
+    // QList<Tab> tabs() const;
+
+    // void setUseDesignMetrics(bool b) { design = b; }
+    // bool useDesignMetrics() const { return design; }
+};
+
 class xQPainter : public QPainter
 {
  public:
@@ -268,10 +303,10 @@ class xQPainter : public QPainter
 /*     void drawText(const QPointF &p, const QString &str, int tf, int justificationPadding); */
 
 /*     void drawText(const QRectF &r, int flags, const QString &text, QRectF *br = nullptr); */
-/*     void drawText(const QRect &r, int flags, const QString &text, QRect *br = nullptr); */
-/*     inline void drawText(int x, int y, int w, int h, int flags, const QString &text, QRect *br = nullptr); */
+    void drawText(const QRect &r, int flags, const QString &text, QRect *br = nullptr);
+    inline void drawText(int x, int y, int w, int h, int flags, const QString &text, QRect *br = nullptr);
 
-/*     void drawText(const QRectF &r, const QString &text, const QTextOption &o = QTextOption()); */
+    void drawText(const QRectF &r, const QString &text, const QTextOption &o = QTextOption());
 
 /*     QRectF boundingRect(const QRectF &rect, int flags, const QString &text); */
 /*     QRect boundingRect(const QRect &rect, int flags, const QString &text); */
@@ -409,6 +444,175 @@ class  xQFont:public QFont
 class xQColor : public QColor
 {
  public:
+    xQColor() noexcept;
+    xQColor(Qt::GlobalColor color) noexcept;
+    xQColor(int r, int g, int b, int a = 255) noexcept;
+    // QColor(QRgb rgb) noexcept;
+    //QColor(QRgba64 rgba64) noexcept;
+    // explicit inline QColor(QStringView name);
+    // inline QColor(const char *aname) : QColor(QLatin1String(aname)) {}
+    // inline QColor(QLatin1String name);
+    // QColor(Spec spec) noexcept;
+
+// #if QT_VERSION < QT_VERSION_CHECK(6,0,0)
+//     // ### Qt 6: remove all of these, the trivial ones are fine.
+//      QColor(const QColor &color) noexcept
+//         : cspec(color.cspec), ct(color.ct)
+//     {}
+//      QColor(QColor &&other) noexcept : cspec(other.cspec), ct(other.ct) {}
+//     QColor &operator=(QColor &&other) noexcept
+//     { cspec = other.cspec; ct = other.ct; return *this; }
+//     QColor &operator=(const QColor &) noexcept;
+// #endif // Qt < 6
+
+//     QColor &operator=(Qt::GlobalColor color) noexcept;
+
+//     bool isValid() const noexcept;
+
+//     // ### Qt 6: merge overloads
+//     QString name() const;
+//     QString name(NameFormat format) const;
+
+// #if QT_STRINGVIEW_LEVEL < 2
+//     void setNamedColor(const QString& name);
+// #endif
+//     void setNamedColor(QStringView name);
+//     void setNamedColor(QLatin1String name);
+
+//     static QStringList colorNames();
+
+//     inline Spec spec() const noexcept
+
+//     int alpha() const noexcept;
+//     void setAlpha(int alpha);
+
+//     qreal alphaF() const noexcept;
+//     void setAlphaF(qreal alpha);
+
+//     int red() const noexcept;
+//     int green() const noexcept;
+//     int blue() const noexcept;
+//     void setRed(int red);
+//     void setGreen(int green);
+//     void setBlue(int blue);
+
+//     qreal redF() const noexcept;
+//     qreal greenF() const noexcept;
+//     qreal blueF() const noexcept;
+//     void setRedF(qreal red);
+//     void setGreenF(qreal green);
+//     void setBlueF(qreal blue);
+
+//     void getRgb(int *r, int *g, int *b, int *a = nullptr) const;
+//     void setRgb(int r, int g, int b, int a = 255);
+
+//     void getRgbF(qreal *r, qreal *g, qreal *b, qreal *a = nullptr) const;
+//     void setRgbF(qreal r, qreal g, qreal b, qreal a = 1.0);
+
+//     QRgba64 rgba64() const noexcept;
+//     void setRgba64(QRgba64 rgba) noexcept;
+
+//     QRgb rgba() const noexcept;
+//     void setRgba(QRgb rgba) noexcept;
+
+//     QRgb rgb() const noexcept;
+//     void setRgb(QRgb rgb) noexcept;
+
+//     int hue() const noexcept; // 0 <= hue < 360
+//     int saturation() const noexcept;
+//     int hsvHue() const noexcept; // 0 <= hue < 360
+//     int hsvSaturation() const noexcept;
+//     int value() const noexcept;
+
+//     qreal hueF() const noexcept; // 0.0 <= hueF < 360.0
+//     qreal saturationF() const noexcept;
+//     qreal hsvHueF() const noexcept; // 0.0 <= hueF < 360.0
+//     qreal hsvSaturationF() const noexcept;
+//     qreal valueF() const noexcept;
+
+//     void getHsv(int *h, int *s, int *v, int *a = nullptr) const;
+//     void setHsv(int h, int s, int v, int a = 255);
+
+//     void getHsvF(qreal *h, qreal *s, qreal *v, qreal *a = nullptr) const;
+//     void setHsvF(qreal h, qreal s, qreal v, qreal a = 1.0);
+
+//     int cyan() const noexcept;
+//     int magenta() const noexcept;
+//     int yellow() const noexcept;
+//     int black() const noexcept;
+
+//     qreal cyanF() const noexcept;
+//     qreal magentaF() const noexcept;
+//     qreal yellowF() const noexcept;
+//     qreal blackF() const noexcept;
+
+//     void getCmyk(int *c, int *m, int *y, int *k, int *a = nullptr); // ### Qt 6: remove
+//     void getCmyk(int *c, int *m, int *y, int *k, int *a = nullptr) const;
+//     void setCmyk(int c, int m, int y, int k, int a = 255);
+
+//     void getCmykF(qreal *c, qreal *m, qreal *y, qreal *k, qreal *a = nullptr); // ### Qt 6: remove
+//     void getCmykF(qreal *c, qreal *m, qreal *y, qreal *k, qreal *a = nullptr) const;
+//     void setCmykF(qreal c, qreal m, qreal y, qreal k, qreal a = 1.0);
+
+//     int hslHue() const noexcept; // 0 <= hue < 360
+//     int hslSaturation() const noexcept;
+//     int lightness() const noexcept;
+
+//     qreal hslHueF() const noexcept; // 0.0 <= hueF < 360.0
+//     qreal hslSaturationF() const noexcept;
+//     qreal lightnessF() const noexcept;
+
+//     void getHsl(int *h, int *s, int *l, int *a = nullptr) const;
+//     void setHsl(int h, int s, int l, int a = 255);
+
+//     void getHslF(qreal *h, qreal *s, qreal *l, qreal *a = nullptr) const;
+//     void setHslF(qreal h, qreal s, qreal l, qreal a = 1.0);
+
+//     QColor toRgb() const noexcept;
+//     QColor toHsv() const noexcept;
+//     QColor toCmyk() const noexcept;
+//     QColor toHsl() const noexcept;
+//     QColor toExtendedRgb() const noexcept;
+
+//     QColor convertTo(Spec colorSpec) const noexcept;
+
+//     static QColor fromRgb(QRgb rgb) noexcept;
+//     static QColor fromRgba(QRgb rgba) noexcept;
+
+//     static QColor fromRgb(int r, int g, int b, int a = 255);
+//     static QColor fromRgbF(qreal r, qreal g, qreal b, qreal a = 1.0);
+
+//     static QColor fromRgba64(ushort r, ushort g, ushort b, ushort a = USHRT_MAX) noexcept;
+//     static QColor fromRgba64(QRgba64 rgba) noexcept;
+
+//     static QColor fromHsv(int h, int s, int v, int a = 255);
+//     static QColor fromHsvF(qreal h, qreal s, qreal v, qreal a = 1.0);
+
+//     static QColor fromCmyk(int c, int m, int y, int k, int a = 255);
+//     static QColor fromCmykF(qreal c, qreal m, qreal y, qreal k, qreal a = 1.0);
+
+//     static QColor fromHsl(int h, int s, int l, int a = 255);
+//     static QColor fromHslF(qreal h, qreal s, qreal l, qreal a = 1.0);
+
+// #if QT_DEPRECATED_SINCE(5, 13)
+//     QT_DEPRECATED_X("Use QColor::lighter() instead")
+//      QColor light(int f = 150) const noexcept;
+//     QT_DEPRECATED_X("Use QColor::darker() instead")
+//      QColor dark(int f = 200) const noexcept;
+// #endif
+//      QColor lighter(int f = 150) const noexcept;
+//      QColor darker(int f = 200) const noexcept;
+
+//     bool operator==(const QColor &c) const noexcept;
+//     bool operator!=(const QColor &c) const noexcept;
+
+//     operator QVariant() const;
+
+// #if QT_STRINGVIEW_LEVEL < 2
+//     static bool isValidColor(const QString &name);
+// #endif
+//     static bool isValidColor(QStringView) noexcept;
+//     static bool isValidColor(QLatin1String) noexcept;
 
 };
 
@@ -539,7 +743,7 @@ class xQPixmap : public QPixmap
 public:
     xQPixmap();
 /*     explicit QPixmap(QPlatformPixmap *data); */
-/*     QPixmap(int w, int h); */
+    xQPixmap(int w, int h);
 /*     explicit QPixmap(const QSize &); */
 /*     QPixmap(const QString& fileName, const char *format = nullptr, Qt::ImageConversionFlags flags = Qt::AutoColor); */
 /* #ifndef QT_NO_IMAGEFORMAT_XPM */
@@ -550,30 +754,22 @@ public:
 
 /*     QPixmap &operator=(const QPixmap &); */
 /*     inline QPixmap &operator=(QPixmap &&other) noexcept */
-/*     { qSwap(data, other.data); return *this; } */
 /*     inline void swap(QPixmap &other) noexcept */
-/*     { qSwap(data, other.data); } */
 
 /*     operator QVariant() const; */
 
 /*     bool isNull() const; */
 /*     int devType() const override; */
 
-/*     int width() const; */
-/*     int height() const; */
+    int width() const;
+    int height() const;
 /*     QSize size() const; */
-/*     QRect rect() const; */
+    QRect rect() const;
 /*     int depth() const; */
 
 /*     static int defaultDepth(); */
 
-/*     void fill(const QColor &fillColor = Qt::white); */
-/* #if QT_DEPRECATED_SINCE(5, 13) */
-/*     QT_DEPRECATED_X("Use QPainter or fill(QColor)") */
-/*     void fill(const QPaintDevice *device, const QPoint &ofs); */
-/*     QT_DEPRECATED_X("Use QPainter or fill(QColor)") */
-/*     void fill(const QPaintDevice *device, int xofs, int yofs); */
-/* #endif */
+    void fill(const QColor &fillColor = Qt::white);
 
 /*     QBitmap mask() const; */
 /*     void setMask(const QBitmap &); */
@@ -589,14 +785,6 @@ public:
 /* #endif */
 /*     QBitmap createMaskFromColor(const QColor &maskColor, Qt::MaskMode mode = Qt::MaskInColor) const; */
 
-/* #if QT_DEPRECATED_SINCE(5, 13) */
-/*     QT_DEPRECATED_X("Use QScreen::grabWindow() instead") */
-/*     static QPixmap grabWindow(WId, int x = 0, int y = 0, int w = -1, int h = -1); */
-/*     QT_DEPRECATED_X("Use QWidget::grab() instead") */
-/*     static QPixmap grabWidget(QObject *widget, const QRect &rect); */
-/*     QT_DEPRECATED_X("Use QWidget::grab() instead") */
-/*     static QPixmap grabWidget(QObject *widget, int x = 0, int y = 0, int w = -1, int h = -1); */
-/* #endif */
 
 /*     inline QPixmap scaled(int w, int h, Qt::AspectRatioMode aspectMode = Qt::IgnoreAspectRatio, */
 /*                           Qt::TransformationMode mode = Qt::FastTransformation) const */
@@ -605,12 +793,6 @@ public:
 /*                    Qt::TransformationMode mode = Qt::FastTransformation) const; */
 /*     QPixmap scaledToWidth(int w, Qt::TransformationMode mode = Qt::FastTransformation) const; */
 /*     QPixmap scaledToHeight(int h, Qt::TransformationMode mode = Qt::FastTransformation) const; */
-/* #if QT_DEPRECATED_SINCE(5, 15) */
-/*     QT_DEPRECATED_X("Use transformed(const QTransform &, Qt::TransformationMode mode)") */
-/*     QPixmap transformed(const QMatrix &, Qt::TransformationMode mode = Qt::FastTransformation) const; */
-/*     QT_DEPRECATED_X("Use trueMatrix(const QTransform &m, int w, int h)") */
-/*     static QMatrix trueMatrix(const QMatrix &m, int w, int h); */
-/* #endif // QT_DEPRECATED_SINCE(5, 15) */
 /*     QPixmap transformed(const QTransform &, Qt::TransformationMode mode = Qt::FastTransformation) const; */
 /*     static QTransform trueMatrix(const QTransform &m, int w, int h); */
 
@@ -636,9 +818,6 @@ public:
 /*     inline void scroll(int dx, int dy, int x, int y, int width, int height, QRegion *exposed = nullptr); */
 /*     void scroll(int dx, int dy, const QRect &rect, QRegion *exposed = nullptr); */
 
-/* #if QT_DEPRECATED_SINCE(5, 0) */
-/*     QT_DEPRECATED inline int serialNumber() const { return cacheKey() >> 32; } */
-/* #endif */
 /*     qint64 cacheKey() const; */
 
 /*     bool isDetached() const; */
@@ -650,10 +829,6 @@ public:
 
 /*     inline bool operator!() const { return isNull(); } */
 
-/* #if QT_DEPRECATED_SINCE(5, 0) */
-/*     QT_DEPRECATED inline QPixmap alphaChannel() const; */
-/*     QT_DEPRECATED inline void setAlphaChannel(const QPixmap &); */
-/* #endif */
 
 /* protected: */
 /*     int metric(PaintDeviceMetric) const override; */
@@ -668,27 +843,21 @@ class xQIcon: public QIcon
 {
 public:
     xQIcon() noexcept;
-    //    QIcon(const QPixmap &pixmap);
+    xQIcon(const QPixmap &pixmap);
     //    QIcon(const QIcon &other);
 /*     QIcon(QIcon &&other) noexcept */
-/*         : d(other.d) */
-/*     { other.d = nullptr; } */
-/*     explicit QIcon(const QString &fileName); // file or resource name */
+    explicit xQIcon(const QString &fileName); // file or resource name
 /*     explicit QIcon(QIconEngine *engine); */
 /*     ~QIcon(); */
 /*     QIcon &operator=(const QIcon &other); */
 /*     inline QIcon &operator=(QIcon &&other) noexcept */
-/*     { swap(other); return *this; } */
 /*     inline void swap(QIcon &other) noexcept */
-/*     { qSwap(d, other.d); } */
 
 /*     operator QVariant() const; */
 
 /*     QPixmap pixmap(const QSize &size, Mode mode = Normal, State state = Off) const; */
 /*     inline QPixmap pixmap(int w, int h, Mode mode = Normal, State state = Off) const */
-/*         { return pixmap(QSize(w, h), mode, state); } */
 /*     inline QPixmap pixmap(int extent, Mode mode = Normal, State state = Off) const */
-/*         { return pixmap(QSize(extent, extent), mode, state); } */
 /*     QPixmap pixmap(QWindow *window, const QSize &size, Mode mode = Normal, State state = Off) const; */
 
 /*     QSize actualSize(const QSize &size, Mode mode = Normal, State state = Off) const; */
@@ -698,15 +867,11 @@ public:
 
 /*     void paint(QPainter *painter, const QRect &rect, Qt::Alignment alignment = Qt::AlignCenter, Mode mode = Normal, State state = Off) const; */
 /*     inline void paint(QPainter *painter, int x, int y, int w, int h, Qt::Alignment alignment = Qt::AlignCenter, Mode mode = Normal, State state = Off) const */
-/*         { paint(painter, QRect(x, y, w, h), alignment, mode, state); } */
 
 /*     bool isNull() const; */
 /*     bool isDetached() const; */
 /*     void detach(); */
 
-/* #if QT_DEPRECATED_SINCE(5, 0) */
-/*     QT_DEPRECATED inline int serialNumber() const { return cacheKey() >> 32; } */
-/* #endif */
 /*     qint64 cacheKey() const; */
 
 /*     void addPixmap(const QPixmap &pixmap, Mode mode = Normal, State state = Off); */
@@ -732,8 +897,6 @@ public:
 
 /*     static QString fallbackThemeName(); */
 /*     static void setFallbackThemeName(const QString &name); */
-
-/*     Q_DUMMY_COMPARISON_OPERATOR(QIcon) */
 
 }; // QIcon
 
@@ -782,9 +945,9 @@ public:
 /*     Format format() const; */
 
 /* #if defined(Q_COMPILER_REF_QUALIFIERS) && !defined(QT_COMPILING_QIMAGE_COMPAT_CPP) */
-/*     Q_REQUIRED_RESULT Q_ALWAYS_INLINE QImage convertToFormat(Format f, Qt::ImageConversionFlags flags = Qt::AutoColor) const & */
+/*      Q_ALWAYS_INLINE QImage convertToFormat(Format f, Qt::ImageConversionFlags flags = Qt::AutoColor) const & */
 /*     { return convertToFormat_helper(f, flags); } */
-/*     Q_REQUIRED_RESULT Q_ALWAYS_INLINE QImage convertToFormat(Format f, Qt::ImageConversionFlags flags = Qt::AutoColor) && */
+/*      Q_ALWAYS_INLINE QImage convertToFormat(Format f, Qt::ImageConversionFlags flags = Qt::AutoColor) && */
 /*     { */
 /*         if (convertToFormat_inplace(f, flags)) */
 /*             return std::move(*this); */
@@ -792,9 +955,9 @@ public:
 /*             return convertToFormat_helper(f, flags); */
 /*     } */
 /* #else */
-/*     Q_REQUIRED_RESULT QImage convertToFormat(Format f, Qt::ImageConversionFlags flags = Qt::AutoColor) const; */
+/*      QImage convertToFormat(Format f, Qt::ImageConversionFlags flags = Qt::AutoColor) const; */
 /* #endif */
-/*     Q_REQUIRED_RESULT QImage convertToFormat(Format f, const QVector<QRgb> &colorTable, Qt::ImageConversionFlags flags = Qt::AutoColor) const; */
+/*      QImage convertToFormat(Format f, const QVector<QRgb> &colorTable, Qt::ImageConversionFlags flags = Qt::AutoColor) const; */
 /*     bool reinterpretAsFormat(Format f); */
 
 /*     void convertTo(Format f, Qt::ImageConversionFlags flags = Qt::AutoColor); */

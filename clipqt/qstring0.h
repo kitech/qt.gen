@@ -545,6 +545,101 @@ public:
 
 class xQRect : public QRect {
 public:
+//      QRect() noexcept : x1(0), y1(0), x2(-1), y2(-1) {}
+//      QRect(const QPoint &topleft, const QPoint &bottomright) noexcept;
+//      QRect(const QPoint &topleft, const QSize &size) noexcept;
+//      QRect(int left, int top, int width, int height) noexcept;
+
+     inline bool isNull() const noexcept;
+     inline bool isEmpty() const noexcept;
+     inline bool isValid() const noexcept;
+
+     inline int left() const noexcept;
+     inline int top() const noexcept;
+     inline int right() const noexcept;
+     inline int bottom() const noexcept;
+//      QRect normalized() const noexcept;
+
+     inline int x() const noexcept;
+     inline int y() const noexcept;
+//     inline void setLeft(int pos) noexcept;
+//     inline void setTop(int pos) noexcept;
+//     inline void setRight(int pos) noexcept;
+//     inline void setBottom(int pos) noexcept;
+    inline void setX(int x) noexcept;
+    inline void setY(int y) noexcept;
+
+//     inline void setTopLeft(const QPoint &p) noexcept;
+//     inline void setBottomRight(const QPoint &p) noexcept;
+//     inline void setTopRight(const QPoint &p) noexcept;
+//     inline void setBottomLeft(const QPoint &p) noexcept;
+
+//      inline QPoint topLeft() const noexcept;
+//      inline QPoint bottomRight() const noexcept;
+//      inline QPoint topRight() const noexcept;
+//      inline QPoint bottomLeft() const noexcept;
+//      inline QPoint center() const noexcept;
+
+//     inline void moveLeft(int pos) noexcept;
+//     inline void moveTop(int pos) noexcept;
+//     inline void moveRight(int pos) noexcept;
+//     inline void moveBottom(int pos) noexcept;
+//     inline void moveTopLeft(const QPoint &p) noexcept;
+//     inline void moveBottomRight(const QPoint &p) noexcept;
+//     inline void moveTopRight(const QPoint &p) noexcept;
+//     inline void moveBottomLeft(const QPoint &p) noexcept;
+//     inline void moveCenter(const QPoint &p) noexcept;
+
+//     inline void translate(int dx, int dy) noexcept;
+//     inline void translate(const QPoint &p) noexcept;
+//      inline QRect translated(int dx, int dy) const noexcept;
+//      inline QRect translated(const QPoint &p) const noexcept;
+//      inline QRect transposed() const noexcept;
+
+//     inline void moveTo(int x, int t) noexcept;
+//     inline void moveTo(const QPoint &p) noexcept;
+
+//     inline void setRect(int x, int y, int w, int h) noexcept;
+//     inline void getRect(int *x, int *y, int *w, int *h) const;
+
+//     inline void setCoords(int x1, int y1, int x2, int y2) noexcept;
+//     inline void getCoords(int *x1, int *y1, int *x2, int *y2) const;
+
+//     inline void adjust(int x1, int y1, int x2, int y2) noexcept;
+//     inline QRect adjusted(int x1, int y1, int x2, int y2) const noexcept;
+
+//      inline QSize size() const noexcept;
+//      inline int width() const noexcept;
+//      inline int height() const noexcept;
+    inline void setWidth(int w) noexcept;
+    inline void setHeight(int h) noexcept;
+//     inline void setSize(const QSize &s) noexcept;
+
+//     QRect operator|(const QRect &r) const noexcept;
+//     QRect operator&(const QRect &r) const noexcept;
+//     inline QRect& operator|=(const QRect &r) noexcept;
+//     inline QRect& operator&=(const QRect &r) noexcept;
+
+//     bool contains(const QRect &r, bool proper = false) const noexcept;
+//     bool contains(const QPoint &p, bool proper=false) const noexcept;
+//     inline bool contains(int x, int y) const noexcept;
+//     inline bool contains(int x, int y, bool proper) const noexcept;
+//      inline QRect united(const QRect &other) const noexcept;
+//      inline QRect intersected(const QRect &other) const noexcept;
+//     bool intersects(const QRect &r) const noexcept;
+
+//      inline QRect marginsAdded(const QMargins &margins) const noexcept;
+//      inline QRect marginsRemoved(const QMargins &margins) const noexcept;
+//     inline QRect &operator+=(const QMargins &margins) noexcept;
+//     inline QRect &operator-=(const QMargins &margins) noexcept;
+
+//     friend  inline bool operator==(const QRect &, const QRect &) noexcept;
+//     friend  inline bool operator!=(const QRect &, const QRect &) noexcept;
+
+// #if defined(Q_OS_DARWIN) || defined(Q_QDOC)
+//      CGRect toCGRect() const noexcept;
+// #endif
+
 };
 
 class xQRectF : public QRectF {
