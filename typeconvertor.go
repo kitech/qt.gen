@@ -1170,9 +1170,9 @@ func (this *TypeConvertV) toDest(ty clang.Type, cursor clang.Cursor) string {
 	case clang.Type_SChar:
 		return "byte"
 	case clang.Type_Long:
-		return "int"
+		return "i64"
 	case clang.Type_ULong:
-		return "int"
+		return "u64"
 	case clang.Type_Typedef:
 		if TypeIsQFlags(ty) {
 			return "int"

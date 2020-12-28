@@ -22,7 +22,8 @@ type GenerateV struct {
 	mangler  GenMangler
 	tyconver TypeConvertor
 
-	maxClassSize int64 // 暂存一下类的大小的最大值
+	maxClassSize int64        // 暂存一下类的大小的最大值
+	xclass       clang.Cursor // 当前正在处理的类对应的xclass
 
 	cp          *CodePager
 	cpnomin     *CodePager
@@ -71,8 +72,18 @@ func (this *GenerateV) genClass(cursor, parent clang.Cursor) {
 		log.Printf("%s:%d:%d @%s\n", file.Name(), line, col, file.Time().String())
 	}
 
+	clsname := cursor.Spelling()
+	xclsname := "x" + clsname
+	if xcursor, ok := keepClasses[xclsname]; ok {
+		this.xclass = xcursor
+	} else {
+		log.Println("no xcls found, white list not match", clsname)
+		return
+	}
+
 	this.genFileHeader(cursor, parent)
 	this.walkClass(cursor, parent)
+	this.filterClipqt()
 	// this.genExterns(cursor, parent)
 	this.genImports(cursor, parent)
 	this.genProtectedCallbacks(cursor, parent)
@@ -253,6 +264,90 @@ func (this *GenerateV) walkClass(cursor, parent clang.Cursor) {
 	this.enums = enums
 }
 
+// 从xclass中查找是否有对应的方法
+func (this *GenerateV) filterClipqt() {
+	newmths := []clang.Cursor{}
+	xmths := []clang.Cursor{}
+
+	this.xclass.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
+		switch cursor.Kind() {
+		case clang.Cursor_Constructor:
+			fallthrough
+		case clang.Cursor_Destructor:
+			fallthrough
+		case clang.Cursor_CXXMethod:
+			if !this.filter.skipMethod(cursor, parent) {
+				xmths = append(xmths, cursor)
+			} else {
+				log.Println("filtered:", cursor.DisplayName(), parent.Spelling())
+			}
+		case clang.Cursor_UnexposedDecl:
+			// log.Println(cursor.Spelling(), cursor.Kind().String(), cursor.DisplayName())
+			file, line, col, _ := cursor.Location().FileLocation()
+			if false {
+				log.Println(file.Name(), line, col, file.Time())
+			}
+		case clang.Cursor_EnumDecl:
+		default:
+			if false {
+				log.Println(cursor.Spelling(), cursor.Kind().String(), cursor.DisplayName())
+			}
+		}
+		return clang.ChildVisit_Continue
+	})
+
+	for i := 0; i < len(this.methods); i++ {
+		for j := 0; j < len(xmths); j++ {
+			matched := this.protoMatch(this.methods[i], xmths[j])
+			if matched {
+				newmths = append(newmths, this.methods[i])
+				break
+			}
+		}
+	}
+	log.Println(this.xclass.Spelling(), len(this.methods), "=>", len(newmths))
+	if len(newmths) != len(this.methods) {
+		this.methods = newmths
+	}
+}
+
+// FunctionDecl/CXXMethodDecl
+func (this *GenerateV) protoMatch(c1, cx clang.Cursor) bool {
+	c2 := cx
+
+	mgname1 := this.mangler.origin(c1)
+	mgname2 := this.mangler.origin(c2)
+	log.Println(c1.Spelling(), mgname1, mgname2)
+
+	rety1 := c1.ResultType()
+	rety2 := c2.ResultType()
+	argc1 := c1.NumArguments()
+	argc2 := c2.NumArguments()
+	if (c1.Spelling() == c2.Spelling() || "x"+c1.Spelling() == c2.Spelling()) &&
+		rety1.Equal(rety2) && argc1 == argc2 {
+		matched := true
+		for i := 0; i < int(argc1); i++ {
+			arg1 := c1.Argument(uint32(i))
+			arg2 := c2.Argument(uint32(i))
+			aty1 := arg1.Type()
+			aty2 := arg2.Type()
+			if !aty1.Equal(aty2) {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			isconst1 := c1.CXXMethod_IsConst()
+			isconst2 := c2.CXXMethod_IsConst()
+			if isconst1 == isconst2 {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 func (this *GenerateV) genExterns(cursor, parent clang.Cursor) {
 	for idx, cursor := range this.methods {
 		parent := cursor.SemanticParent()
@@ -306,7 +401,7 @@ func (this *GenerateV) genImportsWithcp(cp *CodePager, cursor, parent clang.Curs
 	cp.APf("keep", "  // if false {reflect.keepme()}")
 	cp.APf("keep", "  // if false {reflect.TypeOf(123)}")
 	cp.APf("keep", "  // if false {reflect.TypeOf(vsafe.sizeof(0))}")
-	cp.APf("keep", "  if false {fmt.println(123)}")
+	cp.APf("keep", "  // if false {fmt.println(123)}")
 	cp.APf("keep", "  if false {/*log.println(123)*/}")
 	cp.APf("keep", "  if false {qtrt.keepme()}")
 	for _, dep := range modDeps[modname] {
@@ -326,12 +421,14 @@ func (this *GenerateV) genClassDef(cursor, parent clang.Cursor) {
 	this.cp.APf("body", "pub struct %s {", cursor.Spelling())
 	if len(bcs) == 0 {
 		this.cp.APf("body", "    // mut: CObject &qtrt.CObject")
-		this.cp.APf("body", "    pub mut: cthis voidptr")
+		this.cp.APf("body", "    pub mut: qtrt.CObject")
+		// this.cp.APf("body", "    pub mut: cthis voidptr")
 	} else {
-		this.cp.APf("body", "    pub mut: cthis voidptr")
+		// this.cp.APf("body", "    pub mut: cthis voidptr")
+		this.cp.APf("body", "pub mut:")
 		for _, bc := range bcs {
-			this.cp.APf("body", "//    %s%s", calc_package_prefix(cursor, bc), bc.Type().Spelling())
-			// break
+			this.cp.APf("body", "  %s%s", calc_package_prefix(cursor, bc), bc.Type().Spelling())
+			//break
 		}
 	}
 	this.cp.APf("body", "}\n")
@@ -343,13 +440,13 @@ func (this *GenerateV) genClassDef(cursor, parent clang.Cursor) {
 		// break
 	}
 	this.cp.APf("body", "    get_cthis() voidptr")
-	this.cp.APf("body", "    %s_ptr() %s", cursor.Spelling(), cursor.Spelling())
+	this.cp.APf("body", "    to%s() %s", cursor.Spelling(), cursor.Spelling())
 	this.cp.APf("body", "}")
 	this.cp.APf("body", "fn hotfix_%s_itf_name_table(this %sITF) {", cursor.Spelling(), cursor.Spelling())
 	this.cp.APf("body", "  that := %s{}", cursor.Spelling())
 	this.cp.APf("body", "  hotfix_%s_itf_name_table(that)", cursor.Spelling())
 	this.cp.APf("body", "}")
-	this.cp.APf("body", "pub fn (ptr %s) %s_ptr() %s { return ptr }",
+	this.cp.APf("body", "pub fn (ptr %s) to%s() %s { return ptr }",
 		cursor.Spelling(), cursor.Spelling(), cursor.Spelling())
 	this.cp.APf("body", "")
 
@@ -754,14 +851,14 @@ func (this *GenerateV) genCtor(cursor, parent clang.Cursor, midx int) {
 	cp.APf("body", "    // rv, err := qtrt.invoke_qtfunc6(\"%s\", qtrt.ffity_pointer, %s)",
 		this.mangler.origin(cursor), paramStr)
 	cp.APf("body", "    // qtrt.errprint(err, rv)")
-	cp.APf("body", "    // gothis := new%sFromptr(voidptr(rv))", parent.Spelling())
+	cp.APf("body", "    vthis := new%sFromptr(voidptr(rv))", parent.Spelling())
 	if !has_qobject_base_class(parent) {
 		cp.APf("body", "    // qtrt.set_finalizer(gothis, delete_%s)", parent.Spelling())
 	} else {
 		cp.APf("body", "    // qtrt.connect_destroyed(gothis, \"%s\")", parent.DisplayName())
 	}
-	cp.APf("body", "    // return gothis")
-	cp.APf("body", "  return %s{rv}", parent.DisplayName())
+	cp.APf("body", "  return vthis")
+	cp.APf("body", "  //return %s{rv}", parent.DisplayName())
 
 	this.genMethodFooterFFI(cursor, parent, midx)
 }
@@ -799,14 +896,14 @@ func (this *GenerateV) genCtorDv(cursor, parent clang.Cursor, midx int, dvidx in
 	cp.APf("body", "    // rv, err := qtrt.invoke_qtfunc6(\"%s\", qtrt.ffity_pointer, %s)",
 		this.mangler.origin(cursor), paramStr)
 	cp.APf("body", "    // qtrt.errprint(err, rv)")
-	cp.APf("body", "    //gothis := new%sFromptr(voidptr(rv))", parent.Spelling())
+	cp.APf("body", "    vthis := new%sFromptr(voidptr(rv))", parent.Spelling())
 	if !has_qobject_base_class(parent) {
 		cp.APf("body", "    // qtrt.set_finalizer(gothis, delete_%s)", parent.Spelling())
 	} else {
 		cp.APf("body", "    // qtrt.connect_destroyed(gothis, \"%s\")", parent.DisplayName())
 	}
-	cp.APf("body", "    //return gothis")
-	cp.APf("body", "    return %s{rv}", parent.Spelling())
+	cp.APf("body", "    return vthis")
+	cp.APf("body", "    //return %s{rv}", parent.Spelling())
 
 	this.genMethodFooterFFI(cursor, parent, midx)
 }
@@ -821,19 +918,19 @@ func (this *GenerateV) genCtorFromPointer(cursor, parent clang.Cursor, midx int)
 	this.cp.APf("body", "pub fn new%sFromptr(cthis voidptr) %s {",
 		cursor.Spelling(), cursor.Spelling())
 	if len(bcs) == 0 {
-		this.cp.APf("body", "    //return %s{qtrt.CObject{cthis}}", cursor.Spelling())
+		//this.cp.APf("body", "    //return %s{qtrt.CObject{cthis}}", cursor.Spelling())
 		this.cp.APf("body", "    return %s{cthis}", cursor.Spelling())
 	} else {
 		bcobjs := []string{}
 		for i, bc := range bcs {
 			pkgSuff := calc_package_prefix(cursor, bc)
-			this.cp.APf("body", "    // bcthis%d := %snew%sFromptr(cthis)", i, pkgSuff, bc.Spelling())
+			this.cp.APf("body", "    bcthis%d := %snew%sFromptr(cthis)", i, pkgSuff, bc.Spelling())
 			bcobjs = append(bcobjs, fmt.Sprintf("bcthis%d", i))
 			// break // TODO multiple base classes
 		}
 		bcobjArgs := strings.Join(bcobjs, ", ")
-		this.cp.APf("body", "    // return %s{%s}", parent.Spelling(), bcobjArgs)
-		this.cp.APf("body", "    return %s{cthis}", parent.Spelling())
+		this.cp.APf("body", "    return %s{%s}", parent.Spelling(), bcobjArgs)
+		//this.cp.APf("body", "    //return %s{cthis}", parent.Spelling())
 	}
 	this.cp.APf("body", "}")
 }
@@ -856,16 +953,25 @@ func (this *GenerateV) genGetCthis(cursor, parent clang.Cursor, midx int) {
 	bcs := find_base_classes(parent)
 	bcs = this.filter_base_classes(bcs)
 
+	/*
+		if len(bcs) < 2 {
+			this.cp.APf("body", "  // ignore GetCthis for %d base", len(bcs))
+			return // just inherit from parent
+		}
+	*/
+
 	this.cp.APf("body", "pub fn (this %s) get_cthis() voidptr {", parent.Spelling())
 	if len(bcs) == 0 {
-		this.cp.APf("body", "    // if this == nil{ return nil } else { return this.Cthis }")
+		//this.cp.APf("body", "    // if this == nil{ return nil } else { return this.cthis }")
+		this.cp.APf("body", "    return this.CObject.get_cthis()")
 	} else {
 		for _, bc := range bcs {
-			this.cp.APf("body", "    // if this == nil {return nil} else {return this.%s.get_cthis() }", bc.Spelling())
+			//this.cp.APf("body", "    // if this == nil {return nil} else {return this.%s.get_cthis() }", bc.Spelling())
+			this.cp.APf("body", "    return this.%s.get_cthis()", bc.Spelling())
 			break
 		}
 	}
-	this.cp.APf("body", "  return this.cthis")
+	// this.cp.APf("body", "  return this.cthis")
 	// this.cp.APf("body", "  return voidptr(0)")
 	this.cp.APf("body", "}")
 }
@@ -878,6 +984,11 @@ func (this *GenerateV) genSetCthis(cursor, parent clang.Cursor, midx int) {
 	}
 	bcs := find_base_classes(parent)
 	bcs = this.filter_base_classes(bcs)
+
+	if len(bcs) < 2 {
+		this.cp.APf("body", "  // ignore GetCthis for %d base", len(bcs))
+		return // just inherit from parent
+	}
 
 	this.cp.APf("body", "pub fn (this %s) set_cthis(cthis voidptr) {", parent.Spelling())
 	if len(bcs) == 0 {
@@ -903,9 +1014,9 @@ func (this *GenerateV) genDtor(cursor, parent clang.Cursor, midx int) {
 
 	cp.APf("body", "    mut fnobj := qtrt.TCppDtor(0)")
 	cp.APf("body", "    fnobj = qtrt.sym_qtfunc6(\"%s\")", this.mangler.origin(cursor))
-	cp.APf("body", "    fnobj(this.cthis)")
+	cp.APf("body", "    fnobj(this.get_cthis())")
 	cp.APf("body", "    mut that := this")
-	cp.APf("body", "    that.cthis = voidptr(0)")
+	cp.APf("body", "    //that.cthis = voidptr(0)")
 
 	cp.APf("body", "    // rv, err := qtrt.invoke_qtfunc6(\"%s\", qtrt.ffity_void, this.get_cthis())",
 		this.mangler.origin(cursor))
@@ -914,7 +1025,7 @@ func (this *GenerateV) genDtor(cursor, parent clang.Cursor, midx int) {
 	cp.APf("body", "    // this.set_cthis(voidptr(0))")
 
 	this.genMethodFooterFFI(cursor, parent, midx)
-	this.cp.APf("body", "pub fn (this %s) freec() { delete%s(this) }\n",
+	this.cp.APf("body", "pub fn (this %s) freec() { /*delete%s(this)*/ }\n",
 		cursor.Spelling()[1:], cursor.Spelling()[1:])
 }
 
@@ -929,22 +1040,22 @@ func (this *GenerateV) genDtorNoCode(cursor, parent clang.Cursor, midx int) {
 	cp.APf("body", "pub fn delete%s(this %s) {", cursor.Spelling(), cursor.Spelling())
 	cp.APf("body", "    mut fnobj := qtrt.TCppDtor(0)")
 	cp.APf("body", "    fnobj = qtrt.sym_qtfunc6(\"%s\")", symbol)
-	cp.APf("body", "    fnobj(this.cthis)")
+	cp.APf("body", "    fnobj(this.get_cthis())")
 	cp.APf("body", "    mut that := this")
-	cp.APf("body", "    that.cthis = voidptr(0)")
+	cp.APf("body", "    //that.cthis = voidptr(0)")
 
 	cp.APf("body", "    // rv, err := qtrt.invoke_qtfunc6(\"%s\", qtrt.FFI_TYPE_VOID, this.get_cthis())", symbol)
 	cp.APf("body", "    // qtrt.errprint(err, rv)")
 	cp.APf("body", "    // this.set_cthis(voidptr(0))")
 
 	this.genMethodFooterFFI(cursor, parent, midx)
-	this.cp.APf("body", "pub fn (this %s) freec() { delete%s(this) }\n",
+	this.cp.APf("body", "pub fn (this %s) freec() { /*delete%s(this)*/ }\n",
 		cursor.Spelling(), cursor.Spelling())
 }
 
 func (this *GenerateV) genNonStaticMethod(cursor, parent clang.Cursor, midx int) {
 	this.genParamsFFI(cursor, parent)
-	this.paramDesc = append([]string{"this.cthis"}, this.paramDesc...)
+	this.paramDesc = append([]string{"this.get_cthis()"}, this.paramDesc...)
 	paramStr := strings.Join(this.paramDesc, ", ")
 	_ = paramStr
 
@@ -1007,7 +1118,7 @@ func (this *GenerateV) genNonStaticMethodDvs(cursor, parent clang.Cursor, midx i
 // dvidx keep default argument num
 func (this *GenerateV) genNonStaticMethodDv(cursor, parent clang.Cursor, midx int, dvidx int) {
 	this.genParamsFFI(cursor, parent)
-	this.paramDesc = append([]string{"this.cthis"}, this.paramDesc...)
+	this.paramDesc = append([]string{"this.get_cthis()"}, this.paramDesc...)
 	paramStr := strings.Join(this.paramDesc, ", ")
 	_ = paramStr
 
@@ -1121,6 +1232,11 @@ func (this *GenerateV) genStaticMethodNoThis(cursor, parent clang.Cursor, midx i
 	this.genParams(cursor, parent)
 	paramStr := strings.Join(this.paramDesc, ", ")
 	_ = paramStr
+
+	// TODO need v interface var forward
+	if true {
+		return
+	}
 
 	// this.genMethodHeaderLongName(cursor, parent, midx)
 	this.genMethodSignatureNoThis(cursor, parent, midx)
@@ -1666,11 +1782,11 @@ func (this *GenerateV) genRetFFI(cursor, parent clang.Cursor, midx int) {
 			cp.APf("body", "    return \"\"")
 		} else if is_qt_class(rety) {
 			barety := get_bare_type(rety)
-			cp.APf("body", "    //rv2 := %snew%sfromptr(voidptr(rv)) // 333",
+			cp.APf("body", "    rv2 := %snew%sFromptr(voidptr(rv)) // 333",
 				pkgPrefix, barety.Spelling())
 			cp.APf("body", "    // qtrt.set_finalizer(rv2, %sdelete%s)", pkgPrefix, barety.Spelling())
-			cp.APf("body", "    //return rv2")
-			cp.APf("body", "    return %s%s{rv}", pkgPrefix, barety.Spelling())
+			cp.APf("body", "    return rv2")
+			cp.APf("body", "    //return %s%s{rv}", pkgPrefix, barety.Spelling())
 		} else {
 			cp.APf("body", "    return voidptr(rv)")
 		}
@@ -1848,25 +1964,26 @@ func (this *GenerateV) genClassEnums(cursor, parent clang.Cursor) {
 			this.cp.APf("body", "  // return qtrt.get_class_enum_item_name(this, val)")
 			this.cp.APf("body", "  return \"\"")
 		} else {
-			this.cp.APf("body", "  match val {")
+			// this.cp.APf("body", "  match val {")
 			enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
 				switch c1.Kind() {
 				case clang.Cursor_EnumConstantDecl:
 					eival := c1.EnumConstantDeclValue()
 					_, keyok := revalmap[eival]
 					commentit := gopp.IfElseStr(keyok, "", "//")
-					this.cp.APf("body", "    %s %s__%s {// %d",
+					this.cp.APf("body", "    %s if val == %s__%s {// %d",
 						commentit, cursor.DisplayName(), c1.DisplayName(), eival)
 					this.cp.APf("body", "    %s return \"%s\"", commentit, strings.Join(revalmap[eival], ","))
 					this.cp.APf("body", "    %s }", commentit)
+					this.cp.APf("body", "    %s else ", commentit)
 					if keyok {
 						delete(revalmap, eival)
 					}
 				}
 				return clang.ChildVisit_Continue
 			})
-			this.cp.APf("body", "  else {return fmt.sprintf(\"%%d\", val)}")
-			this.cp.APf("body", "}")
+			this.cp.APf("body", "  {return fmt.sprintf(\"%%d\", val)}")
+			//this.cp.APf("body", "}")
 		}
 		this.cp.APf("body", "}")
 		this.cp.APf("body", "pub fn %s%sItemName(val int) string {",
@@ -1937,24 +2054,25 @@ func (this *GenerateV) genEnumsGlobal(cursor, parent clang.Cursor) {
 		})
 
 		this.cp.APf("body", "pub fn %sItemName(val int) string {", enum.DisplayName())
-		this.cp.APf("body", "  match val {")
+		// this.cp.APf("body", "  match val {")
 		enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
 			switch c1.Kind() {
 			case clang.Cursor_EnumConstantDecl:
 				eival := c1.EnumConstantDeclValue()
 				_, keyok := revalmap[eival]
 				commentit := gopp.IfElseStr(keyok, "", "//")
-				this.cp.APf("body", "    %s %s__%s { // %d", commentit, "qt", c1.DisplayName(), eival)
+				this.cp.APf("body", "    %s if val == %s__%s { // %d", commentit, "qt", c1.DisplayName(), eival)
 				this.cp.APf("body", "    %s return \"%s\"", commentit, strings.Join(revalmap[eival], ","))
 				this.cp.APf("body", "    %s }", commentit)
+				this.cp.APf("body", "    %s else ", commentit)
 				if keyok {
 					delete(revalmap, eival)
 				}
 			}
 			return clang.ChildVisit_Continue
 		})
-		this.cp.APf("body", "  else { return fmt.sprintf(\"%%d\", val)}")
-		this.cp.APf("body", "}")
+		this.cp.APf("body", "  { return fmt.sprintf(\"%%d\", val)}")
+		//this.cp.APf("body", "}")
 		this.cp.APf("body", "}")
 		this.cp.APf("body", "")
 
