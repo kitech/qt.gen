@@ -26,6 +26,7 @@
 * 类对应的interface名称为 toQClass(), 在go里是 QClass\_PTR()
   这样就能够在interface实现不完全的时候依旧能用
 * 类对应的interface包含的方法集合，getCthis(),
+* vlang 无法优雅的处理 typed integer 常量，占用编译的程序大小，占用CPU处理。不要用typed integer类型
 
 ### ch 封装生成时的考虑
 * 类名 typedef void* QObject;
