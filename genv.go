@@ -576,18 +576,21 @@ func (this *GenerateV) genMethodFuncType(cursor, parent clang.Cursor, midx int) 
 	argStr := strings.Join(this.argDesc, ", ")
 	retstr := getTyDesc(cursor.ResultType(), AsVReturn, cursor)
 	if cursor.Kind() == clang.Cursor_Constructor {
-		retstr = "voidptr"
+		retstr = ""
+		this.argDesc = append([]string{"cthis voidptr"}, this.argDesc...)
+		argStr = strings.Join(this.argDesc, ", ")
 	}
 	var cp = this.getpropercp(cursor)
-	cp.APf("body", "type T%s = fn(%s) %s", this.mangler.origin(cursor), argStr, retstr)
 	// 方法原型重写，如返回RECORD，或者结构体
-	rety := cursor.ResultType()
-	if rety.Kind() != clang.Type_Void && rety.Kind() == clang.Type_Record {
+	// rety := cursor.ResultType()
+	// log.Println(cursor.Spelling(), cursor.DisplayName(), cursor.Kind(), cursor.Language(), rety.Spelling(), rety.Kind())
+	besret := MethodHasStructRet(cursor)
+	if besret {
 		// TODO x86, for x64 is more complex
-		this.argDesc = append([]string{"sret voidptr"}, this.argDesc...)
+		this.argDesc = append([]string{"sretobj voidptr"}, this.argDesc...)
 		argStr = strings.Join(this.argDesc, ", ")
-		cp.APf("body", "//type TC%s = fn(%s)", this.mangler.origin(cursor), argStr)
 	}
+	cp.APf("body", "type T%s = fn(%s) %s", this.mangler.origin(cursor), argStr, retstr)
 }
 func (this *GenerateV) genMethodHeader(cursor, parent clang.Cursor, midx int, isdv bool) {
 	file, lineno, _, _ := cursor.Location().FileLocation()
@@ -842,15 +845,16 @@ func (this *GenerateV) genCtor(cursor, parent clang.Cursor, midx int) {
 	if parent.Type().SizeOf() > this.maxClassSize {
 		this.maxClassSize = parent.Type().SizeOf()
 	}
-	// this.cp.APf("body", "    cthis := qtrt.Calloc(1, 256) // %d", parent.Type().SizeOf())
+
 	this.genArgsConvFFI(cursor, parent, midx)
 	cp.APf("body", "    mut fnobj := T%s(0)", this.mangler.origin(cursor))
 	cp.APf("body", "    fnobj = qtrt.sym_qtfunc6(\"%s\")", this.mangler.origin(cursor))
-	cp.APf("body", "    rv := fnobj(%s)", paramStr)
+	cp.APf("body", "    mut cthis := qtrt.cmalloc(%d)", parent.Type().SizeOf())
+	this.paramDesc = append([]string{"cthis"}, this.paramDesc...)
+	paramStr = strings.Join(this.paramDesc, ", ")
+	cp.APf("body", "    fnobj(%s)", paramStr)
+	cp.APf("body", "    rv := cthis")
 
-	cp.APf("body", "    // rv, err := qtrt.invoke_qtfunc6(\"%s\", qtrt.ffity_pointer, %s)",
-		this.mangler.origin(cursor), paramStr)
-	cp.APf("body", "    // qtrt.errprint(err, rv)")
 	cp.APf("body", "    vthis := new%sFromptr(voidptr(rv))", parent.Spelling())
 	if !has_qobject_base_class(parent) {
 		cp.APf("body", "    // qtrt.set_finalizer(gothis, delete_%s)", parent.Spelling())
@@ -858,7 +862,6 @@ func (this *GenerateV) genCtor(cursor, parent clang.Cursor, midx int) {
 		cp.APf("body", "    // qtrt.connect_destroyed(gothis, \"%s\")", parent.DisplayName())
 	}
 	cp.APf("body", "  return vthis")
-	cp.APf("body", "  //return %s{rv}", parent.DisplayName())
 
 	this.genMethodFooterFFI(cursor, parent, midx)
 }
@@ -887,15 +890,16 @@ func (this *GenerateV) genCtorDv(cursor, parent clang.Cursor, midx int, dvidx in
 	if parent.Type().SizeOf() > this.maxClassSize {
 		this.maxClassSize = parent.Type().SizeOf()
 	}
-	// this.cp.APf("body", "    cthis := qtrt.Calloc(1, 256) // %d", parent.Type().SizeOf())
+
 	this.genArgsConvFFIDv(cursor, parent, midx, dvidx)
 	cp.APf("body", "    mut fnobj := T%s(0)", this.mangler.origin(cursor))
 	cp.APf("body", "    fnobj = qtrt.sym_qtfunc6(\"%s\")", this.mangler.origin(cursor))
-	cp.APf("body", "    rv := fnobj(%s)", paramStr)
+	cp.APf("body", "    mut cthis := qtrt.cmalloc(%d)", parent.Type().SizeOf())
+	this.paramDesc = append([]string{"cthis"}, this.paramDesc...)
+	paramStr = strings.Join(this.paramDesc, ", ")
+	cp.APf("body", "    fnobj(%s)", paramStr)
+	cp.APf("body", "    rv := cthis")
 
-	cp.APf("body", "    // rv, err := qtrt.invoke_qtfunc6(\"%s\", qtrt.ffity_pointer, %s)",
-		this.mangler.origin(cursor), paramStr)
-	cp.APf("body", "    // qtrt.errprint(err, rv)")
 	cp.APf("body", "    vthis := new%sFromptr(voidptr(rv))", parent.Spelling())
 	if !has_qobject_base_class(parent) {
 		cp.APf("body", "    // qtrt.set_finalizer(gothis, delete_%s)", parent.Spelling())
@@ -903,7 +907,6 @@ func (this *GenerateV) genCtorDv(cursor, parent clang.Cursor, midx int, dvidx in
 		cp.APf("body", "    // qtrt.connect_destroyed(gothis, \"%s\")", parent.DisplayName())
 	}
 	cp.APf("body", "    return vthis")
-	cp.APf("body", "    //return %s{rv}", parent.Spelling())
 
 	this.genMethodFooterFFI(cursor, parent, midx)
 }
@@ -1018,12 +1021,6 @@ func (this *GenerateV) genDtor(cursor, parent clang.Cursor, midx int) {
 	cp.APf("body", "    mut that := this")
 	cp.APf("body", "    //that.cthis = voidptr(0)")
 
-	cp.APf("body", "    // rv, err := qtrt.invoke_qtfunc6(\"%s\", qtrt.ffity_void, this.get_cthis())",
-		this.mangler.origin(cursor))
-	cp.APf("body", "    // qtrt.cmemset(this.get_cthis(), 9, %d)", parent.Type().SizeOf())
-	cp.APf("body", "    // qtrt.errprint(err, rv)")
-	cp.APf("body", "    // this.set_cthis(voidptr(0))")
-
 	this.genMethodFooterFFI(cursor, parent, midx)
 	this.cp.APf("body", "pub fn (this %s) freec() { /*delete%s(this)*/ }\n",
 		cursor.Spelling()[1:], cursor.Spelling()[1:])
@@ -1043,10 +1040,6 @@ func (this *GenerateV) genDtorNoCode(cursor, parent clang.Cursor, midx int) {
 	cp.APf("body", "    fnobj(this.get_cthis())")
 	cp.APf("body", "    mut that := this")
 	cp.APf("body", "    //that.cthis = voidptr(0)")
-
-	cp.APf("body", "    // rv, err := qtrt.invoke_qtfunc6(\"%s\", qtrt.FFI_TYPE_VOID, this.get_cthis())", symbol)
-	cp.APf("body", "    // qtrt.errprint(err, rv)")
-	cp.APf("body", "    // this.set_cthis(voidptr(0))")
 
 	this.genMethodFooterFFI(cursor, parent, midx)
 	this.cp.APf("body", "pub fn (this %s) freec() { /*delete%s(this)*/ }\n",
@@ -1070,36 +1063,26 @@ func (this *GenerateV) genNonStaticMethod(cursor, parent clang.Cursor, midx int)
 	this.genArgsConvFFI(cursor, parent, midx)
 
 	retype := cursor.ResultType() // move like sementic, compiler auto behaiver
-	mvexpr := ""                  // move expr
-	if retype.Kind() == clang.Type_Record {
-		// this.cp.APf("body", "    mv := qtrt.Calloc(1, 256)")
-		// mvexpr = ", mv"
-	}
+	besret := MethodHasStructRet(cursor)
 
 	cp.APf("body", "    mut fnobj := T%s(0)", this.mangler.origin(cursor))
 	cp.APf("body", "    fnobj = qtrt.sym_qtfunc6(\"%s\")", this.mangler.origin(cursor))
 	if retype.Kind() != clang.Type_Void {
-		cp.APf("body", "    rv :=")
+		if besret {
+			cp.APf("body", "    mut sretobj := qtrt.cmalloc(%d)", retype.SizeOf())
+			this.paramDesc = append([]string{"sretobj"}, this.paramDesc...)
+			paramStr = strings.Join(this.paramDesc, ", ")
+		} else {
+			cp.APf("body", "    rv :=")
+		}
 	}
 	cp.APf("body", "    fnobj(%s)", paramStr)
+	if retype.Kind() != clang.Type_Void {
+		if besret {
+			cp.APf("body", "    rv := sretobj")
+		}
+	}
 
-	ffirety := "qtrt.ffity_pointer"
-	if retype.CanonicalType().Kind() == clang.Type_Float ||
-		retype.CanonicalType().Kind() == clang.Type_Double {
-		ffirety = "qtrt.FFI_TYPE_DOUBLE"
-	}
-	if retype.Kind() == clang.Type_Record &&
-		(retype.Spelling() == "QSize" || retype.Spelling() == "QSizeF") {
-		cp.APf("body", "    // rv, err := qtrt.invoke_qtfunc6(\"%s\", %s %s, this.get_cthis(), %s)",
-			this.mangler.origin(cursor), ffirety, mvexpr, paramStr)
-	} else {
-		cp.APf("body", "    // rv, err := qtrt.invoke_qtfunc6(\"%s\", %s %s, this.get_cthis(), %s)",
-			this.mangler.origin(cursor), ffirety, mvexpr, paramStr)
-	}
-	cp.APf("body", "    // qtrt.errprint(err, rv)")
-	if retype.Kind() == clang.Type_Record {
-		// this.cp.APf("body", "   rv = uint64(uintptr(mv))")
-	}
 	this.genRetFFI(cursor, parent, midx)
 	this.genMethodFooterFFI(cursor, parent, midx)
 }
@@ -1129,36 +1112,26 @@ func (this *GenerateV) genNonStaticMethodDv(cursor, parent clang.Cursor, midx in
 	var cp = this.getpropercp(cursor)
 
 	retype := cursor.ResultType() // move like sementic, compiler auto behaiver
-	mvexpr := ""                  // move expr
-	if retype.Kind() == clang.Type_Record {
-		// this.cp.APf("body", "    mv := qtrt.Calloc(1, 256)")
-		// mvexpr = ", mv"
-	}
+	besret := MethodHasStructRet(cursor)
 
 	cp.APf("body", "    mut fnobj := T%s(0)", this.mangler.origin(cursor))
 	cp.APf("body", "    fnobj = qtrt.sym_qtfunc6(\"%s\")", this.mangler.origin(cursor))
 	if retype.Kind() != clang.Type_Void {
-		cp.APf("body", "    rv :=")
+		if besret {
+			cp.APf("body", "    mut sretobj := qtrt.cmalloc(%d)", retype.SizeOf())
+			this.paramDesc = append([]string{"sretobj"}, this.paramDesc...)
+			paramStr = strings.Join(this.paramDesc, ", ")
+		} else {
+			cp.APf("body", "    rv :=")
+		}
 	}
 	cp.APf("body", "    fnobj(%s)", paramStr)
+	if retype.Kind() != clang.Type_Void {
+		if besret {
+			cp.APf("body", "    rv := sretobj")
+		}
+	}
 
-	ffirety := "qtrt.ffity_pointer"
-	if retype.CanonicalType().Kind() == clang.Type_Float ||
-		retype.CanonicalType().Kind() == clang.Type_Double {
-		ffirety = "qtrt.FFI_TYPE_DOUBLE"
-	}
-	if retype.Kind() == clang.Type_Record &&
-		(retype.Spelling() == "QSize" || retype.Spelling() == "QSizeF") {
-		cp.APf("body", "    // rv, err := qtrt.invoke_qtfunc6(\"%s\", %s %s, this.get_cthis(), %s)",
-			this.mangler.origin(cursor), ffirety, mvexpr, paramStr)
-	} else {
-		cp.APf("body", "    // rv, err := qtrt.invoke_qtfunc6(\"%s\", %s %s, this.get_cthis(), %s)",
-			this.mangler.origin(cursor), ffirety, mvexpr, paramStr)
-	}
-	cp.APf("body", "    // qtrt.errprint(err, rv)")
-	if retype.Kind() == clang.Type_Record {
-		// this.cp.APf("body", "   rv = uint64(uintptr(mv))")
-	}
 	this.genRetFFI(cursor, parent, midx)
 	this.genMethodFooterFFI(cursor, parent, midx)
 }
@@ -1180,14 +1153,23 @@ func (this *GenerateV) genStaticMethod(cursor, parent clang.Cursor, midx int) {
 	cp.APf("body", "    mut fnobj := T%s(0)", this.mangler.origin(cursor))
 	cp.APf("body", "    fnobj = qtrt.sym_qtfunc6(\"%s\")", this.mangler.origin(cursor))
 	retype := cursor.ResultType() // move like sementic, compiler auto behaiver
+	besret := MethodHasStructRet(cursor)
+
 	if retype.Kind() != clang.Type_Void {
-		cp.APf("body", "    rv :=")
+		if besret {
+			cp.APf("body", "    mut sretobj := qtrt.cmalloc(%d)", retype.SizeOf())
+			this.paramDesc = append([]string{"sretobj"}, this.paramDesc...)
+			paramStr = strings.Join(this.paramDesc, ", ")
+		} else {
+			cp.APf("body", "    rv :=")
+		}
 	}
 	cp.APf("body", "    fnobj(%s)", paramStr)
-
-	cp.APf("body", "    // rv, err := qtrt.invoke_qtfunc6(\"%s\", qtrt.ffity_pointer, %s)",
-		this.mangler.origin(cursor), paramStr)
-	cp.APf("body", "    // qtrt.errprint(err, rv)")
+	if retype.Kind() != clang.Type_Void {
+		if besret {
+			cp.APf("body", "    rv := sretobj")
+		}
+	}
 
 	this.genRetFFI(cursor, parent, midx)
 	this.genMethodFooterFFI(cursor, parent, midx)
@@ -1215,14 +1197,23 @@ func (this *GenerateV) genStaticMethodDv(cursor, parent clang.Cursor, midx int, 
 	cp.APf("body", "    mut fnobj := T%s(0)", this.mangler.origin(cursor))
 	cp.APf("body", "    fnobj = qtrt.sym_qtfunc6(\"%s\")", this.mangler.origin(cursor))
 	retype := cursor.ResultType() // move like sementic, compiler auto behaiver
+	besret := MethodHasStructRet(cursor)
+
 	if retype.Kind() != clang.Type_Void {
-		cp.APf("body", "    rv :=")
+		if besret {
+			cp.APf("body", "    mut sretobj := qtrt.cmalloc(%d)", retype.SizeOf())
+			this.paramDesc = append([]string{"sretobj"}, this.paramDesc...)
+			paramStr = strings.Join(this.paramDesc, ", ")
+		} else {
+			cp.APf("body", "    rv :=")
+		}
 	}
 	cp.APf("body", "    fnobj(%s)", paramStr)
-
-	cp.APf("body", "    // rv, err := qtrt.invoke_qtfunc6(\"%s\", qtrt.ffity_pointer, %s)",
-		this.mangler.origin(cursor), paramStr)
-	cp.APf("body", "    // qtrt.errprint(err, rv)")
+	if retype.Kind() != clang.Type_Void {
+		if besret {
+			cp.APf("body", "    rv := sretobj")
+		}
+	}
 
 	this.genRetFFI(cursor, parent, midx)
 	this.genMethodFooterFFI(cursor, parent, midx)
@@ -1481,7 +1472,7 @@ func (this *GenerateV) genArgConvFFI(cursor, parent clang.Cursor, midx, aidx int
 	} else if TypeIsCharPtr(argty) {
 		cp.APf("body", "    mut conv_arg%d := qtrt.cstring(%s)", aidx,
 			this.genParamRefName(cursor, parent, aidx))
-		cp.APf("body", "    defer {qtrt.freemem(conv_arg%d)}", aidx)
+		//cp.APf("body", "    defer {qtrt.freemem(conv_arg%d)}", aidx)
 	} else if is_qt_class(argty) && get_bare_type(argty).Spelling() == "QString" {
 		usemod := get_decl_mod(cursor)
 		pkgPref := gopp.IfElseStr(usemod == "core", "", "qtcore.")
