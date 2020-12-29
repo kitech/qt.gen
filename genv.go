@@ -554,11 +554,11 @@ func ismthnomin_dep(cursor clang.Cursor) bool {
 }
 func (this *GenerateV) getpropercp(cursor clang.Cursor) *CodePager {
 	if ismthnomin(cursor) {
-		return this.cpnomin
+		// return this.cpnomin
 	}
 	if cursor.Kind() == clang.Cursor_FunctionDecl {
 		if this.isinnomin(cursor) {
-			return this.cpnomin
+			// return this.cpnomin
 		}
 	}
 	return this.cp
@@ -1013,37 +1013,39 @@ func (this *GenerateV) genSetCthis(cursor, parent clang.Cursor, midx int) {
 func (this *GenerateV) genDtor(cursor, parent clang.Cursor, midx int) {
 	this.genMethodHeader(cursor, parent, midx, false)
 	this.genMethodSignature(cursor, parent, midx)
-	var cp = this.getpropercp(cursor)
-
-	cp.APf("body", "    mut fnobj := qtrt.TCppDtor(0)")
-	cp.APf("body", "    fnobj = qtrt.sym_qtfunc6(\"%s\")", this.mangler.origin(cursor))
-	cp.APf("body", "    fnobj(this.get_cthis())")
-	cp.APf("body", "    mut that := this")
-	cp.APf("body", "    //that.cthis = voidptr(0)")
-
-	this.genMethodFooterFFI(cursor, parent, midx)
-	this.cp.APf("body", "pub fn (this %s) freec() { /*delete%s(this)*/ }\n",
-		cursor.Spelling()[1:], cursor.Spelling()[1:])
+	clsname := cursor.Spelling()[1:] // trim ~
+	this.genDtorImpl(clsname, cursor)
 }
-
 func (this *GenerateV) genDtorNoCode(cursor, parent clang.Cursor, midx int) {
+	// this.genMethodHeader(cursor, parent, midx)
+	// this.genMethodSignature(cursor, parent, midx)
+	clsname := cursor.Spelling()
+	this.genDtorImpl(clsname, cursor)
+}
+func (this *GenerateV) genDtorImpl(clsname string, cursor clang.Cursor) {
 	// this.genMethodHeader(cursor, parent, midx)
 	// this.genMethodSignature(cursor, parent, midx)
 	var cp = this.getpropercp(cursor)
 
-	symbol := fmt.Sprintf("_ZN%d%sD2Ev", len(cursor.Spelling()), cursor.Spelling())
+	symbol := fmt.Sprintf("_ZN%d%sD2Ev", len(clsname), clsname)
 	cp.APf("body", "")
 	cp.APf("body", "// type T%s = fn(cthis voidptr)", symbol)
-	cp.APf("body", "pub fn delete%s(this %s) {", cursor.Spelling(), cursor.Spelling())
+	cp.APf("body", "pub fn delete%s(this %s) {", clsname, clsname)
 	cp.APf("body", "    mut fnobj := qtrt.TCppDtor(0)")
 	cp.APf("body", "    fnobj = qtrt.sym_qtfunc6(\"%s\")", symbol)
 	cp.APf("body", "    fnobj(this.get_cthis())")
 	cp.APf("body", "    mut that := this")
 	cp.APf("body", "    //that.cthis = voidptr(0)")
+	cp.APf("body", "}\n")
 
-	this.genMethodFooterFFI(cursor, parent, midx)
-	this.cp.APf("body", "pub fn (this %s) freec() { /*delete%s(this)*/ }\n",
-		cursor.Spelling(), cursor.Spelling())
+	cp.APf("body", "pub fn (this %s) freecpp() { delete%s(this) }\n",
+		clsname, clsname)
+	// for v compiler, do not need public
+	cp.APf("body", "fn (mut this %s) free() {\n", clsname)
+	cp.APf("body", "  /*delete%s(this)*/ \n", clsname)
+	cp.APf("body", "  cthis := this.get_cthis()")
+	cp.APf("body", "  //println(\"%s freeing ${cthis} %d bytes\")\n", clsname, 0)
+	cp.APf("body", "}\n")
 }
 
 func (this *GenerateV) genNonStaticMethod(cursor, parent clang.Cursor, midx int) {
@@ -1470,7 +1472,7 @@ func (this *GenerateV) genArgConvFFI(cursor, parent clang.Cursor, midx, aidx int
 		cp.APf("body", "    mut conv_arg%d := qtrt.string_slice_to_ccharpp(%s)", aidx,
 			this.genParamRefName(cursor, parent, aidx))
 	} else if TypeIsCharPtr(argty) {
-		cp.APf("body", "    mut conv_arg%d := qtrt.cstring(%s)", aidx,
+		cp.APf("body", "    mut conv_arg%d := qtrt.cstringr(&%s)", aidx,
 			this.genParamRefName(cursor, parent, aidx))
 		//cp.APf("body", "    defer {qtrt.freemem(conv_arg%d)}", aidx)
 	} else if is_qt_class(argty) && get_bare_type(argty).Spelling() == "QString" {
@@ -1480,7 +1482,7 @@ func (this *GenerateV) genArgConvFFI(cursor, parent clang.Cursor, midx, aidx int
 			this.genParamRefName(cursor, parent, aidx))
 		// this.cp.APf("body", "    defer %sDeleteQString(tmpArg%d)", pkgPref, aidx) // not needed
 		cp.APf("body", "    mut conv_arg%d := tmp_arg%d.cthis", aidx, aidx)
-		cp.APf("body", "    defer {tmp_arg%d.freec()}", aidx)
+		cp.APf("body", "    defer {tmp_arg%d.freecpp()}", aidx)
 	} else if is_qt_class(argty) && !isPrimitiveType(argty.CanonicalType()) {
 		if argty.Spelling() == "QRgb" {
 			log.Fatalln(argty.Spelling(), argty.CanonicalType().Kind().String())
