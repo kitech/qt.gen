@@ -29,7 +29,9 @@
   这样就能够在interface实现不完全的时候依旧能用
 * 类对应的interface包含的方法集合，getCthis(),
 * vlang 无法优雅的处理 typed integer 常量，占用编译的程序大小，占用CPU处理。不要用typed integer类型
-* 用sumtype 替代 interface似乎可能，sumtype还可以放在sumtype中
+* 用sumtype 替代 interface似乎可能，sumtype还可以放在sumtype中。但是需要反方向，比如，
+  QWidgetITFx = 所有继承了 QWidget的子类，而不是基类
+  而且在传递的时候需要手动强制转换为sumtype类型，不适用。
 
 ### ch 封装生成时的考虑
 * 类名 typedef void* QObject;

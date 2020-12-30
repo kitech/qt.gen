@@ -433,6 +433,28 @@ func (this *GenerateV) genClassDef(cursor, parent clang.Cursor) {
 	}
 	this.cp.APf("body", "}\n")
 
+	// genTypeInterface, genTypeITF, with sumtype
+	// 代码无问题，但功能似乎代替不了interface，
+	if false {
+		sumtypes := []string{"qtrt.CObject"}
+		for _, bc := range bcs {
+			sumtypes = append(sumtypes,
+				fmt.Sprintf("%s%s", calc_package_prefix(cursor, bc), bc.Type().Spelling()))
+		}
+		sumtypes = append(sumtypes, cursor.Spelling())
+		this.cp.APf("body", "pub type %sITFx = %s",
+			cursor.Spelling(), strings.Join(sumtypes, " | "))
+		this.cp.APf("body", "pub fn (this %sITFx) get_cthis() voidptr {", cursor.Spelling())
+		this.cp.APf("body", "  mut cthis := voidptr(0)")
+		this.cp.APf("body", "  match this {")
+		for _, bcname := range sumtypes {
+			this.cp.APf("body", "    %s { cthis = this.get_cthis() }", bcname)
+		}
+		this.cp.APf("body", "  }")
+		this.cp.APf("body", "  return cthis")
+		this.cp.APf("body", "}\n")
+	}
+
 	// genTypeInterface, genTypeITF
 	this.cp.APf("body", "pub interface %sITF {", cursor.Spelling())
 	for _, bc := range bcs {
