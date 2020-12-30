@@ -17,6 +17,7 @@
 * getCthis()
 * setCthis()
 * fromptr()
+* freecpp()
 * free()
 * - getAddr() 如果用非指针方法，这个方法得到的结果是临时的
 * - 在封装结构体中保存 cthis 的地址！！！
@@ -28,6 +29,7 @@
   这样就能够在interface实现不完全的时候依旧能用
 * 类对应的interface包含的方法集合，getCthis(),
 * vlang 无法优雅的处理 typed integer 常量，占用编译的程序大小，占用CPU处理。不要用typed integer类型
+* 用sumtype 替代 interface似乎可能，sumtype还可以放在sumtype中
 
 ### ch 封装生成时的考虑
 * 类名 typedef void* QObject;

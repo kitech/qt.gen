@@ -962,7 +962,7 @@ protected:
 
 }; // QLabel
 
-class QLineEdit : public QWidget
+class xQLineEdit : public QLineEdit
 {
  public:
     explicit xQLineEdit(QWidget *parent = nullptr);

@@ -1933,7 +1933,7 @@ func (this *GenerateV) genClassEnums(cursor, parent clang.Cursor) {
 			case clang.Cursor_EnumConstantDecl:
 				log.Println("yyyyyyyyy", c1.EnumConstantDeclValue(), c1.DisplayName(), p1.DisplayName(), cursor.DisplayName())
 				this.cp.APf("body", "// %s", elems[c1.DisplayName()])
-				this.cp.APf("body", "const (%s__%s = %d)",
+				this.cp.APf("body", "const %s__%s = %d",
 					cursor.DisplayName(), c1.DisplayName(),
 					c1.EnumConstantDeclValue())
 			}
@@ -2028,7 +2028,7 @@ func (this *GenerateV) genEnumsGlobal(cursor, parent clang.Cursor) {
 				dedups[c1.DisplayName()] = 1
 
 				this.cp.APUf("body", "// %s", elems[c1.DisplayName()])
-				this.cp.APUf("body", "const (%s__%s = %d)",
+				this.cp.APUf("body", "const %s__%s = %d",
 					"qt", c1.DisplayName(), c1.EnumConstantDeclValue())
 			}
 
