@@ -576,6 +576,18 @@ func (this *GenCtrl) collectClasses() {
 				gg.saveCodeToFileWithCode(mod, "qcallbacks", cp.ExportAll())
 			}
 		*/
+	} else if genLang == "v" {
+		var gg *GenerateV = this.qtenumgen.(*GenerateV)
+		gg.cp.APf("header", "module qtcore")
+		// gg.cp.APf("header", "import \"fmt\"")
+		gg.genEnumsGlobal(cursor, cursor.SemanticParent())
+		// gg.cp.APf("keep", "func make_sure_usepkg_qnamespace(){if false{fmt.Println(123)}}")
+		gg.saveCodeToFile("core", "qnamespace")
+
+		gg = this.qtconstgen.(*GenerateV)
+		gg.cp.APf("header", "module qtcore")
+		gg.genConstantsGlobal(cursor, cursor.SemanticParent())
+		gg.saveCodeToFile("core", "qconstants")
 	} else if genLang == "rs" {
 		var gg *GenerateRs = this.modlstgen.(*GenerateRs)
 		for modname, cp := range gg.cpcs {

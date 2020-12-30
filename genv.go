@@ -2073,7 +2073,7 @@ func (this *GenerateV) genEnumsGlobal(cursor, parent clang.Cursor) {
 			return clang.ChildVisit_Continue
 		})
 
-		this.cp.APf("body", "pub fn %sItemName(val int) string {", enum.DisplayName())
+		this.cp.APf("body", "pub fn get%sItemName(val int) string {", enum.DisplayName())
 		// this.cp.APf("body", "  match val {")
 		enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
 			switch c1.Kind() {
@@ -2091,7 +2091,7 @@ func (this *GenerateV) genEnumsGlobal(cursor, parent clang.Cursor) {
 			}
 			return clang.ChildVisit_Continue
 		})
-		this.cp.APf("body", "  { return fmt.sprintf(\"%%d\", val)}")
+		this.cp.APf("body", "  { return \"${val}\" }")
 		//this.cp.APf("body", "}")
 		this.cp.APf("body", "}")
 		this.cp.APf("body", "")

@@ -386,18 +386,18 @@ public:
 class xQEvent : public QEvent            // event base class
 {
 public:
-    // explicit QEvent(Type type);
+    explicit xQEvent(Type type);
     // QEvent(const QEvent &other);
     // virtual ~QEvent();
     // QEvent &operator=(const QEvent &other);
-    inline Type type() const { return static_cast<Type>(t); }
-    inline bool spontaneous() const { return spont; }
+    inline Type type() const;
+    inline bool spontaneous() const;
 
-    inline void setAccepted(bool accepted) { m_accept = accepted; }
-    inline bool isAccepted() const { return m_accept; }
+    inline void setAccepted(bool accepted);
+    inline bool isAccepted() const;
 
-    inline void accept() { m_accept = true; }
-    inline void ignore() { m_accept = false; }
+    inline void accept();
+    inline void ignore();
 
     static int registerEventType(int hint = -1) noexcept;
 };
@@ -522,6 +522,7 @@ public:
 class xQObject : public QObject
 {
  public:
+    explicit xQObject(QObject *parent=nullptr);
 
     QString objectName() const;
     void setObjectName(const QString &name);
@@ -936,19 +937,16 @@ public:
 
 //     static QCoreApplication *instance() { return self; }
 
-// #ifndef QT_NO_QOBJECT
+#ifndef QT_NO_QOBJECT
 //     static int exec();
 //     static void processEvents(QEventLoop::ProcessEventsFlags flags = QEventLoop::AllEvents);
 //     static void processEvents(QEventLoop::ProcessEventsFlags flags, int maxtime);
 //     static void exit(int retcode=0);
 
 //     static bool sendEvent(QObject *receiver, QEvent *event);
-//     static void postEvent(QObject *receiver, QEvent *event, int priority = Qt::NormalEventPriority);
+    static void postEvent(QObject *receiver, QEvent *event, int priority = Qt::NormalEventPriority);
 //     static void sendPostedEvents(QObject *receiver = nullptr, int event_type = 0);
 //     static void removePostedEvents(QObject *receiver, int eventType = 0);
-// #if QT_DEPRECATED_SINCE(5, 3)
-//     QT_DEPRECATED static bool hasPendingEvents();
-// #endif
 //     static QAbstractEventDispatcher *eventDispatcher();
 //     static void setEventDispatcher(QAbstractEventDispatcher *eventDispatcher);
 
@@ -956,7 +954,7 @@ public:
 
 //     static bool startingUp();
 //     static bool closingDown();
-// #endif
+#endif
 
 //     static QString applicationDirPath();
 //     static QString applicationFilePath();
@@ -986,10 +984,10 @@ public:
 //     static bool isQuitLockEnabled();
 //     static void setQuitLockEnabled(bool enabled);
 
-// public Q_SLOTS:
-//     static void quit();
+public Q_SLOTS:
+    static void quit();
 
-// Q_SIGNALS:
+Q_SIGNALS:
 //     void aboutToQuit(QPrivateSignal);
 
 //     void organizationNameChanged();
@@ -997,7 +995,7 @@ public:
 //     void applicationNameChanged();
 //     void applicationVersionChanged();
 
-// protected:
+protected:
 //     bool event(QEvent *) override;
 
 //     virtual bool compressEvent(QEvent *, QObject *receiver, QPostEventList *);
