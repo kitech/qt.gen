@@ -872,7 +872,7 @@ func (this *GenerateV) genCtor(cursor, parent clang.Cursor, midx int) {
 	cp.APf("body", "    mut fnobj := T%s(0)", this.mangler.origin(cursor))
 	cp.APf("body", "    fnobj = qtrt.sym_qtfunc6(%s, \"%s\")",
 		this.mangler.crc32(cursor), this.mangler.origin(cursor))
-	cp.APf("body", "    mut cthis := qtrt.cmalloc(%d)", parent.Type().SizeOf())
+	cp.APf("body", "    mut cthis := qtrt.mallocraw(%d)", parent.Type().SizeOf())
 	this.paramDesc = append([]string{"cthis"}, this.paramDesc...)
 	paramStr = strings.Join(this.paramDesc, ", ")
 	cp.APf("body", "    fnobj(%s)", paramStr)
@@ -918,7 +918,7 @@ func (this *GenerateV) genCtorDv(cursor, parent clang.Cursor, midx int, dvidx in
 	cp.APf("body", "    mut fnobj := T%s(0)", this.mangler.origin(cursor))
 	cp.APf("body", "    fnobj = qtrt.sym_qtfunc6(%s, \"%s\")",
 		this.mangler.crc32(cursor), this.mangler.origin(cursor))
-	cp.APf("body", "    mut cthis := qtrt.cmalloc(%d)", parent.Type().SizeOf())
+	cp.APf("body", "    mut cthis := qtrt.mallocraw(%d)", parent.Type().SizeOf())
 	this.paramDesc = append([]string{"cthis"}, this.paramDesc...)
 	paramStr = strings.Join(this.paramDesc, ", ")
 	cp.APf("body", "    fnobj(%s)", paramStr)
@@ -1096,7 +1096,7 @@ func (this *GenerateV) genNonStaticMethod(cursor, parent clang.Cursor, midx int)
 		this.mangler.crc32(cursor), this.mangler.origin(cursor))
 	if retype.Kind() != clang.Type_Void {
 		if besret {
-			cp.APf("body", "    mut sretobj := qtrt.cmalloc(%d)", retype.SizeOf())
+			cp.APf("body", "    mut sretobj := qtrt.mallocraw(%d)", retype.SizeOf())
 			this.paramDesc = append([]string{"sretobj"}, this.paramDesc...)
 			paramStr = strings.Join(this.paramDesc, ", ")
 		} else {
@@ -1146,7 +1146,7 @@ func (this *GenerateV) genNonStaticMethodDv(cursor, parent clang.Cursor, midx in
 		this.mangler.crc32(cursor), this.mangler.origin(cursor))
 	if retype.Kind() != clang.Type_Void {
 		if besret {
-			cp.APf("body", "    mut sretobj := qtrt.cmalloc(%d)", retype.SizeOf())
+			cp.APf("body", "    mut sretobj := qtrt.mallocraw(%d)", retype.SizeOf())
 			this.paramDesc = append([]string{"sretobj"}, this.paramDesc...)
 			paramStr = strings.Join(this.paramDesc, ", ")
 		} else {
@@ -1186,7 +1186,7 @@ func (this *GenerateV) genStaticMethod(cursor, parent clang.Cursor, midx int) {
 
 	if retype.Kind() != clang.Type_Void {
 		if besret {
-			cp.APf("body", "    mut sretobj := qtrt.cmalloc(%d)", retype.SizeOf())
+			cp.APf("body", "    mut sretobj := qtrt.mallocraw(%d)", retype.SizeOf())
 			this.paramDesc = append([]string{"sretobj"}, this.paramDesc...)
 			paramStr = strings.Join(this.paramDesc, ", ")
 		} else {
@@ -1231,7 +1231,7 @@ func (this *GenerateV) genStaticMethodDv(cursor, parent clang.Cursor, midx int, 
 
 	if retype.Kind() != clang.Type_Void {
 		if besret {
-			cp.APf("body", "    mut sretobj := qtrt.cmalloc(%d)", retype.SizeOf())
+			cp.APf("body", "    mut sretobj := qtrt.mallocraw(%d)", retype.SizeOf())
 			this.paramDesc = append([]string{"sretobj"}, this.paramDesc...)
 			paramStr = strings.Join(this.paramDesc, ", ")
 		} else {
