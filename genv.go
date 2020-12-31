@@ -2032,30 +2032,11 @@ func (this *GenerateV) genEnumsGlobal(cursor, parent clang.Cursor) {
 		}
 		dedups[enum.DisplayName()] = 1
 
-		comment := queryComment(enum, this.qtdir, this.qtver)
-		pcomment, elems := extractEnumElem(comment)
-		qtmod := get_decl_mod(enum)
-		this.cp.APf("body", "")
-		this.cp.APf("body", "/*")
-		this.cp.APf("body", "%s", pcomment)
-		this.cp.APf("body", "*/")
-		this.cp.APUf("body", "type %s__%s = int // %s", "Qt", enum.DisplayName(), qtmod)
-		enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
-			switch c1.Kind() {
-			case clang.Cursor_EnumConstantDecl:
-				log.Println("yyyyyyyyy", c1.EnumConstantDeclValue(), c1.DisplayName(), p1.DisplayName(), cursor.DisplayName())
-				if _, ok := dedups[c1.DisplayName()]; ok {
-					break
-				}
-				dedups[c1.DisplayName()] = 1
-
-				this.cp.APUf("body", "// %s", elems[c1.DisplayName()])
-				this.cp.APUf("body", "const %s__%s = %d",
-					"qt", c1.DisplayName(), c1.EnumConstantDeclValue())
-			}
-
-			return clang.ChildVisit_Continue
-		})
+		enumName := enum.DisplayName()
+		if !unicode.IsUpper(rune(enumName[0])) {
+			log.Println(strings.ToTitle(enumName), enumName)
+			continue // not with title, not good for v, not use
+		}
 
 		// generate get enum item name by enum value
 		revalmap := map[int64][]string{} // reverse enum val => enum names
@@ -2073,28 +2054,65 @@ func (this *GenerateV) genEnumsGlobal(cursor, parent clang.Cursor) {
 			return clang.ChildVisit_Continue
 		})
 
-		this.cp.APf("body", "pub fn get%sItemName(val int) string {", enum.DisplayName())
-		// this.cp.APf("body", "  match val {")
+		dedupvals := map[int64]string{}
+		comment := queryComment(enum, this.qtdir, this.qtver)
+		pcomment, elems := extractEnumElem(comment)
+		qtmod := get_decl_mod(enum)
+		this.cp.APf("body", "")
+		this.cp.APf("body", "/*")
+		this.cp.APf("body", "%s", pcomment)
+		this.cp.APf("body", "*/")
+		this.cp.APUf("body", "// type %s.%s = int // %s", qtmod, enum.DisplayName(), qtmod)
+		this.cp.APUf("body", "pub enum %s {", enum.DisplayName())
 		enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
 			switch c1.Kind() {
 			case clang.Cursor_EnumConstantDecl:
-				eival := c1.EnumConstantDeclValue()
-				_, keyok := revalmap[eival]
-				commentit := gopp.IfElseStr(keyok, "", "//")
-				this.cp.APf("body", "    %s if val == %s__%s { // %d", commentit, "qt", c1.DisplayName(), eival)
-				this.cp.APf("body", "    %s return \"%s\"", commentit, strings.Join(revalmap[eival], ","))
-				this.cp.APf("body", "    %s }", commentit)
-				this.cp.APf("body", "    %s else", commentit)
-				if keyok {
-					delete(revalmap, eival)
+				log.Println("yyyyyyyyy", c1.EnumConstantDeclValue(), c1.DisplayName(), p1.DisplayName(), cursor.DisplayName())
+				if _, ok := dedups[c1.DisplayName()]; ok {
+					break
 				}
+				dedups[c1.DisplayName()] = 1
+				if _, ok := dedupvals[c1.EnumConstantDeclValue()]; ok {
+					break
+				}
+				dedupvals[c1.EnumConstantDeclValue()] = c1.DisplayName()
+
+				_ = elems
+				// this.cp.APUf("body", "// %s", elems[c1.DisplayName()])
+				this.cp.APUf("body", "  %s = %d", c1.DisplayName(), c1.EnumConstantDeclValue())
 			}
+
 			return clang.ChildVisit_Continue
 		})
-		this.cp.APf("body", "  { return \"${val}\" }")
-		//this.cp.APf("body", "}")
-		this.cp.APf("body", "}")
-		this.cp.APf("body", "")
+		if len(dedupvals) == 0 {
+			this.cp.APf("body", "  LastNothing // fix empty enum")
+		}
+		this.cp.APf("body", "} // endof enum %s\n", enum.DisplayName())
+
+		if false { // disable enum name generate
+			this.cp.APf("body", "pub fn get%sItemName(val int) string {", enum.DisplayName())
+			// this.cp.APf("body", "  match val {")
+			enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
+				switch c1.Kind() {
+				case clang.Cursor_EnumConstantDecl:
+					eival := c1.EnumConstantDeclValue()
+					_, keyok := revalmap[eival]
+					commentit := gopp.IfElseStr(keyok, "", "//")
+					this.cp.APf("body", "    %s if val == %s__%s { // %d", commentit, "qt", c1.DisplayName(), eival)
+					this.cp.APf("body", "    %s return \"%s\"", commentit, strings.Join(revalmap[eival], ","))
+					this.cp.APf("body", "    %s }", commentit)
+					this.cp.APf("body", "    %s else", commentit)
+					if keyok {
+						delete(revalmap, eival)
+					}
+				}
+				return clang.ChildVisit_Continue
+			})
+			this.cp.APf("body", "  { return \"${val}\" }")
+			//this.cp.APf("body", "}")
+			this.cp.APf("body", "}")
+			this.cp.APf("body", "")
+		}
 
 	}
 }
