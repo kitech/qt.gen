@@ -1942,26 +1942,6 @@ func (this *GenerateV) genClassEnums(cursor, parent clang.Cursor) {
 		if enum.DisplayName() == "" {
 			continue
 		}
-		comment := queryComment(enum, this.qtdir, this.qtver)
-		pcomment, elems := extractEnumElem(comment)
-		this.cp.APf("body", "")
-		this.cp.APf("body", "/*")
-		this.cp.APf("body", "%s", pcomment)
-		this.cp.APf("body", "*/")
-		// must use uint, because on android
-		this.cp.APf("body", "type %s__%s = int", cursor.DisplayName(), enum.DisplayName())
-		enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
-			switch c1.Kind() {
-			case clang.Cursor_EnumConstantDecl:
-				log.Println("yyyyyyyyy", c1.EnumConstantDeclValue(), c1.DisplayName(), p1.DisplayName(), cursor.DisplayName())
-				this.cp.APf("body", "// %s", elems[c1.DisplayName()])
-				this.cp.APf("body", "const %s__%s = %d",
-					cursor.DisplayName(), c1.DisplayName(),
-					c1.EnumConstantDeclValue())
-			}
-
-			return clang.ChildVisit_Continue
-		})
 
 		// generate get enum item name by enum value
 		revalmap := map[int64][]string{} // reverse enum val => enum names
@@ -1978,41 +1958,74 @@ func (this *GenerateV) genClassEnums(cursor, parent clang.Cursor) {
 
 			return clang.ChildVisit_Continue
 		})
+		dedupvals := map[int64]string{}
 
-		this.cp.APf("body", "pub fn (this %s) %sItemName(val int) string {",
-			cursor.DisplayName(), enum.DisplayName())
-		if isobjty {
-			this.cp.APf("body", "  // return qtrt.get_class_enum_item_name(this, val)")
-			this.cp.APf("body", "  return \"\"")
-		} else {
-			// this.cp.APf("body", "  match val {")
-			enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
-				switch c1.Kind() {
-				case clang.Cursor_EnumConstantDecl:
-					eival := c1.EnumConstantDeclValue()
-					_, keyok := revalmap[eival]
-					commentit := gopp.IfElseStr(keyok, "", "//")
-					this.cp.APf("body", "    %s if val == %s__%s {// %d",
-						commentit, cursor.DisplayName(), c1.DisplayName(), eival)
-					this.cp.APf("body", "    %s return \"%s\"", commentit, strings.Join(revalmap[eival], ","))
-					this.cp.APf("body", "    %s }", commentit)
-					this.cp.APf("body", "    %s else", commentit)
-					if keyok {
-						delete(revalmap, eival)
-					}
-				}
-				return clang.ChildVisit_Continue
-			})
-			this.cp.APf("body", "  {return fmt.sprintf(\"%%d\", val)}")
-			//this.cp.APf("body", "}")
-		}
-		this.cp.APf("body", "}")
-		this.cp.APf("body", "pub fn %s%sItemName(val int) string {",
-			cursor.DisplayName(), enum.DisplayName())
-		this.cp.APf("body", "  nilthis := %s{}", cursor.DisplayName())
-		this.cp.APf("body", "  return nilthis.%sItemName(val)", enum.DisplayName())
-		this.cp.APf("body", "}")
+		comment := queryComment(enum, this.qtdir, this.qtver)
+		pcomment, elems := extractEnumElem(comment)
 		this.cp.APf("body", "")
+		this.cp.APf("body", "/*")
+		this.cp.APf("body", "%s", pcomment)
+		this.cp.APf("body", "*/")
+		// must use uint, because on android
+		this.cp.APf("body", "//type %s.%s = int", cursor.DisplayName(), enum.DisplayName())
+		this.cp.APf("body", "pub enum %s%s {", cursor.DisplayName(), enum.DisplayName())
+		enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
+			switch c1.Kind() {
+			case clang.Cursor_EnumConstantDecl:
+				log.Println("yyyyyyyyy", c1.EnumConstantDeclValue(), c1.DisplayName(), p1.DisplayName(), cursor.DisplayName())
+				if _, ok := dedupvals[c1.EnumConstantDeclValue()]; ok {
+					break
+				}
+				dedupvals[c1.EnumConstantDeclValue()] = c1.DisplayName()
+
+				_ = elems
+				//this.cp.APf("body", "// %s", elems[c1.DisplayName()])
+				this.cp.APf("body", "  %s = %d",
+					//cursor.DisplayName(),
+					c1.DisplayName(),
+					c1.EnumConstantDeclValue())
+			}
+
+			return clang.ChildVisit_Continue
+		})
+		this.cp.APf("body", "} // endof enum %s\n", enum.DisplayName())
+
+		if false { // disable namebyvalue
+			this.cp.APf("body", "pub fn (this %s) %sItemName(val int) string {",
+				cursor.DisplayName(), enum.DisplayName())
+			if isobjty {
+				this.cp.APf("body", "  // return qtrt.get_class_enum_item_name(this, val)")
+				this.cp.APf("body", "  return \"\"")
+			} else {
+				// this.cp.APf("body", "  match val {")
+				enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
+					switch c1.Kind() {
+					case clang.Cursor_EnumConstantDecl:
+						eival := c1.EnumConstantDeclValue()
+						_, keyok := revalmap[eival]
+						commentit := gopp.IfElseStr(keyok, "", "//")
+						this.cp.APf("body", "    %s if val == %s__%s {// %d",
+							commentit, cursor.DisplayName(), c1.DisplayName(), eival)
+						this.cp.APf("body", "    %s return \"%s\"", commentit, strings.Join(revalmap[eival], ","))
+						this.cp.APf("body", "    %s }", commentit)
+						this.cp.APf("body", "    %s else", commentit)
+						if keyok {
+							delete(revalmap, eival)
+						}
+					}
+					return clang.ChildVisit_Continue
+				})
+				this.cp.APf("body", "  {return fmt.sprintf(\"%%d\", val)}")
+				//this.cp.APf("body", "}")
+			}
+			this.cp.APf("body", "}")
+			this.cp.APf("body", "pub fn %s%sItemName(val int) string {",
+				cursor.DisplayName(), enum.DisplayName())
+			this.cp.APf("body", "  nilthis := %s{}", cursor.DisplayName())
+			this.cp.APf("body", "  return nilthis.%sItemName(val)", enum.DisplayName())
+			this.cp.APf("body", "}")
+			this.cp.APf("body", "")
+		}
 	}
 }
 
