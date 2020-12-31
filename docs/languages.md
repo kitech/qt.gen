@@ -13,7 +13,7 @@
 * 使用结构体封装， type QObject { cthis voidptr }
 * 生成*非*指针的方法  fn (this QObject) someMethod() {}
 * 即使改过的V编译器，函数/方法名也不能以大写字母开头
-* qt实例的GC回收考虑使用bdwgc
+* qt实例的GC回收考虑使用bdwgc。接管所有的v分配，但是要保留c++内存分配使用real_malloc。
 * getCthis()
 * setCthis()
 * fromptr()
@@ -32,6 +32,8 @@
 * 用sumtype 替代 interface似乎可能，sumtype还可以放在sumtype中。但是需要反方向，比如，
   QWidgetITFx = 所有继承了 QWidget的子类，而不是基类
   而且在传递的时候需要手动强制转换为sumtype类型，不适用。
+* 可以考虑使用vlang的 enum取代const，只是传递参数时的类型转换可能不好处理。
+  测试了下，可以使用整数，但是要用enum名字引用的话，跨包时需要全名，本包内可以用.enumitem。
 
 ### ch 封装生成时的考虑
 * 类名 typedef void* QObject;
