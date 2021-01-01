@@ -942,6 +942,7 @@ func (this *GenerateV) genCtorFromPointer(cursor, parent clang.Cursor, midx int)
 	bcs := find_base_classes(parent)
 	bcs = this.filter_base_classes(bcs)
 
+	this.cp.APf("body", "[no_inline]")
 	this.cp.APf("body", "pub fn new%sFromptr(cthis voidptr) %s {",
 		cursor.Spelling(), cursor.Spelling())
 	if len(bcs) == 0 {
@@ -1053,7 +1054,7 @@ func (this *GenerateV) genDtorImpl(clsname string, cursor clang.Cursor) {
 
 	symbol := fmt.Sprintf("_ZN%d%sD2Ev", len(clsname), clsname)
 	cp.APf("body", "")
-	cp.APf("body", "// type T%s = fn(cthis voidptr)", symbol)
+	cp.APf("body", "[no_inline]")
 	cp.APf("body", "pub fn delete%s(this &%s) {", clsname, clsname)
 	cp.APf("body", "    mut fnobj := qtrt.TCppDtor(0)")
 	cp.APf("body", "    fnobj = qtrt.sym_qtfunc6(%d, \"%s\")", symcrc32(symbol), symbol)
