@@ -421,11 +421,11 @@ func (this *GenerateV) genClassDef(cursor, parent clang.Cursor) {
 	this.cp.APf("body", "pub struct %s {", cursor.Spelling())
 	if len(bcs) == 0 {
 		this.cp.APf("body", "    // mut: CObject &qtrt.CObject")
-		this.cp.APf("body", "    pub mut: qtrt.CObject")
+		this.cp.APf("body", "    pub: qtrt.CObject")
 		// this.cp.APf("body", "    pub mut: cthis voidptr")
 	} else {
 		// this.cp.APf("body", "    pub mut: cthis voidptr")
-		this.cp.APf("body", "pub mut:")
+		this.cp.APf("body", "pub:")
 		for _, bc := range bcs {
 			this.cp.APf("body", "  %s%s", calc_package_prefix(cursor, bc), bc.Type().Spelling())
 			//break
