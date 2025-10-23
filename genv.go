@@ -445,7 +445,7 @@ func (this *GenerateV) genClassDef(cursor, parent clang.Cursor) {
 		sumtypes = append(sumtypes, cursor.Spelling())
 		this.cp.APf("body", "pub type %sITFx = %s",
 			cursor.Spelling(), strings.Join(sumtypes, " | "))
-		this.cp.APf("body", "pub fn (this %sITFx) get_cthis() voidptr {", cursor.Spelling())
+		this.cp.APf("body", "pub fn (this &%sITFx) get_cthis() voidptr {", cursor.Spelling())
 		this.cp.APf("body", "  mut cthis := voidptr(0)")
 		this.cp.APf("body", "  match this {")
 		for _, bcname := range sumtypes {
@@ -465,11 +465,12 @@ func (this *GenerateV) genClassDef(cursor, parent clang.Cursor) {
 	this.cp.APf("body", "    get_cthis() voidptr")
 	this.cp.APf("body", "    to%s() %s", cursor.Spelling(), cursor.Spelling())
 	this.cp.APf("body", "}")
+	this.cp.APf("body", "@[no_line]")
 	this.cp.APf("body", "fn hotfix_%s_itf_name_table(this %sITF) {", cursor.Spelling(), cursor.Spelling())
-	this.cp.APf("body", "  that := %s{}", cursor.Spelling())
+	this.cp.APf("body", "  that := &%s{}", cursor.Spelling())
 	this.cp.APf("body", "  hotfix_%s_itf_name_table(that)", cursor.Spelling())
 	this.cp.APf("body", "}")
-	this.cp.APf("body", "pub fn (ptr %s) to%s() %s { return ptr }",
+	this.cp.APf("body", "pub fn (ptr &%s) to%s() &%s { return ptr }",
 		cursor.Spelling(), cursor.Spelling(), cursor.Spelling())
 	this.cp.APf("body", "")
 
@@ -662,13 +663,13 @@ func (this *GenerateV) genMethodInit(cursor, parent clang.Cursor) {
 	}
 	switch cursor.Kind() {
 	case clang.Cursor_Constructor:
-		this.cp.APf("body", "pub fn (this %s) %s(args...interface{}) {",
+		this.cp.APf("body", "pub fn (this &%s) %s(args...interface{}) {",
 			parent.Spelling(), strings.Title(cursor.Spelling()))
 	case clang.Cursor_Destructor:
-		this.cp.APf("body", "pub fn (this %s) delete_%s(args...interface{}) {",
+		this.cp.APf("body", "pub fn (this &%s) delete_%s(args...interface{}) {",
 			parent.Spelling(), strings.Title(cursor.Spelling()[1:]))
 	default:
-		this.cp.APf("body", "pub fn (this %s) %s(args...interface{}) {",
+		this.cp.APf("body", "pub fn (this &%s) %s(args...interface{}) {",
 			parent.Spelling(), strings.Title(cursor.Spelling()))
 	}
 	this.cp.AP("body", "  var vtys = make(map[uint8]map[uint8]reflect.Type)")
@@ -694,16 +695,16 @@ func (this *GenerateV) genMethodSignature(cursor, parent clang.Cursor, midx int)
 	case clang.Cursor_Constructor:
 		prms := funk.Map(this.destArgDesc, func(s string) string { return strings.Split(s, " ")[0] })
 		prmStr := strings.Join(prms.([]string), ", ")
-		cp.APf("body", "pub fn (dummy %s) new_for_inherit_%s(%s) %s {",
+		cp.APf("body", "pub fn (dummy &%s) new_for_inherit_%s(%s) %s {",
 			strings.Title(parent.Spelling()), overloadSuffix, argStr, parent.Spelling())
 		cp.APf("body", "  //return new%s%s(%s)", cursor.Spelling(), overloadSuffix, prmStr)
 		cp.APf("body", "  return %s{}", cursor.Spelling())
 		cp.APf("body", "}")
 
-		cp.APf("body", "pub fn new%s%s(%s) %s {",
+		cp.APf("body", "pub fn new%s%s(%s) &%s {",
 			cursor.Spelling(), overloadSuffix, argStr, parent.Spelling())
 	case clang.Cursor_Destructor:
-		cp.APf("body", "pub fn delete%s%s(this %s) {",
+		cp.APf("body", "pub fn delete%s%s(this &%s) {",
 			cursor.Spelling()[1:], overloadSuffix, parent.Spelling())
 	default:
 		retPlace := "interface{}"
@@ -717,7 +718,7 @@ func (this *GenerateV) genMethodSignature(cursor, parent clang.Cursor, midx int)
 		mthname := gopp.IfElseStr(strings.HasPrefix(cursor.Spelling(), "operator"),
 			rewriteOperatorMethodName(cursor.Spelling()), cursor.Spelling())
 		mthname = gopp.IfElseStr(is_v_keyword(mthname), mthname+"_", mthname)
-		cp.APf("body", "pub fn (this %s) %s%s(%s) %s {",
+		cp.APf("body", "pub fn (this &%s) %s%s(%s) %s {",
 			parent.Spelling(), mthname, overloadSuffix, argStr, retPlace)
 	}
 
@@ -741,13 +742,13 @@ func (this *GenerateV) genMethodSignatureDv(cursor, parent clang.Cursor, midx in
 	case clang.Cursor_Constructor:
 		prms := funk.Map(this.destArgDesc, func(s string) string { return strings.Split(s, " ")[0] })
 		prmStr := strings.Join(prms.([]string), ", ")
-		cp.APf("body", "pub fn (dummy %s) new_for_inherit_%s(%s) %s {",
+		cp.APf("body", "pub fn (dummy &%s) new_for_inherit_%s(%s) %s {",
 			strings.Title(parent.Spelling()), overloadSuffix, argStr, parent.Spelling())
 		cp.APf("body", "  //return new%s%s(%s)", cursor.Spelling(), overloadSuffix, prmStr)
 		cp.APf("body", "  return %s{}", cursor.Spelling())
 		cp.APf("body", "}")
 
-		cp.APf("body", "pub fn new%s%s(%s) %s {",
+		cp.APf("body", "pub fn new%s%s(%s) &%s {",
 			cursor.Spelling(), overloadSuffix, argStr, parent.Spelling())
 	case clang.Cursor_Destructor:
 	default:
@@ -761,7 +762,7 @@ func (this *GenerateV) genMethodSignatureDv(cursor, parent clang.Cursor, midx in
 		}
 		mthname := gopp.IfElseStr(strings.HasPrefix(cursor.Spelling(), "operator"),
 			rewriteOperatorMethodName(cursor.Spelling()), cursor.Spelling())
-		cp.APf("body", "pub fn (this %s) %s%s(%s) %s {",
+		cp.APf("body", "pub fn (this &%s) %s%s(%s) %s {",
 			parent.Spelling(), mthname, overloadSuffix, argStr, retPlace)
 	}
 
@@ -944,11 +945,11 @@ func (this *GenerateV) genCtorFromPointer(cursor, parent clang.Cursor, midx int)
 	bcs = this.filter_base_classes(bcs)
 
 	this.cp.APf("body", "@[no_inline]")
-	this.cp.APf("body", "pub fn new%sFromptr(cthis voidptr) %s {",
+	this.cp.APf("body", "pub fn new%sFromptr(cthis voidptr) &%s {",
 		cursor.Spelling(), cursor.Spelling())
 	if len(bcs) == 0 {
 		//this.cp.APf("body", "    //return %s{qtrt.CObject{cthis}}", cursor.Spelling())
-		this.cp.APf("body", "    return %s{qtrt.newCObjectFromptr(cthis)}", cursor.Spelling())
+		this.cp.APf("body", "    return &%s{qtrt.newCObjectFromptr(cthis)}", cursor.Spelling())
 	} else {
 		bcobjs := []string{}
 		for i, bc := range bcs {
@@ -958,7 +959,7 @@ func (this *GenerateV) genCtorFromPointer(cursor, parent clang.Cursor, midx int)
 			// break // TODO multiple base classes
 		}
 		bcobjArgs := strings.Join(bcobjs, ", ")
-		this.cp.APf("body", "    return %s{%s}", parent.Spelling(), bcobjArgs)
+		this.cp.APf("body", "    return &%s{%s}", parent.Spelling(), bcobjArgs)
 		//this.cp.APf("body", "    //return %s{cthis}", parent.Spelling())
 	}
 	this.cp.APf("body", "}")
@@ -969,7 +970,7 @@ func (this *GenerateV) genYaCtorFromPointer(cursor, parent clang.Cursor, midx in
 		return
 	}
 	// can use ((*Qxxx)nil).NewFromPointer
-	this.cp.APf("body", "pub fn (dummy %s) newFromptr(cthis voidptr) %s {",
+	this.cp.APf("body", "pub fn (dummy &%s) newFromptr(cthis voidptr) &%s {",
 		cursor.Spelling(), cursor.Spelling())
 	this.cp.APf("body", "    return new%sFromptr(cthis)", cursor.Spelling())
 	this.cp.APf("body", "}")
@@ -989,7 +990,7 @@ func (this *GenerateV) genGetCthis(cursor, parent clang.Cursor, midx int) {
 		}
 	*/
 
-	this.cp.APf("body", "pub fn (this %s) get_cthis() voidptr {", parent.Spelling())
+	this.cp.APf("body", "pub fn (this &%s) get_cthis() voidptr {", parent.Spelling())
 	if len(bcs) == 0 {
 		//this.cp.APf("body", "    // if this == nil{ return nil } else { return this.cthis }")
 		this.cp.APf("body", "    return this.CObject.get_cthis()")
@@ -1019,7 +1020,7 @@ func (this *GenerateV) genSetCthis(cursor, parent clang.Cursor, midx int) {
 		return // just inherit from parent
 	}
 
-	this.cp.APf("body", "pub fn (this %s) set_cthis(cthis voidptr) {", parent.Spelling())
+	this.cp.APf("body", "pub fn (this &%s) set_cthis(cthis voidptr) {", parent.Spelling())
 	if len(bcs) == 0 {
 		this.cp.APf("body", "    // if this.CObject == nil {")
 		this.cp.APf("body", "    //    this.CObject = &qtrt.CObject{cthis}")
@@ -1064,10 +1065,10 @@ func (this *GenerateV) genDtorImpl(clsname string, cursor clang.Cursor) {
 	cp.APf("body", "    //that.cthis = voidptr(0)")
 	cp.APf("body", "}\n")
 
-	cp.APf("body", "pub fn (this %s) freecpp() { delete%s(&this) }\n",
+	cp.APf("body", "pub fn (this &%s) freecpp() { delete%s(&this) }\n",
 		clsname, clsname)
 	// for v compiler, do not need public
-	cp.APf("body", "fn (this %s) free() {\n", clsname)
+	cp.APf("body", "fn (this &%s) free() {\n", clsname)
 	cp.APf("body", "  /*delete%s(&this)*/\n", clsname)
 	cp.APf("body", "  cthis := this.get_cthis()")
 	cp.APf("body", "  //println(\"%s freeing ${cthis} %d bytes\")\n", clsname, 0)
@@ -1364,7 +1365,7 @@ func (this *GenerateV) genProtectedCallback(cursor, parent clang.Cursor, midx in
 				rewriteOperatorMethodName(cursor.Spelling()), cursor.Spelling())
 
 			this.cp.APf("body", "// %s %s", getTyDesc(cursor.ResultType(), ArgTyDesc_CPP_SIGNAUTE, cursor), cursor.DisplayName())
-			this.cp.APf("body", "pub fn (this %s) inherit_%s(f fn(%s) %s) {",
+			this.cp.APf("body", "pub fn (this &%s) inherit_%s(f fn(%s) %s) {",
 				parent.Spelling(), mthname, argStr, retStr)
 			this.cp.APf("body", "  // qtrt.set_all_inherit_callback(this, \"%s\", f)", cursor.Spelling())
 			this.cp.APf("body", "}")
@@ -1994,7 +1995,7 @@ func (this *GenerateV) genClassEnums(cursor, parent clang.Cursor) {
 		this.cp.APf("body", "} // endof enum %s\n", enumname)
 
 		if false { // disable namebyvalue
-			this.cp.APf("body", "pub fn (this %s) %sItemName(val int) string {",
+			this.cp.APf("body", "pub fn (this &%s) %sItemName(val int) string {",
 				cursor.DisplayName(), enum.DisplayName())
 			if isobjty {
 				this.cp.APf("body", "  // return qtrt.get_class_enum_item_name(this, val)")
