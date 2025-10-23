@@ -387,8 +387,8 @@ func (this *GenerateV) genImportsWithcp(cp *CodePager, cursor, parent clang.Curs
 	// cp.APf("ext", "import unsafe")
 	cp.APf("ext", "// import vsafe")
 	cp.APf("ext", "// import reflect")
-	cp.APf("ext", "import fmt")
-	cp.APf("ext", "// import log")
+	cp.APf("ext", "// import fmt")
+	cp.APf("ext", "import log")
 	cp.APf("ext", "// import github.com/kitech/qt.go/qtrt")
 	cp.APf("ext", "import qt.qtrt")
 	for _, dep := range modDeps[modname] {
@@ -695,10 +695,10 @@ func (this *GenerateV) genMethodSignature(cursor, parent clang.Cursor, midx int)
 	case clang.Cursor_Constructor:
 		prms := funk.Map(this.destArgDesc, func(s string) string { return strings.Split(s, " ")[0] })
 		prmStr := strings.Join(prms.([]string), ", ")
-		cp.APf("body", "pub fn (dummy &%s) new_for_inherit_%s(%s) %s {",
+		cp.APf("body", "pub fn (dummy &%s) newForInherit_%s(%s) &%s {",
 			strings.Title(parent.Spelling()), overloadSuffix, argStr, parent.Spelling())
 		cp.APf("body", "  //return new%s%s(%s)", cursor.Spelling(), overloadSuffix, prmStr)
-		cp.APf("body", "  return %s{}", cursor.Spelling())
+		cp.APf("body", "  return &%s{}", cursor.Spelling())
 		cp.APf("body", "}")
 
 		cp.APf("body", "pub fn new%s%s(%s) &%s {",
@@ -742,10 +742,10 @@ func (this *GenerateV) genMethodSignatureDv(cursor, parent clang.Cursor, midx in
 	case clang.Cursor_Constructor:
 		prms := funk.Map(this.destArgDesc, func(s string) string { return strings.Split(s, " ")[0] })
 		prmStr := strings.Join(prms.([]string), ", ")
-		cp.APf("body", "pub fn (dummy &%s) new_for_inherit_%s(%s) %s {",
+		cp.APf("body", "pub fn (dummy &%s) newForInherit_%s(%s) &%s {",
 			strings.Title(parent.Spelling()), overloadSuffix, argStr, parent.Spelling())
 		cp.APf("body", "  //return new%s%s(%s)", cursor.Spelling(), overloadSuffix, prmStr)
-		cp.APf("body", "  return %s{}", cursor.Spelling())
+		cp.APf("body", "  return &%s{}", cursor.Spelling())
 		cp.APf("body", "}")
 
 		cp.APf("body", "pub fn new%s%s(%s) &%s {",
@@ -871,7 +871,7 @@ func (this *GenerateV) genCtor(cursor, parent clang.Cursor, midx int) {
 	}
 
 	this.genArgsConvFFI(cursor, parent, midx)
-	cp.APf("body", "    mut fnobj := T%s(0)", this.mangler.origin(cursor))
+	cp.APf("body", "    mut fnobj := T%s(voidptr(0))", this.mangler.origin(cursor))
 	cp.APf("body", "    fnobj = qtrt.sym_qtfunc6(%s, \"%s\")",
 		this.mangler.crc32(cursor), this.mangler.origin(cursor))
 	cp.APf("body", "    mut cthis := qtrt.mallocraw(%d)", parent.Type().SizeOf())
@@ -917,7 +917,7 @@ func (this *GenerateV) genCtorDv(cursor, parent clang.Cursor, midx int, dvidx in
 	}
 
 	this.genArgsConvFFIDv(cursor, parent, midx, dvidx)
-	cp.APf("body", "    mut fnobj := T%s(0)", this.mangler.origin(cursor))
+	cp.APf("body", "    mut fnobj := T%s(voidptr(0))", this.mangler.origin(cursor))
 	cp.APf("body", "    fnobj = qtrt.sym_qtfunc6(%s, \"%s\")",
 		this.mangler.crc32(cursor), this.mangler.origin(cursor))
 	cp.APf("body", "    mut cthis := qtrt.mallocraw(%d)", parent.Type().SizeOf())
@@ -969,6 +969,12 @@ func (this *GenerateV) genYaCtorFromPointer(cursor, parent clang.Cursor, midx in
 	if midx > 0 { // 忽略更多重载
 		return
 	}
+
+	this.cp.APf("body", "pub fn %s.fromptr(cthis voidptr) &%s {",
+		cursor.Spelling(), cursor.Spelling())
+	this.cp.APf("body", "    return new%sFromptr(cthis)", cursor.Spelling())
+	this.cp.APf("body", "}")
+
 	// can use ((*Qxxx)nil).NewFromPointer
 	this.cp.APf("body", "pub fn (dummy &%s) newFromptr(cthis voidptr) &%s {",
 		cursor.Spelling(), cursor.Spelling())
@@ -1058,14 +1064,16 @@ func (this *GenerateV) genDtorImpl(clsname string, cursor clang.Cursor) {
 	cp.APf("body", "")
 	cp.APf("body", "@[no_inline]")
 	cp.APf("body", "pub fn delete%s(this &%s) {", clsname, clsname)
-	cp.APf("body", "    mut fnobj := qtrt.TCppDtor(0)")
+	cp.APf("body", "    mut fnobj := qtrt.TCppDtor(voidptr(0))")
 	cp.APf("body", "    fnobj = qtrt.sym_qtfunc6(%d, \"%s\")", symcrc32(symbol), symbol)
 	cp.APf("body", "    fnobj(this.get_cthis())")
 	cp.APf("body", "    mut that := this")
 	cp.APf("body", "    //that.cthis = voidptr(0)")
 	cp.APf("body", "}\n")
 
-	cp.APf("body", "pub fn (this &%s) freecpp() { delete%s(&this) }\n",
+	cp.APf("body", "pub fn (this &%s) dtor() { delete%s(this) }\n",
+		clsname, clsname)
+	cp.APf("body", "pub fn (this &%s) freecp() { delete%s(this) }\n",
 		clsname, clsname)
 	// for v compiler, do not need public
 	cp.APf("body", "fn (this &%s) free() {\n", clsname)
@@ -1094,7 +1102,7 @@ func (this *GenerateV) genNonStaticMethod(cursor, parent clang.Cursor, midx int)
 	retype := cursor.ResultType() // move like sementic, compiler auto behaiver
 	besret := MethodHasStructRet(cursor)
 
-	cp.APf("body", "    mut fnobj := T%s(0)", this.mangler.origin(cursor))
+	cp.APf("body", "    mut fnobj := T%s(voidptr(0))", this.mangler.origin(cursor))
 	cp.APf("body", "    fnobj = qtrt.sym_qtfunc6(%s, \"%s\")",
 		this.mangler.crc32(cursor), this.mangler.origin(cursor))
 	if retype.Kind() != clang.Type_Void {
@@ -1144,7 +1152,7 @@ func (this *GenerateV) genNonStaticMethodDv(cursor, parent clang.Cursor, midx in
 	retype := cursor.ResultType() // move like sementic, compiler auto behaiver
 	besret := MethodHasStructRet(cursor)
 
-	cp.APf("body", "    mut fnobj := T%s(0)", this.mangler.origin(cursor))
+	cp.APf("body", "    mut fnobj := T%s(voidptr(0))", this.mangler.origin(cursor))
 	cp.APf("body", "    fnobj = qtrt.sym_qtfunc6(%s, \"%s\")",
 		this.mangler.crc32(cursor), this.mangler.origin(cursor))
 	if retype.Kind() != clang.Type_Void {
@@ -1181,7 +1189,7 @@ func (this *GenerateV) genStaticMethod(cursor, parent clang.Cursor, midx int) {
 	this.genArgsConvFFI(cursor, parent, midx)
 	var cp = this.getpropercp(cursor)
 
-	cp.APf("body", "    mut fnobj := T%s(0)", this.mangler.origin(cursor))
+	cp.APf("body", "    mut fnobj := T%s(voidptr(0))", this.mangler.origin(cursor))
 	cp.APf("body", "    fnobj = qtrt.sym_qtfunc6(%s, \"%s\")",
 		this.mangler.crc32(cursor), this.mangler.origin(cursor))
 	retype := cursor.ResultType() // move like sementic, compiler auto behaiver
@@ -1226,7 +1234,7 @@ func (this *GenerateV) genStaticMethodDv(cursor, parent clang.Cursor, midx int, 
 	this.genArgsConvFFIDv(cursor, parent, midx, dvidx)
 	var cp = this.getpropercp(cursor)
 
-	cp.APf("body", "    mut fnobj := T%s(0)", this.mangler.origin(cursor))
+	cp.APf("body", "    mut fnobj := T%s(voidptr(0))", this.mangler.origin(cursor))
 	cp.APf("body", "    fnobj = qtrt.sym_qtfunc6(%s, \"%s\")",
 		this.mangler.crc32(cursor), this.mangler.origin(cursor))
 	retype := cursor.ResultType() // move like sementic, compiler auto behaiver
