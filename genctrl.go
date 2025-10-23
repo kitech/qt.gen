@@ -69,8 +69,8 @@ func (this *GenCtrl) main() {
 
 	this.setupQtinfo()
 	btime := time.Now()
-	// qdi.load(genQtdir, genQtver)
-	log.Println(time.Now().Sub(btime))
+	qdi.load(genQtdir, genQtver)
+	log.Println("qdocindex load time:", time.Now().Sub(btime))
 	// log.Fatalln("test exit")
 
 	this.setupLang()
@@ -78,6 +78,74 @@ func (this *GenCtrl) main() {
 	this.createTU()
 	this.collectClasses()
 	this.cleanupEnv()
+}
+
+func (this *GenCtrl) setupQtinfo() {
+
+	getqtver8qmake := func(qmake string) string {
+		// try parse version from qmake, but qmake -v output format different between versions
+		// qmake := qtdir + "/bin/qmake" // or `which qmake`
+		// qt4+: Using Qt version 5.15.17 in /usr/lib
+		// qt3: Qmake version: 1.07a (Qt 3.3.8b)
+		resout, err := gopp.RunCmd(".", qmake, "-v")
+		resout2 := strings.TrimSpace(strings.Join(resout, " "))
+		if err != nil {
+			if strings.Contains(resout2, "Qt 3.3") {
+				// qmake-qt3 -v always exit 154
+			}else{
+				gopp.ErrPrint(err, qmake, resout, "$$$")				
+				// maybe return ???
+			}
+		}
+		
+		expv3 := regexp.MustCompile(`Qmake version: [0-9.a-z]+ \(Qt ([0-9.a-z]+)\)`)
+		expv4 := regexp.MustCompile(`Using Qt version ([0-9.]+) in`)
+		mats3 := expv3.FindAllStringSubmatch(resout2, -1)
+		mats4 := expv4.FindAllStringSubmatch(resout2, -1)
+		// log.Println("mats3", mats3, "mats4", mats4)
+		if len(mats3) > 0 {
+			return mats3[0][1]
+		} else if len(mats4) > 0 {
+			return mats4[0][1]
+		}
+		return ""
+	}
+
+	getqtver8path := func(qtdir string) string {
+		// try parse version from qtdir path
+		reg := `Qt([0-9.]+)`
+		exp := regexp.MustCompile(reg)
+		mats := exp.FindAllStringSubmatch(qtdir, -1)
+		// log.Println(mats)
+		if len(mats) == 0 {
+			log.Println("Cannot parse qtver from", qtdir)
+			return ""
+		}
+		qtver := mats[0][1]
+		if gopp.FileExist2(fmt.Sprintf("%s/%s", qtdir, qtver)) {
+			// for 5.12.0
+		} else {
+			qtver = gopp.IfElseStr(strings.HasSuffix(qtver, ".0"), qtver[:len(qtver)-2], qtver)
+		}
+		return qtver
+	}
+
+	qtdir := gopp.IfElseStr(os.Getenv("QTDIR") == "", "/usr", os.Getenv("QTDIR"))
+	qtver := ""
+	qmake := qtdir + "/bin/qmake" // or `which qmake`
+
+	qtver1 := getqtver8qmake(qmake)
+	qtver2 := getqtver8path(qtdir)
+	qtver = gopp.IfElseStr(qtver1!="", qtver1, qtver2)
+
+	if qtdir == "/usr" {
+	} else if strings.HasPrefix(qtdir, "qtheaders") {
+	} else {
+	}
+	genQtdir, genQtver = qtdir, qtver
+	log.Println("qt info: qtdir=", qtdir, "qtver=", qtver, os.Getenv("QTDIR"))
+
+	rebuildModDepsAll(qtver)
 }
 
 func (this *GenCtrl) setupLang() {
@@ -129,12 +197,12 @@ func (this *GenCtrl) setupLang() {
 	case "dt":
 		this.filter = &GenFilterGo{}
 		/*
-		this.genor = NewGenerateDt(genQtdir, genQtver)
-		this.qtenumgen = NewGenerateDt(genQtdir, genQtver)
-		this.qtfuncgen = NewGenerateDt(genQtdir, genQtver)
-		this.qttmplgen = NewGenerateDt(genQtdir, genQtver)
-		this.qtconstgen = NewGenerateDt(genQtdir, genQtver)
-		this.modlstgen = NewGenerateDt(genQtdir, genQtver)
+			this.genor = NewGenerateDt(genQtdir, genQtver)
+			this.qtenumgen = NewGenerateDt(genQtdir, genQtver)
+			this.qtfuncgen = NewGenerateDt(genQtdir, genQtver)
+			this.qttmplgen = NewGenerateDt(genQtdir, genQtver)
+			this.qtconstgen = NewGenerateDt(genQtdir, genQtver)
+			this.modlstgen = NewGenerateDt(genQtdir, genQtver)
 		*/
 		// fallthrough
 	case "nim":
@@ -158,29 +226,6 @@ func (this *GenCtrl) setupLang() {
 	}
 }
 
-func (this *GenCtrl) setupQtinfo() {
-	qtdir := gopp.IfElseStr(os.Getenv("QTDIR") == "", "/usr", os.Getenv("QTDIR"))
-	qtver := ""
-	if qtdir == "/usr" {
-	} else if strings.HasPrefix(qtdir, "qtheaders") {
-	} else {
-		log.Println(qtdir)
-		reg := `Qt([0-9.]+)`
-		exp := regexp.MustCompile(reg)
-		mats := exp.FindAllStringSubmatch(qtdir, -1)
-		log.Println(mats)
-		qtver = mats[0][1]
-		if gopp.FileExist2(fmt.Sprintf("%s/%s", qtdir, qtver)) {
-			// for 5.12.0
-		} else {
-			qtver = gopp.IfElseStr(strings.HasSuffix(qtver, ".0"), qtver[:len(qtver)-2], qtver)
-		}
-	}
-	genQtdir, genQtver = qtdir, qtver
-	log.Println("qt info:", qtdir, qtver, os.Getenv("QTDIR"))
-
-	rebuildModDepsAll(qtver)
-}
 
 func (this *GenCtrl) setupEnv() {
 
