@@ -196,7 +196,7 @@ func (this *GenerateV) genFileHeaderWithcp(cp *CodePager, cursor, parent clang.C
 		cp.APf("header", "")
 	}
 
-	cp.APf("header", "module %s", modName)
+	cp.APf("header", "@[translated] module %s", modName)
 	cp.APf("header", "// %s", fix_inc_name(file.Name()))
 	cp.APf("header", "// #include <%s>", filepath.Base(file.Name()))
 	cp.APf("header", "// #include <%s>", fullModname)
@@ -390,10 +390,10 @@ func (this *GenerateV) genImportsWithcp(cp *CodePager, cursor, parent clang.Curs
 	cp.APf("ext", "import fmt")
 	cp.APf("ext", "// import log")
 	cp.APf("ext", "// import github.com/kitech/qt.go/qtrt")
-	cp.APf("ext", "import vqt.qtrt")
+	cp.APf("ext", "import qt.qtrt")
 	for _, dep := range modDeps[modname] {
 		cp.APf("ext", "// import github.com/kitech/qt.go/qt%s", dep)
-		cp.APf("ext", "import vqt.qt%s", dep)
+		cp.APf("ext", "import qtui.qt%s", dep)
 	}
 
 	cp.APf("keep", "")
@@ -421,15 +421,16 @@ func (this *GenerateV) genClassDef(cursor, parent clang.Cursor) {
 	this.cp.APf("body", "pub struct %s {", cursor.Spelling())
 	if len(bcs) == 0 {
 		this.cp.APf("body", "    // mut: CObject &qtrt.CObject")
-		this.cp.APf("body", "    pub: qtrt.CObject")
+		this.cp.APf("body", "    qtrt.CObject\npub:")
 		// this.cp.APf("body", "    pub mut: cthis voidptr")
 	} else {
 		// this.cp.APf("body", "    pub mut: cthis voidptr")
-		this.cp.APf("body", "pub:")
+		this.cp.APf("body", "// pub:")
 		for _, bc := range bcs {
 			this.cp.APf("body", "  %s%s", calc_package_prefix(cursor, bc), bc.Type().Spelling())
 			//break
 		}
+		this.cp.APf("body", "pub:")
 	}
 	this.cp.APf("body", "}\n")
 
@@ -942,7 +943,7 @@ func (this *GenerateV) genCtorFromPointer(cursor, parent clang.Cursor, midx int)
 	bcs := find_base_classes(parent)
 	bcs = this.filter_base_classes(bcs)
 
-	this.cp.APf("body", "[no_inline]")
+	this.cp.APf("body", "@[no_inline]")
 	this.cp.APf("body", "pub fn new%sFromptr(cthis voidptr) %s {",
 		cursor.Spelling(), cursor.Spelling())
 	if len(bcs) == 0 {
@@ -1052,9 +1053,9 @@ func (this *GenerateV) genDtorImpl(clsname string, cursor clang.Cursor) {
 	// this.genMethodSignature(cursor, parent, midx)
 	var cp = this.getpropercp(cursor)
 
-	symbol := fmt.Sprintf("_ZN%d%sD2Ev", len(clsname), clsname)
+	symbol := fmt.Sprintf("__ZN%d%sD2Ev", len(clsname), clsname)
 	cp.APf("body", "")
-	cp.APf("body", "[no_inline]")
+	cp.APf("body", "@[no_inline]")
 	cp.APf("body", "pub fn delete%s(this &%s) {", clsname, clsname)
 	cp.APf("body", "    mut fnobj := qtrt.TCppDtor(0)")
 	cp.APf("body", "    fnobj = qtrt.sym_qtfunc6(%d, \"%s\")", symcrc32(symbol), symbol)
@@ -1294,7 +1295,7 @@ func (this *GenerateV) genProtectedCallbacks(cursor, parent clang.Cursor) {
 		cp.AddPointer("extern")
 		cp.AddPointer("header")
 		cp.AddPointer("body")
-		cp.APf("package", "module qt%s", mod)
+		cp.APf("package", "@[translatetd] module qt%s", mod)
 		cp.APf("package", "/*")
 		cp.APf("package", "#include <stdint.h>")
 		cp.APf("package", "#include <stdbool.h>")
@@ -1967,9 +1968,10 @@ func (this *GenerateV) genClassEnums(cursor, parent clang.Cursor) {
 		this.cp.APf("body", "/*")
 		this.cp.APf("body", "%s", pcomment)
 		this.cp.APf("body", "*/")
+		enumname := gopp.IfElseStr(enum.IsAnonymous(), "Enum", enum.DisplayName())
 		// must use uint, because on android
-		this.cp.APf("body", "//type %s.%s = int", cursor.DisplayName(), enum.DisplayName())
-		this.cp.APf("body", "pub enum %s%s {", cursor.DisplayName(), enum.DisplayName())
+		this.cp.APf("body", "//type %s.%s = int", cursor.DisplayName(), enumname)
+		this.cp.APf("body", "pub enum %s%s {", cursor.DisplayName(), enumname)
 		enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
 			switch c1.Kind() {
 			case clang.Cursor_EnumConstantDecl:
@@ -1989,7 +1991,7 @@ func (this *GenerateV) genClassEnums(cursor, parent clang.Cursor) {
 
 			return clang.ChildVisit_Continue
 		})
-		this.cp.APf("body", "} // endof enum %s\n", enum.DisplayName())
+		this.cp.APf("body", "} // endof enum %s\n", enumname)
 
 		if false { // disable namebyvalue
 			this.cp.APf("body", "pub fn (this %s) %sItemName(val int) string {",
@@ -2164,7 +2166,7 @@ func (this *GenerateV) genFunctions(cursor clang.Cursor, parent clang.Cursor) {
 
 		// write code
 		writehead := func(cp *CodePager) {
-			cp.APf("header", "module qt%s", qtmod)
+			cp.APf("header", "@[translated] module qt%s", qtmod)
 			cp.APf("header", "// import vsafe")
 			cp.APf("header", "// import github.com/kitech/qt.go/qtrt")
 			cp.APf("header", "import vqt.qtrt")
@@ -2314,6 +2316,7 @@ func (this *GenerateV) genConstantsGlobal(cursor, parent clang.Cursor) {
 		macroval = gopp.IfElseStr(strings.HasPrefix(macroty, "num"), strings.TrimRight(macroval, "ACDL"), macroval)
 
 		log.Println(qtmod, macro.Spelling(), macroval, macroty)
-		this.cp.APf("body", "const %s = %s // %s @ %s", macro.Spelling(), macroval, macroty, qtmod)
+		cstname := trimConstPrefixs(macro.Spelling())
+		this.cp.APf("body", "pub const %s = %s // %s @ %s", cstname, macroval, macroty, qtmod)
 	}
 }

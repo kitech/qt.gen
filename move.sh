@@ -3,7 +3,7 @@
 function help()
 {
     echo "Usage:"
-    echo "    move.sh <qil|gosrc|rssrc>"
+    echo "    move.sh <qil|gosrc|vsrc|rssrc>"
 }
 
 # clslst=$(cat src/core/widgets.rs |grep "mod q"|awk '{print $2}'|awk -F\; '{print $1}')
@@ -156,23 +156,6 @@ function mvrssrc()
 
 }
 
-function mvcrsrc()
-{
-    set +x
-
-    mkdir -p ~/oss/qt.cr/src/{qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}
-    # rm -f ~/oss/qt.cr/src/{core,gui,widgets,network,qml,quick}/q*.cr
-
-    mvbymd5 cr src/core ~/oss/qt.cr/src/qtcore
-    # cp -a src/core/*.rs ~/oss/qt.cr/src/core/
-    #cp -a src/gui/*.rs ~/oss/qt.cr/src/gui/
-    #cp -a src/widgets/*.rs ~/oss/qt.cr/src/widgets/
-    #cp -a src/network/*.rs ~/oss/qt.cr/src/network/
-    #cp -a src/qml/*.rs ~/oss/qt.cr/src/qml/
-    #cp -a src/quick/*.rs ~/oss/qt.cr/src/quick/
-
-}
-
 function mvdtsrc()
 {
     set +x
@@ -212,24 +195,24 @@ function mvvsrc()
 {
     set +x
 
-    mkdir -p ~/.vmodules/vqt/{qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}
+    mkdir -p ~/.vmodules/qtui/{qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}
     #rm -f ~/.vmodules/vqt/qt{core,gui,widgets,network,qml,quick}/q*.v
 
-    mvbymd5 v src/core ~/.vmodules/vqt/qtcore
-    mvbymd5 v src/gui ~/.vmodules/vqt/qtgui
-    mvbymd5 v src/widgets ~/.vmodules/vqt/qtwidgets
+    mvbymd5 v src/core ~/.vmodules/qtui/qtcore
+    mvbymd5 v src/gui ~/.vmodules/qtui/qtgui
+    mvbymd5 v src/widgets ~/.vmodules/qtui/qtwidgets
     #cp -a src/widgets/*.rs ~/oss/qt.cr/src/widgets/
     #cp -a src/network/*.rs ~/oss/qt.cr/src/network/
     #cp -a src/qml/*.rs ~/oss/qt.cr/src/qml/
     #cp -a src/quick/*.rs ~/oss/qt.cr/src/quick/
 
-    rm -f ~/.vmodules/vqt/qt{core,gui,widgets}/*list.v
-    rm -f ~/.vmodules/vqt/qt{core,gui,widgets}/*map.v
-    cp -v src/gui/qpixmap.v ~/.vmodules/vqt/qtgui/
-    rm -f ~/.vmodules/vqt/qt{core,gui,widgets}/*hash.v
-    rm -f ~/.vmodules/vqt/qt{core,gui,widgets}/*set.v
+    rm -f ~/.vmodules/qtui/qt{core,gui,widgets}/*list.v
+    rm -f ~/.vmodules/qtui/qt{core,gui,widgets}/*map.v
+    cp -v src/gui/qpixmap.v ~/.vmodules/qtui/qtgui/
+    rm -f ~/.vmodules/qtui/qt{core,gui,widgets}/*hash.v
+    rm -f ~/.vmodules/qtui/qt{core,gui,widgets}/*set.v
 
-    rm -f ~/.vmodules/vqt/qt{core,gui,widgets}/qfunctions.v
+    rm -f ~/.vmodules/qtui/qt{core,gui,widgets}/qfunctions.v
 
 }
 
@@ -246,17 +229,14 @@ case $cmd in
     rssrc)
         time mvrssrc;
         ;;
-    crsrc)
-        time mvcrsrc;
-        ;;
     dtsrc)
         time mvdtsrc;
         ;;
-    nimsrc)
-        time mvnimsrc;
-        ;;
     vsrc)
         time mvvsrc;
+        ;;
+    nimsrc)
+        time mvnimsrc;
         ;;
     *)
         set +x
@@ -264,5 +244,3 @@ case $cmd in
         help;
         ;;
 esac
-
-

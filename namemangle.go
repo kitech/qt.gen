@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"gopp"
 	"hash/crc32"
 	"log"
+	"runtime"
 	"strings"
 
 	"github.com/go-clang/v3.9/clang"
@@ -41,14 +43,14 @@ func (this *IncMangler) origin(cursor clang.Cursor) (defname string) {
 		// C1/C2/C3 for case
 		fmt.Println("what's the manglings:", cursor.Manglings().Strings())
 	}
-
+	epfx := gopp.IfElseStr(runtime.GOOS == "darwin", "", "") // "_") // for macos compatable
 	switch cursor.Kind() {
 	case clang.Cursor_Constructor:
-		return strings.Replace(cursor.Mangling(), "C1E", "C2E", -1)
+		return epfx + strings.Replace(cursor.Mangling(), "C1E", "C2E", -1)
 	case clang.Cursor_Destructor:
-		return strings.Replace(cursor.Mangling(), "D1Ev", "D2Ev", -1)
+		return epfx + strings.Replace(cursor.Mangling(), "D1Ev", "D2Ev", -1)
 	}
-	return cursor.Mangling()
+	return epfx + cursor.Mangling()
 }
 func (this *IncMangler) crc32p(cursor clang.Cursor) string {
 	return fmt.Sprintf("%s%d", mgpfx, symcrc32(this.origin(cursor)))
@@ -81,14 +83,14 @@ func (this *GoMangler) origin(cursor clang.Cursor) (defname string) {
 		// C1/C2/C3 for case
 		log.Println("what's the manglings:", cursor.Manglings().Strings())
 	}
-
+	epfx := gopp.IfElseStr(runtime.GOOS == "darwin", "", "_") // for macos compatable
 	switch cursor.Kind() {
 	case clang.Cursor_Constructor:
-		return strings.Replace(cursor.Mangling(), "C1E", "C2E", -1)
+		return epfx + strings.Replace(cursor.Mangling(), "C1E", "C2E", -1)
 	case clang.Cursor_Destructor:
-		return strings.Replace(cursor.Mangling(), "D1Ev", "D2Ev", -1)
+		return epfx + strings.Replace(cursor.Mangling(), "D1Ev", "D2Ev", -1)
 	}
-	return cursor.Mangling()
+	return epfx + cursor.Mangling()
 }
 func (this *GoMangler) crc32p(cursor clang.Cursor) string {
 	return fmt.Sprintf("%s%d", mgpfx, symcrc32(this.origin(cursor)))

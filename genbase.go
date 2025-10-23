@@ -41,6 +41,8 @@ type GenBase struct {
 	qtdir string
 	qtver string
 
+	defcstpfxs []string // = "QT_"
+
 	methods            []clang.Cursor
 	funcs              []clang.Cursor
 	tmplclses          []clang.Cursor
@@ -145,7 +147,7 @@ func (this *GenBase) getFuncQulities(cursor clang.Cursor) []string {
 	return qualities
 }
 
-//////
+// ////
 func (this *GenBase) groupFunctionsByModule() map[string][]clang.Cursor {
 	rets := map[string][]clang.Cursor{}
 

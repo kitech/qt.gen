@@ -586,7 +586,7 @@ func rewriteOperatorMethodName(name string) string {
 	return valiname
 }
 
-///
+// /
 var fileCache = map[string]*os.File{}
 
 func readSourceRange(sr clang.SourceRange) string {
@@ -988,4 +988,15 @@ func hasTmplArgRet(cursor clang.Cursor) bool {
 		hastpl = hastpl || (cursor.Argument(uint32(i)).Type().NumTemplateArguments() != -1)
 	}
 	return hastpl
+}
+
+var qtcstpfxs = []string{"QT_", "QT", "Q_"} // sofork
+
+func trimConstPrefixs(name string) string {
+	for _, pfx := range qtcstpfxs {
+		if strings.HasPrefix(name, pfx) {
+			return name[len(pfx):]
+		}
+	}
+	return name
 }

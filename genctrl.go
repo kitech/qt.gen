@@ -92,12 +92,12 @@ func (this *GenCtrl) setupQtinfo() {
 		if err != nil {
 			if strings.Contains(resout2, "Qt 3.3") {
 				// qmake-qt3 -v always exit 154
-			}else{
-				gopp.ErrPrint(err, qmake, resout, "$$$")				
+			} else {
+				gopp.ErrPrint(err, qmake, resout, "$$$")
 				// maybe return ???
 			}
 		}
-		
+
 		expv3 := regexp.MustCompile(`Qmake version: [0-9.a-z]+ \(Qt ([0-9.a-z]+)\)`)
 		expv4 := regexp.MustCompile(`Using Qt version ([0-9.]+) in`)
 		mats3 := expv3.FindAllStringSubmatch(resout2, -1)
@@ -136,7 +136,7 @@ func (this *GenCtrl) setupQtinfo() {
 
 	qtver1 := getqtver8qmake(qmake)
 	qtver2 := getqtver8path(qtdir)
-	qtver = gopp.IfElseStr(qtver1!="", qtver1, qtver2)
+	qtver = gopp.IfElseStr(qtver1 != "", qtver1, qtver2)
 
 	if qtdir == "/usr" {
 	} else if strings.HasPrefix(qtdir, "qtheaders") {
@@ -225,7 +225,6 @@ func (this *GenCtrl) setupLang() {
 		log.Fatalln("not supported or not impled:", genLang, genQtdir, genQtver)
 	}
 }
-
 
 func (this *GenCtrl) setupEnv() {
 
@@ -616,14 +615,14 @@ func (this *GenCtrl) collectClasses() {
 		*/
 	} else if genLang == "v" {
 		var gg *GenerateV = this.qtenumgen.(*GenerateV)
-		gg.cp.APf("header", "module qtcore")
+		gg.cp.APf("header", "@[translated] module qtcore")
 		// gg.cp.APf("header", "import \"fmt\"")
 		gg.genEnumsGlobal(cursor, cursor.SemanticParent())
 		// gg.cp.APf("keep", "func make_sure_usepkg_qnamespace(){if false{fmt.Println(123)}}")
 		gg.saveCodeToFile("core", "qnamespace")
 
 		gg = this.qtconstgen.(*GenerateV)
-		gg.cp.APf("header", "module qtcore")
+		gg.cp.APf("header", "@[translated] module qtcore")
 		gg.genConstantsGlobal(cursor, cursor.SemanticParent())
 		gg.saveCodeToFile("core", "qconstants")
 	} else if genLang == "rs" {
