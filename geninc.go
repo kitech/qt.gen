@@ -110,8 +110,8 @@ func (this *GenerateInline) saveCodeToFile(modname, file string) {
 	if strings.HasPrefix(bcc, "//") {
 		bcc = bcc[strings.Index(bcc, "\n"):]
 	}
-	ioutil.WriteFile(savefile, []byte(bcc), 0644)
-
+	err := ioutil.WriteFile(savefile, []byte(bcc), 0644)
+	gopp.ErrPrint(err, savefile)
 }
 
 func (this *GenerateInline) genFileHeader(clsctx *GenClassContext, cursor, parent clang.Cursor) {

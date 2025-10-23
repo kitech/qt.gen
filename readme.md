@@ -6,12 +6,18 @@ speedup compile time and save compile memory usage.
 ### build
 
     cd @GOPATH/github.com/therecipe/qt
+    git checkout -b for.qt.gen a76e7081468b0d9d554349b66b4971929f036ce7
     git clone github.com/kitech/qt.gen
+	patch -N -p 1 -i qt.gen/docs/outer.a76e7081468b0d9d554349b66b4971929f036ce7.patch
     cd qt.gen/
     go build
 
+    * go1.11.x go1.10.x works fine
+
 ### run 
 
+	# for first run
+	# mkdir -p src/{core,gui,widgets,quick,qml,multimedia,network}
     QTDIR=$HOME/Qt5.9.1/ ./qt.gen c 2>&1|tee gen.log
     
 Sometimes need `ulimit -n 10240`
@@ -65,4 +71,4 @@ C symbol 生成的是所有能够支持的Qt函数，而不是Qt子集
 ### depends
 * therecipe/qt@a76e7081468b0d9d554349b66b4971929f036ce7
 * extended go-clang https://github.com/kitech/go-clang-v3.9
-
+* go1.11.x go1.10.x

@@ -69,7 +69,7 @@ func (this *GenCtrl) main() {
 
 	this.setupQtinfo()
 	btime := time.Now()
-	qdi.load(genQtdir, genQtver)
+	// qdi.load(genQtdir, genQtver)
 	log.Println(time.Now().Sub(btime))
 	// log.Fatalln("test exit")
 
@@ -126,30 +126,16 @@ func (this *GenCtrl) setupLang() {
 		this.qttmplgen = NewGenerateRs(genQtdir, genQtver)
 		this.qtconstgen = NewGenerateRs(genQtdir, genQtver)
 		this.modlstgen = NewGenerateRs(genQtdir, genQtver)
-	case "jl":
-		this.filter = &GenFilterGo{}
-		this.genor = NewGenerateJl(genQtdir, genQtver)
-		this.qtenumgen = NewGenerateJl(genQtdir, genQtver)
-		this.qtfuncgen = NewGenerateJl(genQtdir, genQtver)
-		this.qttmplgen = NewGenerateJl(genQtdir, genQtver)
-		this.qtconstgen = NewGenerateJl(genQtdir, genQtver)
-		this.modlstgen = NewGenerateJl(genQtdir, genQtver)
-	case "cr":
-		this.filter = &GenFilterGo{}
-		this.genor = NewGenerateCr(genQtdir, genQtver)
-		this.qtenumgen = NewGenerateCr(genQtdir, genQtver)
-		this.qtfuncgen = NewGenerateCr(genQtdir, genQtver)
-		this.qttmplgen = NewGenerateCr(genQtdir, genQtver)
-		this.qtconstgen = NewGenerateCr(genQtdir, genQtver)
-		this.modlstgen = NewGenerateCr(genQtdir, genQtver)
 	case "dt":
 		this.filter = &GenFilterGo{}
+		/*
 		this.genor = NewGenerateDt(genQtdir, genQtver)
 		this.qtenumgen = NewGenerateDt(genQtdir, genQtver)
 		this.qtfuncgen = NewGenerateDt(genQtdir, genQtver)
 		this.qttmplgen = NewGenerateDt(genQtdir, genQtver)
 		this.qtconstgen = NewGenerateDt(genQtdir, genQtver)
 		this.modlstgen = NewGenerateDt(genQtdir, genQtver)
+		*/
 		// fallthrough
 	case "nim":
 		this.filter = &GenFilterGo{}
@@ -212,7 +198,7 @@ func (this *GenCtrl) setupEnv() {
 		// "QtWinExtras",     // 缺少QtWinExtracsDepened头文件,link qt-opensource-linux.bin installs to gcc_64
 		// "QtMacExtras",     // 缺少QtMacExtracsDepened头文件
 		// webengines
-		"QtPositioning", "QtWebChannel", "QtWebEngineCore", "QtWebEngine", "QtWebEngineWidgets",
+		// "QtPositioning", "QtWebChannel", "QtWebEngineCore", "QtWebEngine", "QtWebEngineWidgets",
 		// multimedia
 		"QtSvg", "QtMultimedia",
 	}
@@ -359,7 +345,7 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 			if genLang == "rs" {
 				this.modlstgen.(*GenerateRs).genModLst(cursor)
 			} else if genLang == "dt" {
-				this.modlstgen.(*GenerateDt).genModLst(cursor)
+				//this.modlstgen.(*GenerateDt).genModLst(cursor)
 			}
 		} else {
 			clts.SkippedClassCount += 1
@@ -383,7 +369,7 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 				this.modlstgen.(*GenerateRs).genModLst(cursor)
 			}
 			if genLang == "dt" {
-				this.modlstgen.(*GenerateDt).genModLst(cursor)
+				//this.modlstgen.(*GenerateDt).genModLst(cursor)
 			}
 		}
 	case clang.Cursor_CXXMethod:
@@ -601,14 +587,12 @@ func (this *GenCtrl) collectClasses() {
 			log.Println(modname, cp.TotolLine(), cp.TotolLength())
 			gg.saveCodeToFileWithCode(modname, "lib", cp.ExportAll())
 		}
-	} else if genLang == "jl" {
-	} else if genLang == "cr" {
 	} else if genLang == "dt" {
-		var gg *GenerateDt = this.modlstgen.(*GenerateDt)
-		for modname, cp := range gg.cpcs {
-			log.Println(modname, cp.TotolLine(), cp.TotolLength())
-			gg.saveCodeToFileWithCode(modname, "qt"+modname, cp.ExportAll())
-		}
+		//var gg *GenerateDt = this.modlstgen.(*GenerateDt)
+		//for modname, cp := range gg.cpcs {
+		//	log.Println(modname, cp.TotolLine(), cp.TotolLength())
+		//	gg.saveCodeToFileWithCode(modname, "qt"+modname, cp.ExportAll())
+		//}
 	} else if genLang == "nim" {
 		var gg *GenerateNim = this.genor.(*GenerateNim)
 		var modlst = gg.genFileList()

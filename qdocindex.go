@@ -4,6 +4,7 @@ import (
 	"gopp"
 	"log"
 	"os"
+	"fmt"
 	"strings"
 
 	"github.com/go-clang/v3.9/clang"
@@ -22,14 +23,25 @@ func newQDocIndex() *QDocIndex {
 	return this
 }
 
-func (this *QDocIndex) load(qtdir, qtver string) {
-	if this.loaded {
-		return
-	}
+func (this *QDocIndex) setenv(qtdir, qtver string) {
 	// os.Setenv("QTDIR", os.Getenv("HOME")+"/Qt5.10.1")
 	// os.Setenv("QT_VERSION", "5.10.1")
 	os.Setenv("QTDIR", qtdir)
 	os.Setenv("QT_VERSION", qtver)
+	log.Println("Setup env for .index loader", qtdir, qtver, "//")
+	if qtdir == "" || qtver == "" {
+		panic(fmt.Sprintf("empty var error,`%s`, `%s`", qtdir, qtver))
+	}
+}
+
+// parser.LoadMoules() need QTDIR, QT_VERSION not empty
+// current parser.LoadModules need manual installed qtdir
+// so /usr system install not work
+func (this *QDocIndex) load(qtdir, qtver string) {
+	if this.loaded {
+		return
+	}
+	this.setenv(qtdir, qtver)
 	parser.LoadModules()
 	this.loaded = true
 
@@ -124,6 +136,7 @@ func (this *QDocIndex) findCoMethodCursor(clscs clang.Cursor, funco *parser.Func
 			for idx := int32(0); idx < cursor.NumArguments(); idx++ {
 				argod := funco.Parameters[idx]
 				argoc := cursor.Argument(uint32(idx))
+				// hacked Value2 code, see docs/outer.*.patch
 				argdocty := gopp.IfElseStr(argod.Value != "", argod.Value, argod.Value2)
 				log.Printf("%s, %+v, %s\n", argoc.Type().Spelling(), argod, argdocty)
 				if argdocty != argoc.Type().Spelling() {
