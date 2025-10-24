@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -16,9 +17,6 @@ import (
 
 	"gopp"
 )
-
-var ast_file = "./qthdrsrc.ast"
-var bshdr_file = "./bsheaders/qthdrsrc.h"
 
 // module depend table
 var modDeps = modDepsAll                        // auto generated
@@ -53,14 +51,21 @@ func NewGenCtrl() *GenCtrl {
 	return this
 }
 
+var ast_file = "./qthdrsrc.ast"
+var bshdr_file = "./bsheaders/qthdrsrc.h"
+var gendst_dir = "./src"
+
 var genLang string = ""  // c0(only inline), ch, c(c binding), go (go binding), rs (rust binding)
-var genQtdir string = "" // format: /home/me/Qt5.10.1 or /usr
+var genQtdir string = "" // "/usr" // format: /home/me/Qt5.10.1 or /usr
 var genQtver string = "" // format: 5.10.1
 
+func init() {
+	flag.StringVar(&genQtdir, "qtdir", genQtdir, "generate use qt INSTALL_PREFIX. Or use env QTDIR=")
+	//	flag.StringVar(&genQtver, "qtver", genQtver, "generate use qt version, like 5,10.3. (Optional)")
+	flag.StringVar(&genLang, "lang", genLang, "generate what langauge, c|v|go|rs|cj|js")
+}
+
 func (this *GenCtrl) main() {
-	if len(os.Args) > 1 {
-		genLang = os.Args[len(os.Args)-1]
-	}
 	if genLang == "" {
 		// log.Println("optional set QTDIR env")
 		// sometimes need use ulimit -n 10240
@@ -69,9 +74,13 @@ func (this *GenCtrl) main() {
 
 	this.setupQtinfo()
 	btime := time.Now()
-	qdi.load(genQtdir, genQtver)
-	log.Println("qdocindex load time:", time.Now().Sub(btime))
-	// log.Fatalln("test exit")
+	defer func() { log.Println("used time", time.Now().Sub(btime)) }()
+
+	if false {
+		qdi.load(genQtdir, genQtver)
+		log.Println("qdocindex load time:", time.Now().Sub(btime))
+		// log.Fatalln("test exit")
+	}
 
 	this.setupLang()
 	this.setupEnv()
@@ -80,6 +89,8 @@ func (this *GenCtrl) main() {
 	this.cleanupEnv()
 }
 
+// see docs/qtinstall-dir-structure.md
+// check to env vars, QDIR, QMAKE
 func (this *GenCtrl) setupQtinfo() {
 
 	getqtver8qmake := func(qmake string) string {
@@ -111,6 +122,7 @@ func (this *GenCtrl) setupQtinfo() {
 		return ""
 	}
 
+	// deprecated
 	getqtver8path := func(qtdir string) string {
 		// try parse version from qtdir path
 		reg := `Qt([0-9.]+)`
@@ -130,19 +142,26 @@ func (this *GenCtrl) setupQtinfo() {
 		return qtver
 	}
 
-	qtdir := gopp.IfElseStr(os.Getenv("QTDIR") == "", "/usr", os.Getenv("QTDIR"))
-	qtver := ""
+	// arg first, then env, then fixed
+	qtdir := genQtdir
+	qtver := genQtver
+	qtdir = gopp.IfElseStr(qtdir != "", qtdir, os.Getenv("QTDIR"))
+	// qtdir = gopp.IfElseStr(qtdir != "", qtdir, "/usr")
+
 	qmake := qtdir + "/bin/qmake" // or `which qmake`
+	if !gopp.FileExist2(qtdir) || !gopp.FileExist2(qmake) {
+		log.Fatalln("Invalid qtdir/qmake", qtdir, qmake)
+	}
 
 	qtver1 := getqtver8qmake(qmake)
 	qtver2 := getqtver8path(qtdir)
 	qtver = gopp.IfElseStr(qtver1 != "", qtver1, qtver2)
+	gopp.Assert(qtdir != "" && qtver != "", "Invalid qtdir/qtver", qtdir, qtver)
 
-	if qtdir == "/usr" {
-	} else if strings.HasPrefix(qtdir, "qtheaders") {
-	} else {
-	}
 	genQtdir, genQtver = qtdir, qtver
+	if strings.HasPrefix(qtver, "3.") {
+		bshdr_file = "./bsheaders/qthdrsrc.qt3.h"
+	}
 	log.Println("qt info: qtdir=", qtdir, "qtver=", qtver, os.Getenv("QTDIR"))
 
 	rebuildModDepsAll(qtver)
@@ -222,7 +241,7 @@ func (this *GenCtrl) setupLang() {
 		this.qtconstgen = NewGenerateV(genQtdir, genQtver)
 		this.modlstgen = NewGenerateV(genQtdir, genQtver)
 	default:
-		log.Fatalln("not supported or not impled:", genLang, genQtdir, genQtver)
+		log.Fatalln("not supported/impled lang:", genLang, genQtdir, genQtver)
 	}
 }
 
@@ -270,9 +289,9 @@ func (this *GenCtrl) setupEnv() {
 	} else if strings.HasPrefix(qtdir, "qtheaders") {
 		args = append(args, fmt.Sprintf("-I./qtheaders/include")) //depcreated self construct header tree
 	} else {
-		log.Println(qtdir)
-		args = append(args, fmt.Sprintf("-I%s/%s/gcc_64/include", qtdir, qtver))
-		qtsysdir += fmt.Sprintf("/%s/gcc_64", qtver)
+		// args = append(args, fmt.Sprintf("-I%s/%s/gcc_64/include", qtdir, qtver))
+		// qtsysdir += fmt.Sprintf("/%s/gcc_64", qtver)
+		args = append(args, fmt.Sprintf("-I%s/include", qtdir))
 	}
 	log.Println("qt info:", qtdir, qtver, os.Getenv("QTDIR"))
 	if !gopp.FileExist2(qtsysdir) {
@@ -280,8 +299,12 @@ func (this *GenCtrl) setupEnv() {
 	}
 	args = append(args, fmt.Sprintf("-I./clipqt"))
 
+	isqt3 := strings.HasPrefix(qtver, "3.")
 	hdrdirok := true
 	gopp.Domap(modules, func(e interface{}) interface{} {
+		if isqt3 {
+			return nil
+		}
 		args = append(args, fmt.Sprintf("-DQT_%s_LIB", strings.ToUpper(e.(string)[2:])))
 		args = append(args, fmt.Sprintf("-DGEN_GO_QT_%s_LIB", strings.ToUpper(e.(string)[2:])))
 		if qtdir == "/usr" {
@@ -292,8 +315,8 @@ func (this *GenCtrl) setupEnv() {
 		} else if strings.HasPrefix(qtdir, "qtheaders") {
 			args = append(args, fmt.Sprintf("-I./qtheaders/include/%s", e.(string)))
 		} else {
-			args = append(args, fmt.Sprintf("-I%s/%s/gcc_64/include/%s", qtdir, qtver, e.(string)))
-			_, err := os.Stat(fmt.Sprintf("%s/%s/gcc_64/include/%s", qtdir, qtver, e.(string)))
+			args = append(args, fmt.Sprintf("-I%s/include/%s", qtdir, e.(string)))
+			_, err := os.Stat(fmt.Sprintf("%s/include/%s", qtdir, e.(string)))
 			gopp.ErrPrint(err)
 			hdrdirok = gopp.IfElse(err == nil, hdrdirok, false).(bool)
 		}
@@ -313,6 +336,7 @@ func (this *GenCtrl) setupEnv() {
 	gopp.ErrPrint(err)
 	args = append(args, fmt.Sprintf("-I/usr/include/c++/%s", strings.TrimSpace(string(out))))
 	log.Println(args)
+
 	fullCmd := fmt.Sprintf("g++ %s -o qthdrsrc.o -c %s", strings.Join(args, " "), bshdr_file)
 	ioutil.WriteFile("bcmd.sh", []byte(fullCmd), 0755)
 	// os.Exit(0)

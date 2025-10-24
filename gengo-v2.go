@@ -72,6 +72,8 @@ func (this *GenerateGov2) genClass(cursor, parent clang.Cursor) {
 		log.Printf("%s:%d:%d @%s\n", file.Name(), line, col, file.Time().String())
 	}
 
+	// xclsname from ./clipqt/
+	// but clipqt very hard
 	clsname := cursor.Spelling()
 	xclsname := "x" + clsname
 	if xcursor, ok := keepClasses[xclsname]; ok {

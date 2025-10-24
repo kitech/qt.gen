@@ -72,12 +72,14 @@ func (this *GenerateV) genClass(cursor, parent clang.Cursor) {
 		log.Printf("%s:%d:%d @%s\n", file.Name(), line, col, file.Time().String())
 	}
 
+	// xclsname from ./clipqt/
+	// but clipqt very hard
 	clsname := cursor.Spelling()
 	xclsname := "x" + clsname
 	if xcursor, ok := keepClasses[xclsname]; ok {
 		this.xclass = xcursor
 	} else {
-		log.Println("no xcls found, white list not match", clsname)
+		log.Println("no xcls found, white list not match", clsname, len(keepClasses))
 		return
 	}
 
@@ -98,6 +100,7 @@ func (this *GenerateV) genClass(cursor, parent clang.Cursor) {
 }
 
 func (this *GenerateV) final(cursor, parent clang.Cursor) {
+
 	// log.Println(this.cp.ExportAll())
 	this.saveCode(cursor, parent)
 

@@ -6,6 +6,13 @@ import (
 )
 
 type GenContext struct {
+	qtdir      string
+	qtver      string
+	genlang    string
+	bsast_file string
+	bshdr_file string
+
+	useclipqt bool // default false
 }
 
 type GenClassContext struct {
