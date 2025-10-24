@@ -195,24 +195,24 @@ function mvvsrc()
 {
     set +x
 
-    mkdir -p ~/.vmodules/qtui/{qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}
+    mkdir -p ~/.vmodules/qt/{qtcore,qtgui,qtwidgets,qtnetwork,qtqml,qtquick}
     #rm -f ~/.vmodules/vqt/qt{core,gui,widgets,network,qml,quick}/q*.v
 
-    mvbymd5 v src/core ~/.vmodules/qtui/qtcore
-    mvbymd5 v src/gui ~/.vmodules/qtui/qtgui
-    mvbymd5 v src/widgets ~/.vmodules/qtui/qtwidgets
+    mvbymd5 v src/core ~/.vmodules/qt/qtcore
+    mvbymd5 v src/gui ~/.vmodules/qt/qtgui
+    mvbymd5 v src/widgets ~/.vmodules/qt/qtwidgets
     #cp -a src/widgets/*.rs ~/oss/qt.cr/src/widgets/
     #cp -a src/network/*.rs ~/oss/qt.cr/src/network/
     #cp -a src/qml/*.rs ~/oss/qt.cr/src/qml/
     #cp -a src/quick/*.rs ~/oss/qt.cr/src/quick/
 
-    rm -f ~/.vmodules/qtui/qt{core,gui,widgets}/*list.v
-    rm -f ~/.vmodules/qtui/qt{core,gui,widgets}/*map.v
-    cp -v src/gui/qpixmap.v ~/.vmodules/qtui/qtgui/
-    rm -f ~/.vmodules/qtui/qt{core,gui,widgets}/*hash.v
-    rm -f ~/.vmodules/qtui/qt{core,gui,widgets}/*set.v
+    rm -f ~/.vmodules/qt/qt{core,gui,widgets}/*list.v
+    rm -f ~/.vmodules/qt/qt{core,gui,widgets}/*map.v
+    cp -v src/gui/qpixmap.v ~/.vmodules/qt/qtgui/
+    rm -f ~/.vmodules/qt/qt{core,gui,widgets}/*hash.v
+    rm -f ~/.vmodules/qt/qt{core,gui,widgets}/*set.v
 
-    rm -f ~/.vmodules/qtui/qt{core,gui,widgets}/qfunctions.v
+    rm -f ~/.vmodules/qt/qt{core,gui,widgets}/qfunctions.v
 
 }
 

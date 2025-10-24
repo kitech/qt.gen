@@ -747,7 +747,7 @@ func (this *TypeConvertBase) IsQtClass(ty clang.Type) bool {
 	return false
 }
 
-///
+// /
 type TypeConvertGo struct {
 	TypeConvertBase
 }
@@ -1135,7 +1135,7 @@ func (this *TypeConvertGo) toDestMetaType(ty clang.Type, cursor clang.Cursor) st
 	return fmt.Sprintf("C.unkown_%s_%s", ty.Spelling(), ty.Kind().String())
 }
 
-///
+// /
 type TypeConvertCy struct {
 	TypeConvertBase
 }
@@ -1523,7 +1523,7 @@ func (this *TypeConvertCy) toDestMetaType(ty clang.Type, cursor clang.Cursor) st
 	return fmt.Sprintf("C.unkown_%s_%s", ty.Spelling(), ty.Kind().String())
 }
 
-/// vvv
+// / vvv
 type TypeConvertV struct {
 	TypeConvertBase
 }
@@ -1552,11 +1552,11 @@ func (this *TypeConvertV) toDest(ty clang.Type, cursor clang.Cursor) string {
 	case clang.Type_UShort:
 		return "u16"
 	case clang.Type_UChar:
-		return "byte"
+		return "u8"
 	case clang.Type_Char_S:
-		return "byte"
+		return "i8"
 	case clang.Type_SChar:
-		return "byte"
+		return "i8"
 	case clang.Type_Long:
 		return "i64"
 	case clang.Type_ULong:
@@ -1606,7 +1606,7 @@ func (this *TypeConvertV) toDest(ty clang.Type, cursor clang.Cursor) string {
 			} else if usemod == "core" && refmod == "widgets" {
 			} else if usemod == "gui" && refmod == "widgets" {
 			} else {
-				return " " + pkgPref + get_bare_type(ty).Spelling() +
+				return " &" + pkgPref + get_bare_type(ty).Spelling() +
 					fmt.Sprintf("/*777 %s*/", ty.Spelling())
 			}
 		} else if ty.PointeeType().Kind() == clang.Type_Bool {
@@ -1615,8 +1615,24 @@ func (this *TypeConvertV) toDest(ty clang.Type, cursor clang.Cursor) string {
 		return "voidptr /*666*/"
 	case clang.Type_LValueReference:
 		if isPrimitiveType(ty.PointeeType()) {
-			return this.toDest(ty.PointeeType(), cursor)
+			return "&" + this.toDest(ty.PointeeType(), cursor)
 		} else if is_qt_class(ty.PointeeType()) {
+			refmod := get_decl_mod(get_bare_type(ty).Declaration())
+			usemod := get_decl_mod(cursor)
+			pkgPref := gopp.IfElseStr(refmod != usemod, fmt.Sprintf("qt%s.", refmod), "")
+			if is_qstring_cls(ty.Spelling()) {
+				return "string"
+			}
+			return " &" + pkgPref + get_bare_type(ty).Spelling()
+		}
+		return "voidptr /*555*/"
+	case clang.Type_RValueReference:
+		return "voidptr /*333*/"
+	case clang.Type_Elaborated:
+		// why here??? const QModelIndex&
+		if ty.IsConstQualifiedType() {
+			return this.toDest(ty.RemoveLocalConst(), cursor)
+		} else if is_qt_class(ty) {
 			refmod := get_decl_mod(get_bare_type(ty).Declaration())
 			usemod := get_decl_mod(cursor)
 			pkgPref := gopp.IfElseStr(refmod != usemod, fmt.Sprintf("qt%s.", refmod), "")
@@ -1625,13 +1641,12 @@ func (this *TypeConvertV) toDest(ty clang.Type, cursor clang.Cursor) string {
 			}
 			return " " + pkgPref + get_bare_type(ty).Spelling()
 		}
-		return "voidptr /*555*/"
-	case clang.Type_RValueReference:
-		return "voidptr /*333*/"
-	case clang.Type_Elaborated:
-		return "int"
+		// return ty.Spelling()
+
+		// log.Println(ty.Spelling(), ty.IsPODType(), ty.CanonicalType().Spelling(), ty.ClassType().Spelling(), ty.IsDependentType(), ty.IsTemplateTypeParmType())
+		return "int /*Elaborated*/"
 	case clang.Type_Enum:
-		return "int"
+		return "int /*Enum*/"
 	case clang.Type_Bool:
 		return "bool"
 	case clang.Type_Double:

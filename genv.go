@@ -393,7 +393,8 @@ func (this *GenerateV) genImportsWithcp(cp *CodePager, cursor, parent clang.Curs
 	cp.APf("ext", "import qt.qtrt")
 	for _, dep := range modDeps[modname] {
 		cp.APf("ext", "// import github.com/kitech/qt.go/qt%s", dep)
-		cp.APf("ext", "import qtui.qt%s", dep)
+		cp.APf("ext", "//import qtui.qt%s", dep)
+		cp.APf("ext", "import qt.qt%s", dep)
 	}
 
 	cp.APf("keep", "")
@@ -403,9 +404,9 @@ func (this *GenerateV) genImportsWithcp(cp *CodePager, cursor, parent clang.Curs
 	cp.APf("keep", "  // if false {reflect.TypeOf(vsafe.sizeof(0))}")
 	cp.APf("keep", "  // if false {fmt.println(123)}")
 	cp.APf("keep", "  // if false {log.println(123)}")
-	cp.APf("keep", "  if false {qtrt.keepme()}")
+	cp.APf("keep", "  //if false {qtrt.keepme()}")
 	for _, dep := range modDeps[modname] {
-		cp.APf("keep", "if false {qt%s.keepme()}", dep)
+		cp.APf("keep", "//if false {qt%s.keepme()}", dep)
 	}
 	cp.APf("keep", "}")
 }
@@ -463,10 +464,11 @@ func (this *GenerateV) genClassDef(cursor, parent clang.Cursor) {
 		// break
 	}
 	this.cp.APf("body", "    get_cthis() voidptr")
-	this.cp.APf("body", "    to%s() %s", cursor.Spelling(), cursor.Spelling())
+	this.cp.APf("body", "    to%s() &%s", cursor.Spelling(), cursor.Spelling())
 	this.cp.APf("body", "}")
 	this.cp.APf("body", "@[no_line]")
-	this.cp.APf("body", "fn hotfix_%s_itf_name_table(this %sITF) {", cursor.Spelling(), cursor.Spelling())
+	this.cp.APf("body", "fn hotfix_%s_itf_name_table(this &%sITF) {", cursor.Spelling(), cursor.Spelling())
+	this.cp.APf("body", "  panic('unreachable')")
 	this.cp.APf("body", "  that := &%s{}", cursor.Spelling())
 	this.cp.APf("body", "  hotfix_%s_itf_name_table(that)", cursor.Spelling())
 	this.cp.APf("body", "}")
@@ -949,7 +951,7 @@ func (this *GenerateV) genCtorFromPointer(cursor, parent clang.Cursor, midx int)
 		cursor.Spelling(), cursor.Spelling())
 	if len(bcs) == 0 {
 		//this.cp.APf("body", "    //return %s{qtrt.CObject{cthis}}", cursor.Spelling())
-		this.cp.APf("body", "    return &%s{qtrt.newCObjectFromptr(cthis)}", cursor.Spelling())
+		this.cp.APf("body", "    return &%s{qtrt.new_cobject_fromptr(cthis)}", cursor.Spelling())
 	} else {
 		bcobjs := []string{}
 		for i, bc := range bcs {
@@ -1599,6 +1601,7 @@ func (this *GenerateV) genArgConvFFIDv(cursor, parent clang.Cursor, midx, aidx i
 	} else if argty.Kind() == clang.Type_LValueReference &&
 		funk.Contains([]clang.TypeKind{clang.Type_Enum, clang.Type_Elaborated}, argty.PointeeType().Kind()) {
 		cp.APf("body", "    %s := 0", this.genParamRefName(cursor, parent, aidx))
+		cp.APf("body", "    mut conv_arg%d := voidptr(0)", aidx)
 	} else if funk.Contains([]clang.TypeKind{clang.Type_Int, clang.Type_Long, clang.Type_ULong, clang.Type_LongLong, clang.Type_Double, clang.Type_UShort, clang.Type_Float}, argty.Kind()) {
 		if strings.HasPrefix(argdv, "Qt::") || argdv == "Type" ||
 			(strings.HasPrefix(argdv, "Q") && strings.Contains(argdv, "::")) {
@@ -1809,7 +1812,7 @@ func (this *GenerateV) genRetFFI(cursor, parent clang.Cursor, midx int) {
 		if is_qt_class(rety) && get_bare_type(rety).Spelling() == "QString" {
 			cp.APf("body", "    rv2 := %snewQStringFromptr(voidptr(rv))", pkgPrefix)
 			cp.APf("body", "    rv3 := rv2.toUtf8().data()")
-			cp.APf("body", "    %sdeleteQString(&rv2)", pkgPrefix)
+			cp.APf("body", "    %sdeleteQString(rv2)", pkgPrefix)
 			cp.APf("body", "    return rv3")
 			//cp.APf("body", "    return \"\"")
 		} else if is_qt_class(rety) {
@@ -1827,7 +1830,7 @@ func (this *GenerateV) genRetFFI(cursor, parent clang.Cursor, midx int) {
 		if is_qt_class(rety) && get_bare_type(rety).Spelling() == "QString" {
 			cp.APf("body", "    rv2 := %snewQStringFromptr(voidptr(rv))", pkgPrefix)
 			cp.APf("body", "    rv3 := rv2.toUtf8.data()")
-			cp.APf("body", "    %sdeleteQString(&rv2)", pkgPrefix)
+			cp.APf("body", "    %sdeleteQString(rv2)", pkgPrefix)
 			cp.APf("body", "    return rv3")
 			//cp.APf("body", "    return \"\"")
 		} else if is_qt_class(rety) {
@@ -1858,7 +1861,7 @@ func (this *GenerateV) genRetFFI(cursor, parent clang.Cursor, midx int) {
 		if is_qt_class(rety) && get_bare_type(rety).Spelling() == "QString" {
 			cp.APf("body", "    rv2 := %snewQStringFromptr(voidptr(rv))", pkgPrefix)
 			cp.APf("body", "    rv3 := rv2.toUtf8().data()")
-			cp.APf("body", "    %sdeleteQString(&rv2)", pkgPrefix)
+			cp.APf("body", "    %sdeleteQString(rv2)", pkgPrefix)
 			cp.APf("body", "    return rv3")
 			//cp.APf("body", "    return \"\"")
 		} else if is_qt_class(rety) {
@@ -1895,7 +1898,27 @@ func (this *GenerateV) genRetFFI(cursor, parent clang.Cursor, midx int) {
 	case clang.Type_Enum:
 		cp.APf("body", "    return int(rv)")
 	case clang.Type_Elaborated:
-		cp.APf("body", "    return int(rv)")
+		if is_qt_class(rety) && get_bare_type(rety).Spelling() == "QString" {
+			cp.APf("body", "    rv2 := %snewQStringFromptr(voidptr(rv))", pkgPrefix)
+			cp.APf("body", "    rv3 := rv2.toUtf8().data()")
+			cp.APf("body", "    %sdeleteQString(rv2)", pkgPrefix)
+			cp.APf("body", "    return rv3")
+			//cp.APf("body", "    return \"\"")
+		} else if is_qt_class(rety) {
+			if _, ok := privClasses[rety.Spelling()]; ok {
+				cp.APf("body", "    return voidptr(rv)")
+			} else if usemod == "core" && defmod == "widgets" {
+				cp.APf("body", "    return voidptr(rv)")
+			} else if usemod == "gui" && defmod == "widgets" {
+				cp.APf("body", "    return voidptr(rv)")
+			} else {
+				barety := get_bare_type(rety)
+				cp.APf("body", "    return %s%s{} // 444",
+					pkgPrefix, barety.Spelling())
+			}
+		} else {
+			cp.APf("body", "    return int(rv)")
+		}
 	case clang.Type_Unexposed:
 		if strings.HasPrefix(rety.Spelling(), "QList<") {
 			cp.APf("body", "    rv2 := %snew%sListFromptr(voidptr(rv)) //5552",
@@ -2185,10 +2208,10 @@ func (this *GenerateV) genFunctions(cursor clang.Cursor, parent clang.Cursor) {
 			}
 			cp.APf("header", "pub fn init_unused_%d(){", this.nextclsidx())
 			cp.APf("header", "  // if false{_=vsafe.Pointer(0)}")
-			cp.APf("header", "  if false{qtrt.keepme()}")
-			cp.APf("header", "  if false{qtrt.keepme()}")
+			cp.APf("header", "  //if false{qtrt.keepme()}")
+			cp.APf("header", "  //if false{qtrt.keepme()}")
 			for _, dep := range modDeps[qtmod] {
-				cp.APf("header", "if false {qt%s.keepme()}", dep)
+				cp.APf("header", "//if false {qt%s.keepme()}", dep)
 			}
 			cp.APf("header", "}")
 		}
@@ -2326,6 +2349,10 @@ func (this *GenerateV) genConstantsGlobal(cursor, parent clang.Cursor) {
 
 		log.Println(qtmod, macro.Spelling(), macroval, macroty)
 		cstname := trimConstPrefixs(macro.Spelling())
+		if macro.Spelling() == "QML_VERSION_STR" {
+			// sofork??? conflict with trimed QTQML_VERSION_STR
+			continue
+		}
 		this.cp.APf("body", "pub const %s = %s // %s @ %s", cstname, macroval, macroty, qtmod)
 	}
 }
