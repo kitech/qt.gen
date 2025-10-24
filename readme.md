@@ -6,20 +6,20 @@ speedup compile time and save compile memory usage.
 ### build
 
     cd @GOPATH/github.com/therecipe/qt
-    git checkout -b for.qt.gen a76e7081468b0d9d554349b66b4971929f036ce7
+    git checkout -b for.qt.gen c0c124a5770d357908f16fa57e0aa0ec6ccd3f91
     git clone github.com/kitech/qt.gen
-	patch -N -p 1 -i qt.gen/docs/outer.a76e7081468b0d9d554349b66b4971929f036ce7.patch
+	patch -N -p 1 -i qt.gen/docs/outer.c0c124a5770d357908f16fa57e0aa0ec6ccd3f91.patch
     cd qt.gen/
     go build
 
     * go1.11.x go1.10.x works fine
 
-### run 
+### run
 
 	# for first run
 	# mkdir -p src/{core,gui,widgets,quick,qml,multimedia,network}
     QTDIR=$HOME/Qt5.9.1/ ./qt.gen c 2>&1|tee gen.log
-    
+
 Sometimes need `ulimit -n 10240`
 
 ### supported binding languages
@@ -69,6 +69,6 @@ C symbol 生成的是所有能够支持的Qt函数，而不是Qt子集
 * [ ] 是否有 complete dtor: \_ZN5QRectD2Ev
 
 ### depends
-* therecipe/qt@a76e7081468b0d9d554349b66b4971929f036ce7
+* therecipe/qt@c0c124a5770d357908f16fa57e0aa0ec6ccd3f91
 * extended go-clang https://github.com/kitech/go-clang-v3.9
 * go1.11.x go1.10.x

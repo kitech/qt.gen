@@ -1,14 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"gopp"
 	"log"
 	"os"
-	"fmt"
 	"strings"
 
 	"github.com/go-clang/v3.9/clang"
-	// <=5.10 "github.com/therecipe/qt/internal/binding/parser" // a76e7081468b0d9d554349b66b4971929f036ce7
+	// <=5.10 "github.com/therecipe/qt/internal/binding/parser" // c0c124a5770d357908f16fa57e0aa0ec6ccd3f91s
 	"github.com/therecipe/qt/internal/binding/parser"
 )
 
@@ -42,7 +42,7 @@ func (this *QDocIndex) load(qtdir, qtver string) {
 		return
 	}
 	this.setenv(qtdir, qtver)
-	parser.LoadModules()
+	parser.LoadModules("wtwtwt")
 	this.loaded = true
 
 	if false {
@@ -137,7 +137,7 @@ func (this *QDocIndex) findCoMethodCursor(clscs clang.Cursor, funco *parser.Func
 				argod := funco.Parameters[idx]
 				argoc := cursor.Argument(uint32(idx))
 				// hacked Value2 code, see docs/outer.*.patch
-				argdocty := gopp.IfElseStr(argod.Value != "", argod.Value, argod.Value2)
+				argdocty := gopp.IfElseStr(argod.Value != "", argod.Value, argod.ValueNew)
 				log.Printf("%s, %+v, %s\n", argoc.Type().Spelling(), argod, argdocty)
 				if argdocty != argoc.Type().Spelling() {
 					match = false
@@ -199,7 +199,7 @@ func (this *QDocIndex) findMethod(clso *parser.Class, mthc clang.Cursor) (funco 
 		for idx := int32(0); idx < mthc.NumArguments(); idx++ {
 			argod := funco_.Parameters[idx]
 			argoc := mthc.Argument(uint32(idx))
-			argdocty := gopp.IfElseStr(argod.Value != "", argod.Value, argod.Value2)
+			argdocty := gopp.IfElseStr(argod.Value != "", argod.Value, argod.ValueNew)
 			log.Printf("idx:%d, %s, %+v, %s\n", idx, argoc.Type().Spelling(), argod, argdocty)
 			if argdocty != argoc.Type().Spelling() {
 				match = false

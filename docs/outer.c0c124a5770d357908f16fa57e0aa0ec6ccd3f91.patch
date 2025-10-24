@@ -1,0 +1,34 @@
+diff --git a/internal/binding/parser/helper.go b/internal/binding/parser/helper.go
+index 288ff233..d63037b7 100644
+--- a/internal/binding/parser/helper.go
++++ b/internal/binding/parser/helper.go
+@@ -635,6 +635,7 @@ func SortedClassesForModule(module string, template bool) []*Class {
+ 		classNames = SortedClassNamesForModule(module, template)
+ 		output     = make([]*Class, len(classNames))
+ 	)
++
+ 	for i, name := range classNames {
+ 		output[i] = State.ClassMap[name]
+ 	}
+diff --git a/internal/binding/templater/helper.go b/internal/binding/templater/helper.go
+index 614305eb..fe2115e7 100644
+--- a/internal/binding/templater/helper.go
++++ b/internal/binding/templater/helper.go
+@@ -7,6 +7,9 @@ import (
+ 	"github.com/therecipe/qt/internal/utils"
+ )
+ 
++func HasUnimplementedPureVirtualFunctions(className string) bool {
++	return hasUnimplementedPureVirtualFunctions(className)
++}
+ func hasUnimplementedPureVirtualFunctions(className string) bool {
+ 	for _, f := range parser.State.ClassMap[className].Functions {
+ 
+@@ -23,6 +26,7 @@ func hasUnimplementedPureVirtualFunctions(className string) bool {
+ 	return false
+ }
+ 
++func GoModule(module string) string { return goModule(module) }
+ func goModule(module string) string {
+ 	return strings.ToLower(strings.TrimPrefix(module, "Qt"))
+ }
