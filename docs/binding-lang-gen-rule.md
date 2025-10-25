@@ -10,8 +10,8 @@
 * Addr() => GetAddr()
 
 ### vlang封装生成时的考虑
-* 使用结构体封装， type QObject { cthis voidptr }
-* 生成*非*指针的方法  fn (this QObject) someMethod() {}
+* 使用结构体封装， struct QObject { cthis voidptr }
+* 生成*非*指针的方法  fn (this &QObject) someMethod() {}
 * 即使改过的V编译器，函数/方法名也不能以大写字母开头
 * qt实例的GC回收考虑使用bdwgc。接管所有的v分配，但是要保留c++内存分配使用real_malloc。
 * getCthis()
@@ -34,7 +34,49 @@
   而且在传递的时候需要手动强制转换为sumtype类型，不适用。
 * 可以考虑使用vlang的 enum取代const，只是传递参数时的类型转换可能不好处理。
   测试了下，可以使用整数，但是要用enum名字引用的话，跨包时需要全名，本包内可以用.enumitem。
-* [x] 给某些函数加 [no_inline]属性，保证符号表的存在，应该能用到, newQClassFromptr, deleteQClass
+* [x] 给某些函数加 @[no_inline]属性，保证符号表的存在，应该能用到, newQClassFromptr, deleteQClass
+
+### binding api rule for Vlang
+
+include mut/& this, method name reformat or not.
+
+and help method/function for qt class.
+
+* module head for keep camel names, @[translated] module qtxxx
+* add pub interface QClassNameITF {}
+* add extra method to emulate virtual method,
+    ```pub fn (this &QClassName) toQClassName() &QClassName```
+
+* constructor 1, ```pub fn newClassName(...) &QClassName```
+    original from Go binding, but V func/method cannot start with uppercase
+* constructor 2, ```pub fn QClassName.new(...) &QClassName```
+* constructor from C ptr 1, ```pub fn QClassNameFromptr(ptr voidptr) &QClassName```
+* constructor from C ptr 2, ```pub fn QClassName.fromptr(ptr voidptr) &QClassName```
+* constructor from C ptr 3, ```pub fn (_ &QClassName) newFromptr(ptr voidptr) &QClassName```
+    thus not write code like, qtcore.QString.fromptr(ptr),
+    just write as, s1.newFromptr(ptr),
+    ofcause you need already have an old object.
+
+* destructor 1, ```pub fn deleteQClassName(this &QClassName)```
+    this func also used in set_finalizer
+* destructor 2, ```pub fn (this &QClassName) dtor()```
+    cannot use delete for name conflict in case.
+* destructor 3, ```pub fn (this &QClassName) free()```
+    for V autofree invoke, later when V fully implment.
+
+* normal metohd, ```pub fn (this &Type) methodName(...)```
+* static method:
+  1. like normal method, but omit this:
+    ```pub fn (_ &QClassName) methodName(...)```
+  2. use V's static method:
+    ```pub fn QClassName.methodName(...)```
+
+* for inherit, ```pub fn (_ &QClassName) newForInherit_(...) &QClassName```
+
+* \#define const, keep uppercase, trimed QT_, QT, Q_ prefix.
+* class anonymus enum, ```QClassNameEnum.EnumName```
+* class named enum, ```QClassNameEnumType.EnumName```
+* global named enum, ```EnumType.EnumName```
 
 ### ch 封装生成时的考虑
 * 类名 typedef void* QObject;
@@ -49,3 +91,12 @@
 * 不需要析构函数原型
 * 可以保留inline关键字
 
+### filter rules
+
+    * fields:
+    *
+    * class, = | ~, classname,
+    * method, = | ~, classname(can empty or *), methodname
+    * enum, = | ~, enumname
+    * func, = | ~, funcname
+    * \#def, = | ~, defname

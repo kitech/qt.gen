@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"go/token"
 	"log"
 	"regexp"
 	"strings"
@@ -25,10 +26,189 @@ type GenFilter interface {
 	skipFunc(cursor clang.Cursor) bool
 }
 
+// allow # comment, empty line
+var qtgenrules = `# try filter by rules
+class,~, ^QMetaTypeId, ^QTypeInfo, ^QQmlTypeInfo, ^QIntegerForSize
+class,~, ^QOpenGLFunctions, ^QOpenGLExtraFunctions,^QOpenGLVersion
+class,~, ^QOpenGL, ^QAbstract-, ^QPrivate
+
+class,=, QAbstractOpenGLFunctionsPrivate, QOpenGLFunctionsPrivate
+class,=, QOpenGLExtraFunctionsPrivate, QAnimationGroup
+class,=, QMetaType, QAtomicOpsSupport, QAtomicOpsSupport
+class, ~, Private$
+class, ~, QtPrivate
+class, ~, ^QOpenGLFunctions_ && CoreBackend
+class, ~, ^QOpenGLFunctions_ && DeprecatedBackend
+class, ~, ^QFlags<
+
+class, =, QDebug, QNoDebug, QDebugStateSaver, QLibraryInfo
+class, =, QInternal, QAccessibleObject, QAccessibleActionInterface, QGraphicsObject
+
+# method has classname field, or * for all
+method, =, *, qt_metacall,qt_metacast
+method, ~, *, ^qt_check_for_
+method, =, *, tr, trUtf8, data_ptr, d_func
+method, ~, *, ^operator
+method, =, *, rend, append, insert, rbegin, prepend, crend, crbegin
+method, ~, *, rawHeaderPairs, rawHeaders
+
+func, ~, printf, QDebug, qt_builtin_, qustrlen, _destructor
+# TODO this is little hard
+func, ~, _helper$ & ! ^qt_
+
+argty, ~, ^QList<QUrl,
+argty, ~, ^Q*Map$, ^Q*Hash$
+
+`
+
+type GenRuleItem struct {
+	Name       string
+	Matop      string // token.Token
+	ScopeClass string
+
+	Regstr0 string
+	Midop   token.Token
+	Regstr1 string
+
+	Regobj0 *regexp.Regexp
+	Regobj1 *regexp.Regexp
+}
+
+const ( // GR name
+	GRN_CLASS  = "class"
+	GRN_METHOD = "method"
+	GRN_ENUM   = "enum"
+	GRN_FUNC   = "func"
+	GRN_ARGTY  = "argty"
+	GRN_RETTY  = "retty"
+
+	GROP_EQL = "="
+	GROP_RMT = "~" // reg match
+)
+
+var GenRules = []*GenRuleItem{}
+
+// parse qt gen rules
+func init() {
+	initParseGenRules()
+	initGenRulesTests()
+	// log.Fatalln("stop test")
+}
+
+func initGenRulesTests() {
+	val := ""
+
+	val = "QString"
+	if GenRulesTest(GRN_CLASS, val, "") {
+		panic("wt " + val)
+	}
+	val = "QMetaType"
+	if !GenRulesTest(GRN_CLASS, val, "") {
+		panic("wt " + val)
+	}
+	val = "operator+"
+	if !GenRulesTest(GRN_METHOD, val, "") {
+		panic("wt " + val)
+	}
+}
+
+func initParseGenRules() {
+	for _, line_ := range strings.Split(qtgenrules, "\n") {
+		line := strings.TrimSpace(line_)
+		if strings.HasPrefix(line, "#") || line == "" {
+			continue
+		}
+		parse_genrule_line(line)
+	}
+	log.Println("Got gen rules count", len(GenRules))
+
+}
+
+func parse_genrule_line(line string) {
+	flds := strings.Split(line, ",")
+	for i, fld := range flds {
+		flds[i] = strings.TrimSpace(fld)
+	}
+
+	items := []*GenRuleItem{}
+	switch flds[0] {
+
+	case GRN_METHOD: // method, = or ~, *, regs...
+		for i := 3; i < len(flds); i++ {
+			item := &GenRuleItem{Name: flds[0], Matop: flds[1], ScopeClass: flds[2], Regstr0: flds[i]}
+			lvrv := strings.Split(flds[i], "&&")
+			if len(lvrv) == 2 {
+				item.Midop = token.LAND
+				item.Regstr0, item.Regstr1 = lvrv[0], lvrv[1]
+			}
+			lvrv = strings.Split(flds[i], "||")
+			if len(lvrv) == 2 {
+				item.Midop = token.LOR
+				item.Regstr0, item.Regstr1 = lvrv[0], lvrv[1]
+			}
+
+			if item.Matop == GROP_RMT {
+				item.Regobj0 = regexp.MustCompile(item.Regstr0)
+				item.Regobj1 = regexp.MustCompile(item.Regstr1)
+			}
+			items = append(items, item)
+		}
+
+	case GRN_CLASS: // class, = or ~, regs...
+		fallthrough
+	case GRN_ENUM:
+		fallthrough
+	case GRN_FUNC:
+		fallthrough
+	case GRN_ARGTY:
+		fallthrough
+	case GRN_RETTY:
+		for i := 2; i < len(flds); i++ {
+			item := &GenRuleItem{Name: flds[0], Matop: flds[1], Regstr0: flds[i]}
+			if item.Matop == GROP_RMT {
+				item.Regobj0 = regexp.MustCompile(flds[i])
+			}
+			items = append(items, item)
+		}
+	}
+	for _, item := range items {
+		GenRules = append(GenRules, item)
+	}
+}
+
+func GenRulesTest(name string, value string, ScopeClass string) bool {
+	bret := false
+	for idx := 0; idx < len(GenRules); idx++ {
+		item := GenRules[idx]
+		if item.Name != name {
+			continue
+		}
+		// log.Println("rule testing", value, *item)
+		if item.Test(value, ScopeClass) {
+			log.Println("rule match", item.Name, item.Matop, item.Regstr0, value, idx)
+			return true
+		}
+	}
+	return bret
+}
+
+func (r *GenRuleItem) Test(value string, ScopeClass string) bool {
+	switch r.Matop {
+	case GROP_RMT:
+		mats := r.Regobj0.FindAllStringSubmatch(value, -1)
+		return len(mats) > 0
+	default:
+		return r.Regstr0 == value
+	}
+}
+
+// ////
 type GenFilterBase struct {
 }
 
 func (this *GenFilterBase) skipClass(cursor, parent clang.Cursor) bool {
+	GenRulesTest(GRN_CLASS, cursor.Spelling(), "")
+
 	skip := this.skipClassImpl(cursor, parent)
 	if strings.Contains(cursor.Spelling(), "QWidgetList") {
 		// log.Fatalln(cursor.Spelling())
@@ -127,6 +307,8 @@ func (this *GenFilterBase) skipClassImpl(cursor, parent clang.Cursor) int {
 }
 
 func (this *GenFilterBase) skipMethod(cursor, parent clang.Cursor) bool {
+	GenRulesTest(GRN_METHOD, cursor.Spelling(), parent.Spelling())
+
 	skip := this.skipMethodImpl(cursor, parent)
 	if cursor.Spelling() == "QApplication" {
 	}
@@ -206,6 +388,8 @@ func (this *GenFilterBase) skipMethodImpl(cursor, parent clang.Cursor) int {
 }
 
 func (this *GenFilterBase) skipFunc(cursor clang.Cursor) bool {
+	GenRulesTest(GRN_FUNC, cursor.Spelling(), "")
+
 	if cursor.IsVariadic() {
 		return true
 	}
@@ -623,7 +807,7 @@ func (this *GenFilterBase2) skipFuncImpl(cursor clang.Cursor) int {
 	return 0
 }
 
-/////
+// ///
 type GenFilterInc struct {
 	fltb *GenFilterBase2
 }
@@ -653,7 +837,7 @@ func (this *GenFilterInc) skipFunc(cursor clang.Cursor) bool {
 	return bskip
 }
 
-/////
+// ///
 type GenFilterGo struct {
 	GenFilterBase
 }
@@ -663,7 +847,7 @@ func (this *GenFilterGo) skipMethod(cursor, parent clang.Cursor) bool {
 	return bskip
 }
 
-///
+// /
 type GenFilterV struct {
 	GenFilterBase
 }

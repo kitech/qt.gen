@@ -12,6 +12,9 @@ import (
 	"github.com/therecipe/qt/internal/binding/parser"
 )
 
+// qdocindex generated from full source code tree
+// so dont depend on this, forget it
+
 var qdi *QDocIndex = newQDocIndex()
 
 type QDocIndex struct {
