@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"gopp"
+	gopp "github.com/kitech/goplusplus"
 	"hash/crc32"
 	"log"
 	"runtime"

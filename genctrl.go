@@ -15,7 +15,7 @@ import (
 	"github.com/go-clang/v3.9/clang"
 	funk "github.com/thoas/go-funk"
 
-	"gopp"
+	gopp "github.com/kitech/goplusplus"
 )
 
 // module depend table

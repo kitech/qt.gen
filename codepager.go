@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"gopp"
+	gopp "github.com/kitech/goplusplus"
 
 	"github.com/emirpasic/gods/lists/arraylist"
 )

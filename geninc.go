@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"gopp"
-	"gopp/gods"
+	gopp "github.com/kitech/goplusplus"
+	"github.com/kitech/goplusplus/gods"
 	"io/ioutil"
 	"log"
 	"path/filepath"
