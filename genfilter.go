@@ -32,6 +32,7 @@ class,~, ^QMetaTypeId, ^QTypeInfo, ^QQmlTypeInfo, ^QIntegerForSize
 class,~, ^QOpenGLFunctions, ^QOpenGLExtraFunctions,^QOpenGLVersion
 class,~, ^QOpenGL, ^QAbstract-, ^QPrivate
 
+class,=, Qt
 class,=, QAbstractOpenGLFunctionsPrivate, QOpenGLFunctionsPrivate
 class,=, QOpenGLExtraFunctionsPrivate, QAnimationGroup
 class,=, QMetaType, QAtomicOpsSupport, QAtomicOpsSupport
@@ -225,7 +226,7 @@ func (this *GenFilterBase) skipClassImpl(cursor, parent clang.Cursor) int {
 	prefixes := []string{
 		"QMetaTypeId", "QTypeInfo", "QOpenGLFunctions",
 		"QOpenGLExtraFunctions", "QOpenGLVersion", "QOpenGL",
-		"QAbstract-", "QPrivate",
+		"QAbstract-", "QPrivate", "Qt",
 	}
 	equals := []string{
 		"QAbstractOpenGLFunctionsPrivate",

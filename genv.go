@@ -469,8 +469,8 @@ func (this *GenerateV) genClassDef(cursor, parent clang.Cursor) {
 	this.cp.APf("body", "    get_cthis() voidptr")
 	this.cp.APf("body", "    to%s() &%s", cursor.Spelling(), cursor.Spelling())
 	this.cp.APf("body", "}")
-	this.cp.APf("body", "@[no_line]")
-	this.cp.APf("body", "fn hotfix_%s_itf_name_table(this &%sITF) {", cursor.Spelling(), cursor.Spelling())
+	this.cp.APf("body", "@[no_inline]")
+	this.cp.APf("body", "fn hotfix_%s_itf_name_table(this %sITF) {", cursor.Spelling(), cursor.Spelling())
 	this.cp.APf("body", "  panic('unreachable')")
 	this.cp.APf("body", "  that := &%s{}", cursor.Spelling())
 	this.cp.APf("body", "  hotfix_%s_itf_name_table(that)", cursor.Spelling())
@@ -1525,6 +1525,7 @@ func (this *GenerateV) genArgConvFFI(cursor, parent clang.Cursor, midx, aidx int
 	} else if is_qt_class(argty) && get_bare_type(argty).Spelling() == "QString" {
 		usemod := get_decl_mod(cursor)
 		pkgPref := gopp.IfElseStr(usemod == "core", "", "qtcore.")
+		pkgPref = gopp.IfElseStr(isgenqt3(), "", pkgPref)
 		cp.APf("body", "    mut tmp_arg%d := %snewQString5(%s)", aidx, pkgPref,
 			this.genParamRefName(cursor, parent, aidx))
 		// this.cp.APf("body", "    defer %sDeleteQString(tmpArg%d)", pkgPref, aidx) // not needed

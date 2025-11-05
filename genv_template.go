@@ -58,8 +58,8 @@ func (this *GenerateV) genTemplateInstant(tmplClsCursor, argClsCursor clang.Curs
 	// tmplClsName := tmplClsCursor.Spelling()
 
 	this.cp.APf("body", "pub struct %s  {", argClsCursor.Spelling())
-	this.cp.APf("body", "    // *qtrt.CObject")
-	this.cp.APf("body", "  pub mut: cthis voidptr")
+	this.cp.APf("body", "    qtrt.CObject")
+	// this.cp.APf("body", "  pub mut: cthis voidptr")
 	this.cp.APf("body", "}")
 
 	this.mthidxs = map[string]int{}
@@ -108,9 +108,9 @@ func (this *GenerateV) genTemplateMethod(cursor, parent clang.Cursor, argClsCurs
 		fallthrough
 	case clang.Type_Unexposed:
 		if isSelfRef(rety.Spelling()) {
-			retytxt = "" + clsName
+			retytxt = "&" + clsName
 		} else if isElemRef(rety) {
-			retytxt = "" + elemClsName
+			retytxt = "&" + elemClsName
 		}
 	default:
 		log.Println(rety.Spelling(), rety.Kind().Spelling(), cursor.DisplayName())
