@@ -46,6 +46,10 @@ func fix_inc_name(name string) string {
 // # like core without qt prefix
 func get_decl_mod_lower(cursor clang.Cursor) string { return get_decl_mod(cursor) }
 func get_decl_mod(cursor clang.Cursor) string {
+	if isgenqt3() {
+		return "3"
+	}
+
 	loc := cursor.Location()
 	file, _, _, _ := loc.FileLocation()
 	log.Println(cursor.Spelling(), cursor.IsCursorDefinition(), file.Name())

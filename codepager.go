@@ -46,6 +46,9 @@ func (this *CodePager) AddPointer(name string) {
 }
 
 func (this *CodePager) HasPointer(name string) bool {
+	if this==nil {
+		panic("wttt "+name)
+	}
 	_, ok := this.lines[name]
 	return ok
 }

@@ -57,7 +57,7 @@ func (this *GenerateV) initBlocks() {
 	blocks := []string{"header", "main", "use", "ext", "body", "keep"}
 	for _, block := range blocks {
 		this.cp.AddPointer(block)
-		this.cp.APf(block, "") // for keep block order
+		this.cp.APf(block, "// %s for keep block order", block) // for keep block order
 		this.cpnomin.AddPointer(block)
 		this.cpnomin.APf(block, "")
 		// this.cp.APf(block, "// block begin--- %s", block)
@@ -1337,7 +1337,10 @@ var inheritMethodsv = map[string]int{}
 func (this *GenerateV) genProtectedCallback(cursor, parent clang.Cursor, midx int) {
 	// this.genMethodHeader(cursor, parent, 0)
 	mod := get_decl_mod(cursor)
-	cp, _ := this.cpcs[mod]
+	cp, ok := this.cpcs[mod]
+	if !ok {
+		panic("wtt mod "+mod+" " + cursor.Spelling())
+	}
 
 	this.genArgsCGO(cursor, parent)
 	argStr := strings.Join(this.argDesc, ", ")

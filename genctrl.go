@@ -65,6 +65,8 @@ func init() {
 	flag.StringVar(&genLang, "lang", genLang, "generate what langauge, c|v|go|rs|cj|js")
 }
 
+func isgenqt3() bool { return strings.HasPrefix(genQtver, "3.")}
+
 func (this *GenCtrl) main() {
 	if genLang == "" {
 		// log.Println("optional set QTDIR env")
@@ -639,16 +641,17 @@ func (this *GenCtrl) collectClasses() {
 		*/
 	} else if genLang == "v" {
 		var gg *GenerateV = this.qtenumgen.(*GenerateV)
-		gg.cp.APf("header", "@[translated] module qtcore")
+		qtmod := gopp.IfElseStr(isgenqt3(), "3", "core")
+		gg.cp.APf("header", "@[translated] module qt%s", qtmod)
 		// gg.cp.APf("header", "import \"fmt\"")
 		gg.genEnumsGlobal(cursor, cursor.SemanticParent())
 		// gg.cp.APf("keep", "func make_sure_usepkg_qnamespace(){if false{fmt.Println(123)}}")
-		gg.saveCodeToFile("core", "qnamespace")
+		gg.saveCodeToFile(qtmod, "qnamespace")
 
 		gg = this.qtconstgen.(*GenerateV)
-		gg.cp.APf("header", "@[translated] module qtcore")
+		gg.cp.APf("header", "@[translated] module qt%s", qtmod)
 		gg.genConstantsGlobal(cursor, cursor.SemanticParent())
-		gg.saveCodeToFile("core", "qconstants")
+		gg.saveCodeToFile(qtmod, "qconstants")
 	} else if genLang == "rs" {
 		var gg *GenerateRs = this.modlstgen.(*GenerateRs)
 		for modname, cp := range gg.cpcs {

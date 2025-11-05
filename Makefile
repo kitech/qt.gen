@@ -1,9 +1,10 @@
+GOEXE=go1.11
 all:
-	go build -v -i
+	$(GOEXE) build -v -i
 
 run:
-	go build -v -i
-  # [QT_DIR=$HOME/Qt5.x.x/] ./qt.gen <c|go>
+	$(GOEXE) build -v -i
+  # [QTDIR=$HOME/Qt5.x.x/] ./qt.gen <c|go>
 	./qt.gen
 
 # for gov2, need remove .ast and then run two times
