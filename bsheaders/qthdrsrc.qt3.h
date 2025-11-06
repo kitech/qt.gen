@@ -262,21 +262,21 @@
 #include <qspinbox.h>
 #include <qsplashscreen.h>
 #include <qsplitter.h>
-#include <qsqlcursor.h>
-#include <qsqldatabase.h>
-#include <qsqldriver.h>
-#include <qsqldriverplugin.h>
-#include <qsqleditorfactory.h>
-#include <qsqlerror.h>
-#include <qsqlfield.h>
-#include <qsqlform.h>
-#include <qsql.h>
-#include <qsqlindex.h>
-#include <qsqlpropertymap.h>
-#include <qsqlquery.h>
-#include <qsqlrecord.h>
-#include <qsqlresult.h>
-#include <qsqlselectcursor.h>
+//#include <qsqlcursor.h>
+//#include <qsqldatabase.h>
+//#include <qsqldriver.h>
+//#include <qsqldriverplugin.h>
+//#include <qsqleditorfactory.h>
+//#include <qsqlerror.h>
+//#include <qsqlfield.h>
+//#include <qsqlform.h>
+//#include <qsql.h>
+//#include <qsqlindex.h>
+//#include <qsqlpropertymap.h>
+//#include <qsqlquery.h>
+//#include <qsqlrecord.h>
+//#include <qsqlresult.h>
+//#include <qsqlselectcursor.h>
 #include <qstack.h>
 #include <qstatusbar.h>
 #include <qstring.h>
@@ -345,8 +345,8 @@
 #include <qwindowsstyle.h>
 #include <qwinexport.h>
 #include <qwizard.h>
-#include <qwmatrix.h>
+//#include <qwmatrix.h>
 #include <qworkspace.h>
-#include <qxml.h>
+//#include <qxml.h>
 
 #endif

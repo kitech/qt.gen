@@ -174,7 +174,7 @@ func is_nim_keyword(s string) bool {
 func is_v_keyword(s string) bool {
 	keywords := map[string]int{"match": 1, "type": 1, "move": 1, "select": 1, "case": 1,
 		"map": 1, "range": 1, "var": 1, "len": 1, "fmt": 1, "err": 1, "go": 1, "func": 1,
-		"package": 1, "import": 1, "string": 1, "in": 1,
+		"package": 1, "import": 1, "string": 1, "in": 1, "sql": 1,
 		"begin": 1, "end": 1, "lock": 1, "unlock": 1, "try_lock": 1, "thread": 1,
 		"out": 1, "include": 1, "extern": 1, "module": 1, "require": 1}
 	_, ok := keywords[s]
@@ -671,8 +671,10 @@ func num_default_value(mth clang.Cursor) (n int) {
 	return
 }
 
+// BUG QCDEStyle( bool useHighlightCols = FALSE );
 func has_default_value(arg clang.Cursor) (string, bool) {
 	bfp, _, _, boffset := arg.Location().FileLocation()
+	bfp, _, _, boffset = arg.Location().SpellingLocation() // this works
 
 	var fph *os.File
 	if fph_, ok := fileCache[bfp.Name()]; ok {
@@ -687,7 +689,8 @@ func has_default_value(arg clang.Cursor) (string, bool) {
 		log.Fatalln("wtf", bfp.Name())
 	}
 
-	fph.Seek(int64(boffset), os.SEEK_SET)
+	_, err1 := fph.Seek(int64(boffset), os.SEEK_SET)
+	gopp.ErrPrint(err1)
 	s := ""
 	hasdv := false
 	leftb := 0

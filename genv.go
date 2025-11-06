@@ -1521,7 +1521,7 @@ func (this *GenerateV) genArgConvFFIDv(cursor, parent clang.Cursor, midx, aidx i
 		} else if unicode.IsLetter(rune(argdv[0])) {
 			cp.APf("body", "    %s := %s(%s) //%s", this.genParamRefName(cursor, parent, aidx), this.tyconver.toDest(argty, cursor), "0", argdv) // enum
 		} else {
-			cp.APf("body", "    %s := %s(%s)", this.genParamRefName(cursor, parent, aidx), this.tyconver.toDest(argty, cursor), strings.TrimRight(argdv, "f"))
+			cp.APf("body", "    %s := %s(%s)", this.genParamRefName(cursor, parent, aidx), this.tyconver.toDest(argty, cursor), argdv) // strings.TrimRight(argdv, "f")
 		}
 	} else if barety.Kind() == clang.Type_Typedef &&
 		funk.Contains([]clang.TypeKind{clang.Type_Int, clang.Type_UInt, clang.Type_Long, clang.Type_LongLong, clang.Type_Double, clang.Type_UShort, clang.Type_UChar}, barety.Declaration().TypedefDeclUnderlyingType().Kind()) {
@@ -1584,16 +1584,19 @@ func (this *GenerateV) genParams(cursor, parent clang.Cursor) {
 
 func (this *GenerateV) genParam(cursor, parent clang.Cursor, aidx int) {
 	argName := cursor.Spelling()
+	argName = gopp.IfElseStr(argName == "", fmt.Sprintf("arg%d", aidx), argName)
 	argName = gopp.IfElseStr(is_v_keyword(argName), argName+"_", argName)
-	this.paramDesc = append(this.paramDesc,
-		gopp.IfElseStr(cursor.Spelling() == "", fmt.Sprintf("arg%d", aidx), argName))
+	argName = gopp.IfElseStr(unicode.IsUpper(rune(argName[0])), "_"+argName, argName)
+	this.paramDesc = append(this.paramDesc, argName)
 }
 
 func (this *GenerateV) genParamRefName(cursor, _ clang.Cursor, aidx int) string {
 	argName := cursor.Spelling()
+	argName = gopp.IfElseStr(cursor.Spelling() == "", fmt.Sprintf("arg%d", aidx), argName)
 	argName = gopp.IfElseStr(is_v_keyword(argName), argName+"_", argName)
+	argName = gopp.IfElseStr(unicode.IsUpper(rune(argName[0])), "_"+argName, argName)
 
-	return gopp.IfElseStr(cursor.Spelling() == "", fmt.Sprintf("arg%d", aidx), argName)
+	return argName
 }
 
 func (this *GenerateV) genParamsFFI(cursor, parent clang.Cursor) {
@@ -1625,7 +1628,10 @@ func (this *GenerateV) genParamFFI(cursor, parent clang.Cursor, idx int) {
 		}
 	} else {
 		argName := cursor.Spelling()
+		argName = gopp.IfElseStr(cursor.Spelling() == "",
+			fmt.Sprintf("arg%d", idx), fmt.Sprintf("%s", argName))
 		argName = gopp.IfElseStr(is_v_keyword(argName), argName+"_", argName)
+		argName = gopp.IfElseStr(unicode.IsUpper(rune(argName[0])), "_"+argName, argName)
 
 		useand := argty.Kind() == clang.Type_LValueReference &&
 			isPrimitiveType(argty.PointeeType())
@@ -1637,9 +1643,7 @@ func (this *GenerateV) genParamFFI(cursor, parent clang.Cursor, idx int) {
 			useand = false
 		}
 		andop := gopp.IfElseStr(useand, "&", "")
-		this.paramDesc = append(this.paramDesc,
-			andop+gopp.IfElseStr(cursor.Spelling() == "",
-				fmt.Sprintf("arg%d", idx), fmt.Sprintf("%s", argName)))
+		this.paramDesc = append(this.paramDesc, andop+argName)
 	}
 }
 
@@ -1739,7 +1743,7 @@ func (this *GenerateV) genRetFFI(cursor, parent clang.Cursor, midx int) {
 	case clang.Type_LValueReference:
 		if is_qt_class(rety) && get_bare_type(rety).Spelling() == "QString" {
 			cp.APf("body", "    rv2 := %snewQStringFromptr(voidptr(rv))", pkgPrefix)
-			cp.APf("body", "    rv3 := rv2.toUtf8.data()")
+			cp.APf("body", "    rv3 := rv2.toUtf8().data()")
 			cp.APf("body", "    %sdeleteQString(rv2)", pkgPrefix)
 			cp.APf("body", "    return rv3")
 			//cp.APf("body", "    return \"\"")
@@ -1855,6 +1859,7 @@ func (this *GenerateV) genArgCGO(cursor, parent clang.Cursor, idx int) {
 	argty := cursor.Type()
 	argName := gopp.IfElseStr(cursor.Spelling() == "", fmt.Sprintf("arg%d", idx), cursor.Spelling())
 	argName = gopp.IfElseStr(is_v_keyword(argName), argName+"_", argName)
+	argName = gopp.IfElseStr(unicode.IsUpper(rune(argName[0])), "_"+argName, argName)
 
 	dstr := getTyDesc(argty, ArgTyDesc_CV_SIGNATURE, cursor)
 	this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s", argName, dstr))

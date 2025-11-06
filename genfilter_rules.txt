@@ -8,10 +8,16 @@ class,=, QAbstractOpenGLFunctionsPrivate, QOpenGLFunctionsPrivate
 class,=, QOpenGLExtraFunctionsPrivate, QAnimationGroup
 class,=, QMetaType, QAtomicOpsSupport, QAtomicOpsSupport
 class, ~, Private$
-class, ~, QtPrivate
+class, ~, QtPrivate, QUInterface
 class, ~, ^QOpenGLFunctions_ && CoreBackend
 class, ~, ^QOpenGLFunctions_ && DeprecatedBackend
-class, ~, ^QFlags<
+class, ~, ^QFlags<, ^QPtrList<, ^QMemArray<
+class, ~, QValueList, QPair<
+class, ~, QList<, QMap<, QHash<, Q*Iterator
+class, ~, QXml, QSql, QWMatrix, Q*Map<, Q*Hash<
+argty, ~, QList<, QMap<, QHash<
+argty, ~, Q*Map<, Q*Hash<
+# cannot use ^QMap, ^QList, for maybe have const prefix
 
 class, =, QDebug, QNoDebug, QDebugStateSaver, QLibraryInfo
 class, =, QInternal, QAccessibleObject, QAccessibleActionInterface, QGraphicsObject
@@ -28,5 +34,5 @@ func, ~, printf, QDebug, qt_builtin_, qustrlen, _destructor
 # TODO this is little hard
 func, ~, _helper$ & ! ^qt_
 
-argty, ~, ^QList<QUrl,
-argty, ~, ^Q*Map$, ^Q*Hash$
+# should be system
+class, ~, ^__
