@@ -165,7 +165,7 @@ func (this *GenerateInline) walkClass(clsctx *GenClassContext, cursor, parent cl
 			fallthrough
 		case clang.Cursor_CXXMethod:
 			pureVirt = pureVirt || cursor.CXXMethod_IsPureVirtual()
-			if !this.filter.skipMethod(cursor, parent) {
+			if skip, _ := this.filter.skipMethod(cursor, parent); !skip {
 				methods = append(methods, cursor)
 			} else {
 				// log.Println("filtered:", cursor.Spelling())
@@ -1282,7 +1282,7 @@ func (this *GenerateInline) genFunctions(cursor, parent clang.Cursor) {
 				//continue
 			}
 
-			if this.filter.skipFunc(fc) {
+			if skip, _ := this.filter.skipFunc(fc); skip {
 				log.Println("skip global function ", fc.Spelling())
 				continue
 			}

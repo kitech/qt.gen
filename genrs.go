@@ -199,7 +199,7 @@ func (this *GenerateRs) walkClass(cursor, parent clang.Cursor) {
 		case clang.Cursor_Destructor:
 			fallthrough
 		case clang.Cursor_CXXMethod:
-			if !this.filter.skipMethod(cursor, parent) {
+			if skip, _ := this.filter.skipMethod(cursor, parent); !skip {
 				methods = append(methods, cursor)
 			} else {
 				log.Println("filtered:", cursor.DisplayName(), parent.Spelling())
@@ -326,7 +326,7 @@ func (this *GenerateRs) genClassDef(cursor, parent clang.Cursor) {
 func (this *GenerateRs) filter_base_classes(bcs []clang.Cursor) []clang.Cursor {
 	newbcs := make([]clang.Cursor, 0)
 	for _, bc := range bcs {
-		if !this.filter.skipClass(bc, bc.SemanticParent()) {
+		if skip, _ := this.filter.skipClass(bc, bc.SemanticParent());!skip {
 			newbcs = append(newbcs, bc)
 		}
 	}
@@ -2021,7 +2021,7 @@ func (this *GenerateRs) genFunctions(cursor clang.Cursor, parent clang.Cursor) {
 				continue
 			}
 
-			if this.filter.skipFunc(fc) {
+			if skip, _ := this.filter.skipFunc(fc); skip {
 				log.Println("skip global function ", fc.Spelling())
 				continue
 			}

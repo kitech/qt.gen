@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"go/token"
 	"log"
 	"os"
@@ -22,10 +23,10 @@ func init() {
 }
 
 type GenFilter interface {
-	skipClass(cursor, parent clang.Cursor) bool
-	skipMethod(cursor, parent clang.Cursor) bool
-	skipArg(cursor, parent clang.Cursor) bool
-	skipFunc(cursor clang.Cursor) bool
+	skipClass(cursor, parent clang.Cursor) ( skip bool, reason any)
+	skipMethod(cursor, parent clang.Cursor) (bool, any)
+	skipArg(cursor, parent clang.Cursor) (bool, any)
+	skipFunc(cursor clang.Cursor) (bool,any)
 }
 
 // allow # comment, empty line
@@ -182,20 +183,20 @@ func (r *GenFilterRuleItem) Test(value string, ScopeClass string) bool {
 type GenFilterBase struct {
 }
 
-func (this *GenFilterBase) skipClass(cursor, parent clang.Cursor) bool {
-	if !is_qt_class(cursor.Type()) { return true }
+func (this *GenFilterBase) skipClass(cursor, parent clang.Cursor) (bool,any) {
+	if !is_qt_class(cursor.Type()) { return true,nil }
 
-	rv0 := this.skipClassV0(cursor, parent)
-	rv2 := this.skipClassV2(cursor, parent)
+	rv0, reason0 := this.skipClassV0(cursor, parent)
+	rv2, reason2 := this.skipClassV2(cursor, parent)
 	if rv0 != rv2 {
-		log.Println(cursor.Spelling(), parent.Spelling(), rv0, rv2)
+		log.Println(cursor.Spelling(), parent.Spelling(), rv0, reason0, rv2, reason2)
 	}
-	return rv0 || rv2
+	return rv0 || rv2, nil
 }
-func (this *GenFilterBase) skipClassV2(cursor, parent clang.Cursor) bool {
-	return GenFilterRulesTest(GRN_CLASS, cursor.Spelling(), "")
+func (this *GenFilterBase) skipClassV2(cursor, parent clang.Cursor)  (bool,any) {
+	return GenFilterRulesTest(GRN_CLASS, cursor.Spelling(), ""), nil
 }
-func (this *GenFilterBase) skipClassV0(cursor, parent clang.Cursor) bool {
+func (this *GenFilterBase) skipClassV0(cursor, parent clang.Cursor)  (bool,any) {
 
 	skip := this.skipClassImpl(cursor, parent)
 	if strings.Contains(cursor.Spelling(), "QWidgetList") {
@@ -204,7 +205,7 @@ func (this *GenFilterBase) skipClassV0(cursor, parent clang.Cursor) bool {
 	if strings.Contains(cursor.Spelling(), "QWidgetList") && skip > 0 {
 		// log.Fatalln("skipped class:", skip)
 	}
-	return skip > 0
+	return skip > 0, skip
 }
 
 // TODO  拆分成多个小的过滤函数
@@ -246,7 +247,8 @@ func (this *GenFilterBase) skipClassImpl(cursor, parent clang.Cursor) int {
 	}
 
 	if !cursor.IsCursorDefinition() {
-		// log.Println("filtered by not definition", cursor.Spelling())
+		c2 := cursor.Definition()
+		log.Println("filtered by not definition", cursor.Spelling(), gopp.Retn(c2.Location().FileLocation()))
 		return 5
 	}
 	// pure virtual class check
@@ -294,19 +296,19 @@ func (this *GenFilterBase) skipClassImpl(cursor, parent clang.Cursor) int {
 	return 0
 }
 
-func (this *GenFilterBase) skipMethod(cursor, parent clang.Cursor) bool {
-	rv0 := this.skipMethodV0(cursor, parent)
-	rv2 := this.skipMethodV2(cursor, parent)
+func (this *GenFilterBase) skipMethod(cursor, parent clang.Cursor) (bool, any) {
+	rv0, reason0 := this.skipMethodV0(cursor, parent)
+	rv2, reason2 := this.skipMethodV2(cursor, parent)
 	if rv0 != rv2 {
-		log.Println(GRN_METHOD, cursor.Spelling(), parent.Spelling(), "v0", rv0, "v2", rv2)
+		log.Println(GRN_METHOD, cursor.Spelling(), parent.Spelling(), "v0", rv0, reason0, "v2", rv2, reason2)
 	}
-	return rv0
+	return rv0,nil
 }
-func (this *GenFilterBase) skipMethodV2(cursor, parent clang.Cursor) bool {
+func (this *GenFilterBase) skipMethodV2(cursor, parent clang.Cursor) (bool,any) {
 	return GenFilterRulesTest(GRN_METHOD, cursor.Spelling(), parent.Spelling()) ||
-		GenFilterRulesTest(GRN_CLASS, cursor.ResultType().Spelling(), cursor.Spelling())
+		GenFilterRulesTest(GRN_CLASS, cursor.ResultType().Spelling(), cursor.Spelling()) , nil
 }
-func (this *GenFilterBase) skipMethodV0(cursor, parent clang.Cursor) bool {
+func (this *GenFilterBase) skipMethodV0(cursor, parent clang.Cursor) (bool,any) {
 
 	skip := this.skipMethodImpl(cursor, parent)
 	if cursor.Spelling() == "QApplication" {
@@ -316,7 +318,7 @@ func (this *GenFilterBase) skipMethodV0(cursor, parent clang.Cursor) bool {
 		log.Println(skip, cursor.Spelling(), parent.Spelling(), cursor.DisplayName(), skip, cursor.AccessSpecifier())
 		// os.Exit(0)
 	}
-	return skip > 0
+	return skip > 0, skip
 }
 
 func (this *GenFilterBase) skipMethodImpl(cursor, parent clang.Cursor) int {
@@ -374,76 +376,76 @@ func (this *GenFilterBase) skipMethodImpl(cursor, parent clang.Cursor) int {
 
 	//
 	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
-		if this.skipArg(cursor.Argument(uint32(idx)), cursor) {
+		if skip, _ := this.skipArg(cursor.Argument(uint32(idx)), cursor); skip {
 			return 197
 		}
 	}
 
-	if this.skipReturn(cursor.ResultType(), cursor) {
+	if skip, _ := this.skipReturn(cursor.ResultType(), cursor); skip {
 		return 12
 	}
 
 	return 0
 }
-func (this *GenFilterBase) skipFunc(cursor clang.Cursor) bool {
-rv0 := this.skipFuncV0(cursor)
-	rv2 := this.skipFuncV2(cursor)
+func (this *GenFilterBase) skipFunc(cursor clang.Cursor) (bool,any) {
+	rv0, reason0 := this.skipFuncV0(cursor)
+	rv2, reason2 := this.skipFuncV2(cursor)
 	if rv0 != rv2 {
-		log.Println(GRN_FUNC, cursor.Spelling(), "v0", rv0, "v2", rv2)
+		log.Println(GRN_FUNC, cursor.Spelling(), "v0", rv0, reason0, "v2", rv2, reason2)
 	}
-	return rv0
+	return rv0,nil
 }
-func (this *GenFilterBase) skipFuncV2(cursor clang.Cursor) bool {
-	return GenFilterRulesTest(GRN_FUNC, cursor.Spelling(), "")
+func (this *GenFilterBase) skipFuncV2(cursor clang.Cursor) (bool,any) {
+	return GenFilterRulesTest(GRN_FUNC, cursor.Spelling(), ""),nil
 }
-func (this *GenFilterBase) skipFuncV0(cursor clang.Cursor) bool {
+func (this *GenFilterBase) skipFuncV0(cursor clang.Cursor) (bool,any) {
 
 	if cursor.IsVariadic() {
-		return true
+		return true, nil
 	}
 	if strings.Contains(cursor.Spelling(), "printf") {
-		return true
+		return true, nil
 	}
 	if strings.Contains(cursor.DisplayName(), "QDebug") {
-		return true
+		return true,nil
 	}
 	if strings.Contains(cursor.Spelling(), "qt_builtin_") {
-		return true
+		return true,nil
 	}
 	if strings.Contains(cursor.Spelling(), "qustrlen") {
-		return true
+		return true,nil
 	}
 	if strings.Contains(cursor.Spelling(), "_destructor") {
-		return true
+		return true,nil
 	}
 	// _helper结尾的函数，基本算是内部函数，不同qt版本间变动比较大，大概有10个
 	if strings.HasSuffix(cursor.Spelling(), "_helper") && !strings.HasPrefix(cursor.Spelling(), "qt_") {
-		return true
+		return true,nil
 	}
-	if this.skipReturn(cursor.ResultType(), cursor) {
-		return true
+	if skip, reason := this.skipReturn(cursor.ResultType(), cursor); skip {
+		return skip,reason
 	}
-	return false
+	return false,nil
 }
 
-func (this *GenFilterBase) skipArg(cursor, parent clang.Cursor) bool {
-	rv0 := this.skipArgV0(cursor, parent)
-	rv2 := this.skipArgV2(cursor, parent)
+func (this *GenFilterBase) skipArg(cursor, parent clang.Cursor) (bool,any) {
+	rv0, reason0 := this.skipArgV0(cursor, parent)
+	rv2, reason2 := this.skipArgV2(cursor, parent)
 	if rv0 != rv2 {
 		log.Println(GRN_ARGTY, cursor.Type().Spelling(), parent.Spelling(), "v0", rv0, "v2", rv2)
 	}
-	return rv0
+	return rv0, fmt.Sprintf("%v,%v", reason0, reason2)
 }
-func (this *GenFilterBase) skipArgV2(cursor, parent clang.Cursor) bool {
+func (this *GenFilterBase) skipArgV2(cursor, parent clang.Cursor) (bool,any) {
 	return GenFilterRulesTest(GRN_ARGTY, cursor.Type().Spelling(), parent.Spelling()) ||
-		GenFilterRulesTest(GRN_CLASS, cursor.Type().Spelling(), parent.Spelling())
+		GenFilterRulesTest(GRN_CLASS, cursor.Type().Spelling(), parent.Spelling()), nil
 }
-func (this *GenFilterBase) skipArgV0(cursor, parent clang.Cursor) bool {
+func (this *GenFilterBase) skipArgV0(cursor, parent clang.Cursor) (bool,any) {
 	skip := this.skipArgImpl(cursor, parent)
 	if skip > 0 {
 		log.Println(skip, cursor.Type().Spelling(), cursor.Type().Kind().String(), cursor.Spelling(), parent.DisplayName())
 	}
-	return skip > 0
+	return skip > 0, skip
 }
 
 func (this *GenFilterBase) skipArgImpl(cursor, parent clang.Cursor) int {
@@ -505,25 +507,25 @@ func (this *GenFilterBase) skipArgImpl(cursor, parent clang.Cursor) int {
 	return 0
 }
 
-func (this *GenFilterBase) skipReturn(ty clang.Type, cursor clang.Cursor) bool {
-	rv0 := this.skipReturnV0(ty, cursor)
-	rv2 := this.skipReturnV2(ty, cursor)
+func (this *GenFilterBase) skipReturn(ty clang.Type, cursor clang.Cursor) (bool,any) {
+	rv0, reason0 := this.skipReturnV0(ty, cursor)
+	rv2, reason2 := this.skipReturnV2(ty, cursor)
 	if rv0 != rv2 {
 		log.Println(GRN_RETTY, ty.Spelling(), "v0", rv0, "v2", rv2)
 	}
-	return rv0 || rv2
+	return rv0 || rv2, fmt.Sprintf("%v, %v", reason0, reason2)
 }
-func (this *GenFilterBase) skipReturnV2(ty clang.Type, cursor clang.Cursor) bool {
+func (this *GenFilterBase) skipReturnV2(ty clang.Type, cursor clang.Cursor) (bool,any) {
 	return GenFilterRulesTest(GRN_RETTY, ty.Spelling(), "") ||
-		GenFilterRulesTest(GRN_CLASS, ty.Spelling(), "")
+		GenFilterRulesTest(GRN_CLASS, ty.Spelling(), ""), nil
 }
 
-func (this *GenFilterBase) skipReturnV0(ty clang.Type, cursor clang.Cursor) bool {
+func (this *GenFilterBase) skipReturnV0(ty clang.Type, cursor clang.Cursor) (bool,any) {
 	skip := this.skipReturnImpl(ty, cursor)
 	if skip > 0 {
 		log.Println(skip, ty.Spelling(), cursor.DisplayName())
 	}
-	return skip > 0
+	return skip > 0, skip
 }
 
 func (this *GenFilterBase) skipReturnImpl(ty clang.Type, cursor clang.Cursor) int {
@@ -548,7 +550,7 @@ func (this *GenFilterBase) skipReturnImpl(ty clang.Type, cursor clang.Cursor) in
 	}
 
 	barety := get_bare_type(ty)
-	if this.skipClass(barety.Declaration(), barety.Declaration().SemanticParent()) {
+	if skip, _ := this.skipClass(barety.Declaration(), barety.Declaration().SemanticParent()); skip {
 		// return 4
 	}
 
@@ -642,10 +644,10 @@ base中过滤的项：
 // 过滤原因的返回
 type GenFilterBase2 struct{}
 
-func (this *GenFilterBase2) skipClass(cursor, parent clang.Cursor) bool {
+func (this *GenFilterBase2) skipClass(cursor, parent clang.Cursor) (bool,any) {
 	skipn := this.skipClassImpl(cursor, parent)
 	log.Println(skipn, cursor.Spelling(), parent.Spelling())
-	return skipn > 0
+	return skipn > 0, skipn
 }
 
 // TODO  拆分成多个小的过滤函数
@@ -744,10 +746,10 @@ func (this *GenFilterBase2) skipClassImpl(cursor, parent clang.Cursor) int {
 	return 0
 }
 
-func (this *GenFilterBase2) skipMethod(cursor, parent clang.Cursor) bool {
+func (this *GenFilterBase2) skipMethod(cursor, parent clang.Cursor) (bool,any) {
 	skipn := this.skipMethodImpl(cursor, parent)
 	log.Println(skipn, cursor.Spelling(), parent.Spelling(), _cmgl.origin(cursor))
-	return skipn > 0
+	return skipn > 0, skipn
 }
 func (this *GenFilterBase2) skipMethodImpl(cursor, parent clang.Cursor) int {
 	if cursor.AccessSpecifier() == clang.AccessSpecifier_Invalid ||
@@ -775,7 +777,7 @@ func (this *GenFilterBase2) skipMethodImpl(cursor, parent clang.Cursor) int {
 
 	//
 	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
-		if this.skipArg(cursor.Argument(uint32(idx)), cursor) {
+		if skip, _ := this.skipArg(cursor.Argument(uint32(idx)), cursor); skip {
 			return 517
 		}
 	}
@@ -783,9 +785,9 @@ func (this *GenFilterBase2) skipMethodImpl(cursor, parent clang.Cursor) int {
 	return 0
 }
 
-func (this *GenFilterBase2) skipArg(cursor, parent clang.Cursor) bool {
+func (this *GenFilterBase2) skipArg(cursor, parent clang.Cursor) (bool,any) {
 	skipn := this.skipArgImpl(cursor, parent)
-	return skipn > 0
+	return skipn > 0, skipn
 }
 func (this *GenFilterBase2) skipArgImpl(cursor, parent clang.Cursor) int {
 	argty := cursor.Type()
@@ -802,10 +804,10 @@ func (this *GenFilterBase2) skipArgImpl(cursor, parent clang.Cursor) int {
 	}
 	return 0
 }
-func (this *GenFilterBase2) skipFunc(cursor clang.Cursor) bool {
+func (this *GenFilterBase2) skipFunc(cursor clang.Cursor) (bool,any) {
 	n := this.skipFuncImpl(cursor)
 
-	return n > 0
+	return n > 0, n
 }
 func (this *GenFilterBase2) skipFuncImpl(cursor clang.Cursor) int {
 	// _helper结尾的函数，基本算是内部函数，不同qt版本间变动比较大，大概有10个
@@ -819,7 +821,7 @@ func (this *GenFilterBase2) skipFuncImpl(cursor clang.Cursor) int {
 	}
 
 	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
-		if this.skipArg(cursor.Argument(uint32(idx)), cursor) {
+		if skip, _ := this.skipArg(cursor.Argument(uint32(idx)), cursor); skip {
 			return 619
 		}
 	}
@@ -838,23 +840,23 @@ func NewGenFilterInc() *GenFilterInc {
 	return this
 }
 
-func (this *GenFilterInc) skipClass(cursor, parent clang.Cursor) bool {
-	bskip := this.fltb.skipClass(cursor, parent)
-	return bskip
+func (this *GenFilterInc) skipClass(cursor, parent clang.Cursor) (bool,any) {
+	bskip,reason := this.fltb.skipClass(cursor, parent)
+	return bskip, reason
 }
 
-func (this *GenFilterInc) skipMethod(cursor, parent clang.Cursor) bool {
-	bskip := this.fltb.skipMethod(cursor, parent)
-	return bskip
+func (this *GenFilterInc) skipMethod(cursor, parent clang.Cursor) (bool,any) {
+	bskip,reason := this.fltb.skipMethod(cursor, parent)
+	return bskip,reason
 }
 
-func (this *GenFilterInc) skipArg(cursor, parent clang.Cursor) bool {
-	bskip := this.fltb.skipArg(cursor, parent)
-	return bskip
+func (this *GenFilterInc) skipArg(cursor, parent clang.Cursor) (bool,any) {
+	bskip,reason := this.fltb.skipArg(cursor, parent)
+	return bskip,reason
 }
-func (this *GenFilterInc) skipFunc(cursor clang.Cursor) bool {
-	bskip := this.fltb.skipFunc(cursor)
-	return bskip
+func (this *GenFilterInc) skipFunc(cursor clang.Cursor) (bool,any) {
+	bskip,reason := this.fltb.skipFunc(cursor)
+	return bskip,reason
 }
 
 // ///
@@ -862,9 +864,9 @@ type GenFilterGo struct {
 	GenFilterBase
 }
 
-func (this *GenFilterGo) skipMethod(cursor, parent clang.Cursor) bool {
-	bskip := this.GenFilterBase.skipMethod(cursor, parent)
-	return bskip
+func (this *GenFilterGo) skipMethod(cursor, parent clang.Cursor) (bool,any) {
+	bskip,reason := this.GenFilterBase.skipMethod(cursor, parent)
+	return bskip,reason
 }
 
 // /
@@ -872,7 +874,7 @@ type GenFilterV struct {
 	GenFilterBase
 }
 
-func (this *GenFilterV) skipMethod(cursor, parent clang.Cursor) bool {
-	bskip := this.GenFilterBase.skipMethod(cursor, parent)
-	return bskip
+func (this *GenFilterV) skipMethod(cursor, parent clang.Cursor) (bool,any) {
+	bskip, reason := this.GenFilterBase.skipMethod(cursor, parent)
+	return bskip, reason
 }

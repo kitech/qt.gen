@@ -400,7 +400,7 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		}
 		clts.ClassCount += 1
 		log.Println(cursor.Spelling(), cursor.Kind().String(), cursor.DisplayName())
-		if !this.filter.skipClass(cursor, parent) {
+		if skip, _ :=this.filter.skipClass(cursor, parent); !skip {
 			this.genor.genClass(cursor, parent)
 			if genLang == "rs" {
 				this.modlstgen.(*GenerateRs).genModLst(cursor)
@@ -422,7 +422,7 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		log.Println(cursor.Spelling(), ",", cursor.Kind().String(), ",", cursor.DisplayName(), parent.Spelling(), cursor.Mangling(), len(clts.funcParents), cursor.IsCursorDefinition(), cursor.Definition().Spelling())
 		this.qtfuncgen.putFunc(cursor)
 	case clang.Cursor_StructDecl:
-		if !this.filter.skipClass(cursor, parent) {
+		if skip, _:= this.filter.skipClass(cursor, parent); !skip {
 			this.genor.genClass(cursor, parent)
 			// return clang.ChildVisit_Break
 			if genLang == "rs" {
@@ -434,7 +434,7 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		}
 	case clang.Cursor_CXXMethod:
 		clts.MethodCount += 1
-		if this.filter.skipMethod(cursor, parent) {
+		if skip, _:= this.filter.skipMethod(cursor, parent); !skip {
 			clts.SkippedMethodCount += 1
 		}
 		if is_private_method(cursor) {
