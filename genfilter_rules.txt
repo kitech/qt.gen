@@ -1,0 +1,32 @@
+# try filter by rules
+class,~, ^QMetaTypeId, ^QTypeInfo, ^QQmlTypeInfo, ^QIntegerForSize
+class,~, ^QOpenGLFunctions, ^QOpenGLExtraFunctions,^QOpenGLVersion
+class,~, ^QOpenGL, ^QAbstract-, ^QPrivate
+
+class,=, Qt
+class,=, QAbstractOpenGLFunctionsPrivate, QOpenGLFunctionsPrivate
+class,=, QOpenGLExtraFunctionsPrivate, QAnimationGroup
+class,=, QMetaType, QAtomicOpsSupport, QAtomicOpsSupport
+class, ~, Private$
+class, ~, QtPrivate
+class, ~, ^QOpenGLFunctions_ && CoreBackend
+class, ~, ^QOpenGLFunctions_ && DeprecatedBackend
+class, ~, ^QFlags<
+
+class, =, QDebug, QNoDebug, QDebugStateSaver, QLibraryInfo
+class, =, QInternal, QAccessibleObject, QAccessibleActionInterface, QGraphicsObject
+
+# method has classname field, or * for all
+method, =, *, qt_metacall,qt_metacast
+method, ~, *, ^qt_check_for_
+method, =, *, tr, trUtf8, data_ptr, d_func
+method, ~, *, ^operator
+method, =, *, rend, append, insert, rbegin, prepend, crend, crbegin
+method, ~, *, rawHeaderPairs, rawHeaders
+
+func, ~, printf, QDebug, qt_builtin_, qustrlen, _destructor
+# TODO this is little hard
+func, ~, _helper$ & ! ^qt_
+
+argty, ~, ^QList<QUrl,
+argty, ~, ^Q*Map$, ^Q*Hash$

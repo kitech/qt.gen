@@ -4,10 +4,12 @@ import (
 	"flag"
 	"go/token"
 	"log"
+	"os"
 	"regexp"
 	"strings"
 
 	"github.com/go-clang/v3.9/clang"
+	gopp "github.com/kitech/goplusplus"
 	funk "github.com/thoas/go-funk"
 )
 
@@ -27,40 +29,7 @@ type GenFilter interface {
 }
 
 // allow # comment, empty line
-var qtgenrules = `# try filter by rules
-class,~, ^QMetaTypeId, ^QTypeInfo, ^QQmlTypeInfo, ^QIntegerForSize
-class,~, ^QOpenGLFunctions, ^QOpenGLExtraFunctions,^QOpenGLVersion
-class,~, ^QOpenGL, ^QAbstract-, ^QPrivate
-
-class,=, Qt
-class,=, QAbstractOpenGLFunctionsPrivate, QOpenGLFunctionsPrivate
-class,=, QOpenGLExtraFunctionsPrivate, QAnimationGroup
-class,=, QMetaType, QAtomicOpsSupport, QAtomicOpsSupport
-class, ~, Private$
-class, ~, QtPrivate
-class, ~, ^QOpenGLFunctions_ && CoreBackend
-class, ~, ^QOpenGLFunctions_ && DeprecatedBackend
-class, ~, ^QFlags<
-
-class, =, QDebug, QNoDebug, QDebugStateSaver, QLibraryInfo
-class, =, QInternal, QAccessibleObject, QAccessibleActionInterface, QGraphicsObject
-
-# method has classname field, or * for all
-method, =, *, qt_metacall,qt_metacast
-method, ~, *, ^qt_check_for_
-method, =, *, tr, trUtf8, data_ptr, d_func
-method, ~, *, ^operator
-method, =, *, rend, append, insert, rbegin, prepend, crend, crbegin
-method, ~, *, rawHeaderPairs, rawHeaders
-
-func, ~, printf, QDebug, qt_builtin_, qustrlen, _destructor
-# TODO this is little hard
-func, ~, _helper$ & ! ^qt_
-
-argty, ~, ^QList<QUrl,
-argty, ~, ^Q*Map$, ^Q*Hash$
-
-`
+var qtgenrules string
 
 type GenRuleItem struct {
 	Name       string
@@ -91,6 +60,9 @@ var GenRules = []*GenRuleItem{}
 
 // parse qt gen rules
 func init() {
+	qtgenrules_, err := os.ReadFile("./genfilter_rules.txt")
+	gopp.ErrPrint(err)
+	qtgenrules = string(qtgenrules_)
 	initParseGenRules()
 	initGenRulesTests()
 	// log.Fatalln("stop test")
@@ -165,10 +137,12 @@ func parse_genrule_line(line string) {
 		fallthrough
 	case GRN_RETTY:
 		for i := 2; i < len(flds); i++ {
+			if flds[i] == "" {continue}
 			item := &GenRuleItem{Name: flds[0], Matop: flds[1], Regstr0: flds[i]}
 			if item.Matop == GROP_RMT {
 				item.Regobj0 = regexp.MustCompile(flds[i])
 			}
+			log.Println(item.Name, item.Matop, item.Regstr0, len(items))
 			items = append(items, item)
 		}
 	}
@@ -177,6 +151,7 @@ func parse_genrule_line(line string) {
 	}
 }
 
+// return match rule
 func GenRulesTest(name string, value string, ScopeClass string) bool {
 	bret := false
 	for idx := 0; idx < len(GenRules); idx++ {
@@ -186,7 +161,7 @@ func GenRulesTest(name string, value string, ScopeClass string) bool {
 		}
 		// log.Println("rule testing", value, *item)
 		if item.Test(value, ScopeClass) {
-			log.Println("rule match", item.Name, item.Matop, item.Regstr0, value, idx)
+			log.Println("rule match", item.Name, item.Matop, "regstr0=", item.Regstr0, "val=", value, idx)
 			return true
 		}
 	}
@@ -208,7 +183,17 @@ type GenFilterBase struct {
 }
 
 func (this *GenFilterBase) skipClass(cursor, parent clang.Cursor) bool {
-	GenRulesTest(GRN_CLASS, cursor.Spelling(), "")
+	rv0 := this.skipClassV0(cursor, parent)
+	rv2 := this.skipClassV2(cursor, parent)
+	if rv0 != rv2 {
+		log.Println(cursor.Spelling(), parent.Spelling(), rv0, rv2)
+	}
+	return rv0
+}
+func (this *GenFilterBase) skipClassV2(cursor, parent clang.Cursor) bool {
+	return GenRulesTest(GRN_CLASS, cursor.Spelling(), "")
+}
+func (this *GenFilterBase) skipClassV0(cursor, parent clang.Cursor) bool {
 
 	skip := this.skipClassImpl(cursor, parent)
 	if strings.Contains(cursor.Spelling(), "QWidgetList") {
@@ -308,7 +293,17 @@ func (this *GenFilterBase) skipClassImpl(cursor, parent clang.Cursor) int {
 }
 
 func (this *GenFilterBase) skipMethod(cursor, parent clang.Cursor) bool {
-	GenRulesTest(GRN_METHOD, cursor.Spelling(), parent.Spelling())
+	rv0 := this.skipMethodV0(cursor, parent)
+	rv2 := this.skipMethodV2(cursor, parent)
+	if rv0 != rv2 {
+		log.Println(GRN_METHOD, cursor.Spelling(), parent.Spelling(), "v0", rv0, "v2", rv2)
+	}
+	return rv0
+}
+func (this *GenFilterBase) skipMethodV2(cursor, parent clang.Cursor) bool {
+	return GenRulesTest(GRN_METHOD, cursor.Spelling(), parent.Spelling())
+}
+func (this *GenFilterBase) skipMethodV0(cursor, parent clang.Cursor) bool {
 
 	skip := this.skipMethodImpl(cursor, parent)
 	if cursor.Spelling() == "QApplication" {
@@ -387,9 +382,18 @@ func (this *GenFilterBase) skipMethodImpl(cursor, parent clang.Cursor) int {
 
 	return 0
 }
-
 func (this *GenFilterBase) skipFunc(cursor clang.Cursor) bool {
-	GenRulesTest(GRN_FUNC, cursor.Spelling(), "")
+rv0 := this.skipFuncV0(cursor)
+	rv2 := this.skipFuncV2(cursor)
+	if rv0 != rv2 {
+		log.Println(GRN_FUNC, cursor.Spelling(), "v0", rv0, "v2", rv2)
+	}
+	return rv0
+}
+func (this *GenFilterBase) skipFuncV2(cursor clang.Cursor) bool {
+	return GenRulesTest(GRN_FUNC, cursor.Spelling(), "")
+}
+func (this *GenFilterBase) skipFuncV0(cursor clang.Cursor) bool {
 
 	if cursor.IsVariadic() {
 		return true
@@ -420,6 +424,18 @@ func (this *GenFilterBase) skipFunc(cursor clang.Cursor) bool {
 }
 
 func (this *GenFilterBase) skipArg(cursor, parent clang.Cursor) bool {
+	rv0 := this.skipArgV0(cursor, parent)
+	rv2 := this.skipArgV2(cursor, parent)
+	if rv0 != rv2 {
+		log.Println(GRN_ARGTY, cursor.Type().Spelling(), parent.Spelling(), "v0", rv0, "v2", rv2)
+	}
+	return rv0
+}
+func (this *GenFilterBase) skipArgV2(cursor, parent clang.Cursor) bool {
+	return GenRulesTest(GRN_ARGTY, cursor.Type().Spelling(), parent.Spelling()) ||
+		GenRulesTest(GRN_CLASS, cursor.Type().Spelling(), parent.Spelling())
+}
+func (this *GenFilterBase) skipArgV0(cursor, parent clang.Cursor) bool {
 	skip := this.skipArgImpl(cursor, parent)
 	if skip > 0 {
 		log.Println(skip, cursor.Type().Spelling(), cursor.Type().Kind().String(), cursor.Spelling(), parent.DisplayName())
@@ -500,6 +516,19 @@ func (this *GenFilterBase) skipArgImpl(cursor, parent clang.Cursor) int {
 }
 
 func (this *GenFilterBase) skipReturn(ty clang.Type, cursor clang.Cursor) bool {
+	rv0 := this.skipReturnV0(ty, cursor)
+	rv2 := this.skipReturnV2(ty, cursor)
+	if rv0 != rv2 {
+		log.Println(GRN_RETTY, ty.Spelling(), "v0", rv0, "v2", rv2)
+	}
+	return rv0
+}
+func (this *GenFilterBase) skipReturnV2(ty clang.Type, cursor clang.Cursor) bool {
+	return GenRulesTest(GRN_RETTY, ty.Spelling(), "") ||
+		GenRulesTest(GRN_CLASS, ty.Spelling(), "")
+}
+
+func (this *GenFilterBase) skipReturnV0(ty clang.Type, cursor clang.Cursor) bool {
 	skip := this.skipReturnImpl(ty, cursor)
 	if skip > 0 {
 		log.Println(skip, ty.Spelling(), cursor.DisplayName())

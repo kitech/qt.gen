@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	gopp "github.com/kitech/goplusplus"
-	"gopp/gods"
+	 "github.com/kitech/goplusplus/gods"
 	"io/ioutil"
 	"log"
 	"path/filepath"
