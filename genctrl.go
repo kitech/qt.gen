@@ -225,14 +225,6 @@ func (this *GenCtrl) setupLang() {
 			this.modlstgen = NewGenerateDt(genQtdir, genQtver)
 		*/
 		// fallthrough
-	case "nim":
-		this.filter = &GenFilterGo{}
-		this.genor = NewGenerateNim(genQtdir, genQtver)
-		this.qtenumgen = NewGenerateNim(genQtdir, genQtver)
-		this.qtfuncgen = NewGenerateNim(genQtdir, genQtver)
-		this.qttmplgen = NewGenerateNim(genQtdir, genQtver)
-		this.qtconstgen = NewGenerateNim(genQtdir, genQtver)
-		this.modlstgen = NewGenerateNim(genQtdir, genQtver)
 	case "v":
 		this.filter = &GenFilterV{}
 		this.genor = NewGenerateV(genQtdir, genQtver)
@@ -659,13 +651,6 @@ func (this *GenCtrl) collectClasses() {
 		//	log.Println(modname, cp.TotolLine(), cp.TotolLength())
 		//	gg.saveCodeToFileWithCode(modname, "qt"+modname, cp.ExportAll())
 		//}
-	} else if genLang == "nim" {
-		var gg *GenerateNim = this.genor.(*GenerateNim)
-		var modlst = gg.genFileList()
-		for modname, codestr := range modlst {
-			gg.saveCodeToFileWithCode(modname, "modfiles", codestr)
-		}
-		gg.final2()
 	}
 	this.qttmplgen.genPlainTmplInstClses()
 	this.qttmplgen.genTydefTmplInstClses()
