@@ -6,17 +6,13 @@
 // essentials
 #ifdef GEN_GO_QT_CORE_LIB
 #include <QtCore>
-#include <qstring0.h>
 #endif
 #ifdef GEN_GO_QT_GUI_LIB
 #include <QtGui>
-#include <qpainter0.h>
-#include <qevent0.h>
 #endif
 #if QT_VERSION >= 0x050000
     #ifdef GEN_GO_QT_WIDGETS_LIB
     #include <QtWidgets>
-    #include <qwidget0.h>
     #endif
 #endif // QT_VERSION >= 0x050000
 #ifdef GEN_GO_QT_NETWORK_LIB
@@ -81,7 +77,7 @@
     #ifdef GEN_GO_QT_MULTIMEDIAWIDGETS_LIB
     #include <QtMultimediaWidgets>
     #endif
-    
+
     #ifdef GEN_GO_QT_X11EXTRAS_LIB
     #include <QtX11Extras>
     #endif

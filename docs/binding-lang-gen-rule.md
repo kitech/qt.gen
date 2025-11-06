@@ -82,16 +82,8 @@ and help method/function for qt class.
 * 类名 typedef void* QObject;
 * 处理返回16字节Record的情况
 
-### clipqt 组织时的事项
-* 去掉 QT开头的宏
-* 去掉内联实现函数体，只需要保留原型
-* 去掉enum定义
-* 去掉private部分
-* 去掉deprecated部分原型
-* 不需要析构函数原型
-* 可以保留inline关键字
-
 ### filter rules
+    see genfilter_rules.txt
 
     * fields:
     *

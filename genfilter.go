@@ -467,19 +467,6 @@ func (this *GenFilterBase) skipArgImpl(cursor, parent clang.Cursor) int {
 	if strings.HasSuffix(argTyBare.Spelling(), "DataPtr") {
 		return 5
 	}
-	if _, ok := keepClasses[argTyBare.Spelling()]; !ok {
-		if argTyBare.Kind() != clang.Type_Invalid && !isPrimitiveType(argTyBare) {
-			// like Qt::WindowFlags form
-			reg := regexp.MustCompile(`^Q.+::.*Flags$`)
-			if reg.MatchString(argTyBare.Spelling()) {
-			} else if argTyBare.Kind() == clang.Type_Typedef && strings.HasPrefix(argTyBare.CanonicalType().Spelling(), "QFlags<") {
-			} else if argTyBare.Spelling() == "QImageCleanupFunction" {
-			} else {
-				log.Println(argTyBare.Spelling(), argTyBare.Kind().String(), argTyBare.CanonicalType().Spelling(), "skiped by skiped arg")
-				return 6
-			}
-		}
-	}
 
 	inenums := []string{
 		"ComponentFormattingOptions",

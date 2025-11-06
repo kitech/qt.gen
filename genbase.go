@@ -37,6 +37,7 @@ func init() {
 
 type GenBase struct {
 	tu *clang.TranslationUnit
+	mangler  GenMangler
 
 	qtdir string
 	qtver string
@@ -191,4 +192,41 @@ func (this *GenBase) nextclsidx() int {
 	// return this.clsidx
 	gclsidx += 1
 	return gclsidx
+}
+
+// FunctionDecl/CXXMethodDecl
+func (this *GenBase) protoMatch(c1, cx clang.Cursor) bool {
+	c2 := cx
+
+	mgname1 := this.mangler.origin(c1)
+	mgname2 := this.mangler.origin(c2)
+	log.Println(c1.Spelling(), mgname1, mgname2)
+
+	rety1 := c1.ResultType()
+	rety2 := c2.ResultType()
+	argc1 := c1.NumArguments()
+	argc2 := c2.NumArguments()
+	if (c1.Spelling() == c2.Spelling() || "x"+c1.Spelling() == c2.Spelling()) &&
+		rety1.Equal(rety2) && argc1 == argc2 {
+		matched := true
+		for i := 0; i < int(argc1); i++ {
+			arg1 := c1.Argument(uint32(i))
+			arg2 := c2.Argument(uint32(i))
+			aty1 := arg1.Type()
+			aty2 := arg2.Type()
+			if !aty1.Equal(aty2) {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			isconst1 := c1.CXXMethod_IsConst()
+			isconst2 := c2.CXXMethod_IsConst()
+			if isconst1 == isconst2 {
+				return true
+			}
+		}
+	}
+
+	return false
 }

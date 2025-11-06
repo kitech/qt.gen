@@ -20,7 +20,6 @@ import (
 
 // module depend table
 var modDeps = modDepsAll                        // auto generated
-var keepClasses = make(map[string]clang.Cursor) // 见过的class
 
 func init() {
 	if false {
@@ -299,7 +298,6 @@ func (this *GenCtrl) setupEnv() {
 	if !gopp.FileExist2(qtsysdir) {
 		log.Fatalln("maybe QTDIR not exists error", qtdir, qtver, qtsysdir)
 	}
-	args = append(args, fmt.Sprintf("-I./clipqt"))
 
 	isqt3 := strings.HasPrefix(qtver, "3.")
 	hdrdirok := true
@@ -564,9 +562,6 @@ func (this *GenCtrl) collectClasses() {
 		case clang.Cursor_ClassDecl:
 			if !cursor.IsCursorDefinition() {
 				break
-			}
-			if !this.filter.skipClass(cursor, parent) {
-				keepClasses[cursor.Type().Spelling()] = cursor
 			}
 			log.Println(cursor.DisplayName(), cursor.BriefCommentText(), cursor.RawCommentText())
 		case clang.Cursor_StructDecl:

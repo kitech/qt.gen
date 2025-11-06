@@ -19,11 +19,9 @@ import (
 type GenerateV struct {
 	// TODO move to base
 	filter   GenFilter
-	mangler  GenMangler
 	tyconver TypeConvertor
 
 	maxClassSize int64        // 暂存一下类的大小的最大值
-	xclass       clang.Cursor // 当前正在处理的类对应的xclass
 
 	cp          *CodePager
 	cpnomin     *CodePager
@@ -72,20 +70,9 @@ func (this *GenerateV) genClass(cursor, parent clang.Cursor) {
 		log.Printf("%s:%d:%d @%s\n", file.Name(), line, col, file.Time().String())
 	}
 
-	// xclsname from ./clipqt/
-	// but clipqt very hard
-	clsname := cursor.Spelling()
-	xclsname := "x" + clsname
-	if xcursor, ok := keepClasses[xclsname]; ok {
-		this.xclass = xcursor
-	} else {
-		log.Println("no xcls found, white list not match", clsname, len(keepClasses))
-		return
-	}
-
 	this.genFileHeader(cursor, parent)
 	this.walkClass(cursor, parent)
-	this.filterClipqt()
+
 	// this.genExterns(cursor, parent)
 	this.genImports(cursor, parent)
 	this.genProtectedCallbacks(cursor, parent)
@@ -265,90 +252,6 @@ func (this *GenerateV) walkClass(cursor, parent clang.Cursor) {
 
 	this.methods = methods
 	this.enums = enums
-}
-
-// 从xclass中查找是否有对应的方法
-func (this *GenerateV) filterClipqt() {
-	newmths := []clang.Cursor{}
-	xmths := []clang.Cursor{}
-
-	this.xclass.Visit(func(cursor, parent clang.Cursor) clang.ChildVisitResult {
-		switch cursor.Kind() {
-		case clang.Cursor_Constructor:
-			fallthrough
-		case clang.Cursor_Destructor:
-			fallthrough
-		case clang.Cursor_CXXMethod:
-			if !this.filter.skipMethod(cursor, parent) {
-				xmths = append(xmths, cursor)
-			} else {
-				log.Println("filtered:", cursor.DisplayName(), parent.Spelling())
-			}
-		case clang.Cursor_UnexposedDecl:
-			// log.Println(cursor.Spelling(), cursor.Kind().String(), cursor.DisplayName())
-			file, line, col, _ := cursor.Location().FileLocation()
-			if false {
-				log.Println(file.Name(), line, col, file.Time())
-			}
-		case clang.Cursor_EnumDecl:
-		default:
-			if false {
-				log.Println(cursor.Spelling(), cursor.Kind().String(), cursor.DisplayName())
-			}
-		}
-		return clang.ChildVisit_Continue
-	})
-
-	for i := 0; i < len(this.methods); i++ {
-		for j := 0; j < len(xmths); j++ {
-			matched := this.protoMatch(this.methods[i], xmths[j])
-			if matched {
-				newmths = append(newmths, this.methods[i])
-				break
-			}
-		}
-	}
-	log.Println(this.xclass.Spelling(), len(this.methods), "=>", len(newmths))
-	if len(newmths) != len(this.methods) {
-		this.methods = newmths
-	}
-}
-
-// FunctionDecl/CXXMethodDecl
-func (this *GenerateV) protoMatch(c1, cx clang.Cursor) bool {
-	c2 := cx
-
-	mgname1 := this.mangler.origin(c1)
-	mgname2 := this.mangler.origin(c2)
-	log.Println(c1.Spelling(), mgname1, mgname2)
-
-	rety1 := c1.ResultType()
-	rety2 := c2.ResultType()
-	argc1 := c1.NumArguments()
-	argc2 := c2.NumArguments()
-	if (c1.Spelling() == c2.Spelling() || "x"+c1.Spelling() == c2.Spelling()) &&
-		rety1.Equal(rety2) && argc1 == argc2 {
-		matched := true
-		for i := 0; i < int(argc1); i++ {
-			arg1 := c1.Argument(uint32(i))
-			arg2 := c2.Argument(uint32(i))
-			aty1 := arg1.Type()
-			aty2 := arg2.Type()
-			if !aty1.Equal(aty2) {
-				matched = false
-				break
-			}
-		}
-		if matched {
-			isconst1 := c1.CXXMethod_IsConst()
-			isconst2 := c2.CXXMethod_IsConst()
-			if isconst1 == isconst2 {
-				return true
-			}
-		}
-	}
-
-	return false
 }
 
 func (this *GenerateV) genExterns(cursor, parent clang.Cursor) {

@@ -23,7 +23,6 @@ type GenerateInlinev0 struct {
 	// TODO move to base
 	filter   GenFilter
 	tyconver *TypeConvertGo
-	mangler  GenMangler
 
 	methods   []clang.Cursor
 	cp        *CodePager

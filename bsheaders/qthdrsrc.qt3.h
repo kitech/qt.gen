@@ -349,9 +349,4 @@
 #include <qworkspace.h>
 #include <qxml.h>
 
-#include <qevent0.h>  
-#include <qpainter0.h>
-#include <qstring0.h>
-#include <qwidget0.h>
-
 #endif
