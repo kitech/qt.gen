@@ -612,7 +612,7 @@ func (this *GenerateV) genMethodSignature(cursor, parent clang.Cursor, midx int)
 		cp.APf("body", "pub fn new%s%s(%s) &%s {",
 			cursor.Spelling(), overloadSuffix, argStr, parent.Spelling())
 	case clang.Cursor_Destructor:
-		cp.APf("body", "pub fn delete%s%s(this &%s) {",
+		cp.APf("body", "// pub fn delete%s%s(this &%s) {",
 			cursor.Spelling()[1:], overloadSuffix, parent.Spelling())
 	default:
 		retPlace := "interface{}"

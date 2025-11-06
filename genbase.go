@@ -133,14 +133,23 @@ func (this *GenBase) getFuncQulities(cursor clang.Cursor) []string {
 	}
 	hastpl := hasTmplArgRet(cursor)
 	if !hastpl {
-		if cursor.Kind() == clang.Cursor_CXXMethod {
-			fni := clcg.ArrangeCXXMethodType(cursor, cursor)
+		if cursor.Kind() == clang.Cursor_CXXMethod &&
+	 		! cursor.CXXMethod_IsStatic() {
+			xptr := cursor.GetFunctionProtoType()
+			log.Println(xptr)
+			// fni := clcg.ArrangeCXXMethodType(cursor, cursor)
+			// retkd := cursor.ABIArgInfoKind(fni, -1)
+			log.Println(gopp.Retn(clcg.GetCXXMethodRetinfo(cursor, cursor))...)
+			retkind, _, _, _, _ := clcg.GetCXXMethodRetinfo(cursor, cursor)
+			retkd := clang.CGABIArgInfoKind( retkind)
+			qualities = append(qualities, retkd.String())
+		} else if cursor.Kind() == clang.Cursor_CXXMethod &&
+					 		cursor.CXXMethod_IsStatic()  {
+
+		} else {
+			fni := clcg.ArrangeFreeFunctionType(cursor)
 			retkd := cursor.ABIArgInfoKind(fni, -1)
 			qualities = append(qualities, retkd.String())
-		} else {
-			// fni := clcg.ArrangeFreeFunctionType(cursor)
-			// retkd := cursor.ABIArgInfoKind(fni, -1)
-			// qualities = append(qualities, retkd.String())
 		}
 	}
 	qualities = append(qualities, cursor.Visibility().String())

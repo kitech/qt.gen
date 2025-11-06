@@ -1,0 +1,94 @@
+package main
+
+import (
+	// import purego, cannot use go1.11 build anymore
+	"github.com/ebitengine/purego"
+	gopp "github.com/kitech/goplusplus"
+)
+
+
+type CodeGenerator struct {
+	Cthis voidptr
+}
+
+type CXXRecordDecl struct {
+	Cthis voidptr
+}
+
+type FunctionProtoType struct {
+	Cthis voidptr
+}
+type CGFunctionInfo struct {
+	Cthis voidptr
+}
+type ABIArgInfo struct {
+	Cthis voidptr
+}
+type CodeGenModule struct {
+	Cthis voidptr
+}
+
+const LIBCLANGCXX = "/usr/lib/libclang-cpp.so"
+
+var dlh usize
+func PurgoRegisterFunc(fptr any, sym string) error {
+	if dlh == 0 {
+		h, err := purego.Dlopen(LIBCLANGCXX, purego.RTLD_NOW)
+		gopp.ErrPrint(err, LIBCLANGCXX)
+		dlh = h
+	}
+	adr, err := purego.Dlsym(dlh, sym)
+	if err != nil {
+		adr, err = purego.Dlsym(purego.RTLD_DEFAULT, sym)
+		if err != nil {
+			return err
+		}
+	}
+	purego.RegisterFunc(fptr, adr)
+	return nil
+}
+
+/*
+usage:
+cg := &CodeGenerator{clcg.Cthis}
+			cgm := cg.CGM()
+			fnproto := cursor.GetFunctionProtoType()
+			recdecl := cursor.Decl()
+			mthdecl := cursor.Decl()
+			fninfo := cgm.ArrangeCXXMethodType(&CXXRecordDecl{recdecl}, &FunctionProtoType{fnproto}, &CXXRecordDecl{mthdecl})
+			log.Println(fninfo)
+			retabi := fninfo.GetReturnInfo()
+			log.Println(retabi)
+
+ */
+
+func (cgm *CodeGenModule) ArrangeCXXMethodType(RD*CXXRecordDecl,FPT*FunctionProtoType, MD*CXXRecordDecl) *CGFunctionInfo {
+	sym := "_ZN5clang7CodeGen20arrangeCXXMethodTypeERNS0_13CodeGenModuleEPKNS_13CXXRecordDeclEPKNS_17FunctionProtoTypeEPKNS_13CXXMethodDeclE"
+	gopp.G_USED(sym)
+	var fno func(voidptr,voidptr,voidptr,voidptr) voidptr
+	PurgoRegisterFunc(&fno, sym)
+	rv := fno(cgm.Cthis, RD.Cthis, FPT.Cthis, MD.Cthis)
+	return &CGFunctionInfo{rv}
+}
+
+func (cg *CodeGenerator) CGM() *CodeGenModule {
+	sym  := "_ZN5clang13CodeGenerator3CGMEv"
+	gopp.G_USED(sym)
+	var fno func(voidptr) voidptr
+	PurgoRegisterFunc(&fno, sym)
+	rv := fno(cg.Cthis)
+	return &CodeGenModule{rv}
+}
+
+func NewCodeGeneratorFromptr(ptr voidptr) *CodeGenerator {
+	return &CodeGenerator{ptr}
+}
+
+func (fninfo *CGFunctionInfo) GetReturnInfo() *ABIArgInfo {
+	sym := "_ZNK5clang7CodeGen14CGFunctionInfo13getReturnInfoEv" // weak!!!
+	var fno func(voidptr) voidptr
+	err := PurgoRegisterFunc(&fno, sym)
+	gopp.ErrPrint(err)
+	rv := fno(fninfo.Cthis)
+	return &ABIArgInfo{rv}
+}

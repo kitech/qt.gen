@@ -34,6 +34,7 @@ func (this *IncMangler) convTo(cursor clang.Cursor) string {
 	if false {
 		// C1/C2/C3 for case
 		fmt.Println("what's the manglings:", cursor.Manglings().Strings())
+		// fmt.Println("what's the manglings:", cursor.CXXManglings().Strings())
 	}
 	return fmt.Sprintf("C%s", this.origin(cursor))
 }
@@ -42,6 +43,7 @@ func (this *IncMangler) origin(cursor clang.Cursor) (defname string) {
 	if false {
 		// C1/C2/C3 for case
 		fmt.Println("what's the manglings:", cursor.Manglings().Strings())
+		// fmt.Println("what's the manglings:", cursor.CXXManglings().Strings())
 	}
 	epfx := gopp.IfElseStr(runtime.GOOS == "darwin", "", "") // "_") // for macos compatable
 	switch cursor.Kind() {
@@ -74,6 +76,7 @@ func (this *GoMangler) convTo(cursor clang.Cursor) string {
 	if false {
 		// C1/C2/C3 for case
 		log.Println("what's the manglings:", cursor.Manglings().Strings())
+		// log.Println("what's the manglings:", cursor.CXXManglings().Strings())
 	}
 	return fmt.Sprintf("C%s", this.origin(cursor))
 }
@@ -82,6 +85,7 @@ func (this *GoMangler) origin(cursor clang.Cursor) (defname string) {
 	if false {
 		// C1/C2/C3 for case
 		log.Println("what's the manglings:", cursor.Manglings().Strings())
+		// log.Println("what's the manglings:", cursor.CXXManglings().Strings())
 	}
 	epfx := gopp.IfElseStr(runtime.GOOS == "darwin", "", "_") // for macos compatable
 	switch cursor.Kind() {

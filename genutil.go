@@ -545,10 +545,24 @@ func TypeIsTemplate(ty clang.Type) bool { return ty.NumTemplateArguments() != -1
 func MethodHasStructRet(cursor clang.Cursor) bool {
 	hastpl := hasTmplArgRet(cursor)
 	if !hastpl {
-		if cursor.Kind() == clang.Cursor_CXXMethod {
-			fni := clcg.ArrangeCXXMethodType(cursor, cursor)
-			retkd := cursor.ABIArgInfoKind(fni, -1)
+		log.Println(cursor.Spelling())
+		if cursor.Kind() == clang.Cursor_CXXMethod &&
+	 		!cursor.CXXMethod_IsStatic() {
+			// fni := clcg.ArrangeCXXMethodType(cursor, cursor)
+			// retkd := cursor.ABIArgInfoKind(fni, -1)
+			// cg := &CodeGenerator{clcg.Cthis}
+			// 			cgm := cg.CGM()
+			// 			fnproto := cursor.GetFunctionProtoType()
+			// 			recdecl := cursor.Decl()
+			// 			mthdecl := cursor.Decl()
+			// 			fninfo := cgm.ArrangeCXXMethodType(&CXXRecordDecl{recdecl}, &FunctionProtoType{fnproto}, &CXXRecordDecl{mthdecl})
+			// 			log.Println(fninfo)
+
+			retkind, _, _, _, _ := clcg.GetCXXMethodRetinfo(cursor, cursor)
+			retkd := clang.CGABIArgInfoKind( retkind)
 			return retkd == clang.Indirect || retkd == clang.InAlloca
+		} else if cursor.Kind() == clang.Cursor_CXXMethod &&
+			 		cursor.CXXMethod_IsStatic()  {
 		} else {
 			fni := clcg.ArrangeFreeFunctionType(cursor)
 			retkd := cursor.ABIArgInfoKind(fni, -1)
