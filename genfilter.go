@@ -154,6 +154,9 @@ func parse_genrule_line(line string) {
 
 // return match rule
 func GenFilterRulesTest(name string, value string, ScopeClass string) bool {
+	value = strings.Replace(value, "const ", "", 1)
+	value = strings.TrimRight(value, " *&")
+
 	bret := false
 	for idx := 0; idx < len(GenFilterRules); idx++ {
 		item := GenFilterRules[idx]
@@ -302,7 +305,7 @@ func (this *GenFilterBase) skipMethod(cursor, parent clang.Cursor) (bool, any) {
 	if rv0 != rv2 {
 		log.Println(GRN_METHOD, cursor.Spelling(), parent.Spelling(), "v0", rv0, reason0, "v2", rv2, reason2)
 	}
-	return rv0,nil
+	return rv0 || rv2, fmt.Sprintf("reasons: %v, %v", reason0, reason2)
 }
 func (this *GenFilterBase) skipMethodV2(cursor, parent clang.Cursor) (bool,any) {
 	return GenFilterRulesTest(GRN_METHOD, cursor.Spelling(), parent.Spelling()) ||
@@ -434,7 +437,7 @@ func (this *GenFilterBase) skipArg(cursor, parent clang.Cursor) (bool,any) {
 	if rv0 != rv2 {
 		log.Println(GRN_ARGTY, cursor.Type().Spelling(), parent.Spelling(), "v0", rv0, "v2", rv2)
 	}
-	return rv0, fmt.Sprintf("%v,%v", reason0, reason2)
+	return rv0 || rv2, fmt.Sprintf("reason: %v, %v", reason0, reason2)
 }
 func (this *GenFilterBase) skipArgV2(cursor, parent clang.Cursor) (bool,any) {
 	return GenFilterRulesTest(GRN_ARGTY, cursor.Type().Spelling(), parent.Spelling()) ||

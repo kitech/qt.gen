@@ -1,5 +1,5 @@
-#ifndef _QTHDRSRC_H_
-#define _QTHDRSRC_H_
+#ifndef _QTHDRSRCS_H_
+#define _QTHDRSRCS_H_
 
 // #include <jri.h>
 // #include <jri_md.h>
@@ -46,10 +46,10 @@
 #include <qcompactstyle.h>
 #include <qconfig-dist.h>
 #include <qconfig.h>
-#include <qconfig-large.h>
-#include <qconfig-medium.h>
-#include <qconfig-minimal.h>
-#include <qconfig-small.h>
+//#include <qconfig-large.h>
+//#include <qconfig-medium.h>
+//#include <qconfig-minimal.h>
+//#include <qconfig-small.h>
 #include <qconnect.h>
 #include <qconnection.h>
 #include <qcstring.h>

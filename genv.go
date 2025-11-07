@@ -603,7 +603,7 @@ func (this *GenerateV) genMethodSignature(cursor, parent clang.Cursor, midx int)
 	case clang.Cursor_Constructor:
 		prms := funk.Map(this.destArgDesc, func(s string) string { return strings.Split(s, " ")[0] })
 		prmStr := strings.Join(prms.([]string), ", ")
-		cp.APf("body", "pub fn (dummy &%s) newForInherit_%s(%s) &%s {",
+		cp.APf("body", "pub fn (_ &%s) newForInherit_%s(%s) &%s {",
 			strings.Title(parent.Spelling()), overloadSuffix, argStr, parent.Spelling())
 		cp.APf("body", "  //return new%s%s(%s)", cursor.Spelling(), overloadSuffix, prmStr)
 		cp.APf("body", "  return &%s{}", cursor.Spelling())
@@ -1543,10 +1543,12 @@ func (this *GenerateV) genArgConvFFIDv(cursor, parent clang.Cursor, midx, aidx i
 			"QSize", "QAbstractState" /*"QScreen", "QAction"*/}, get_bare_type(argty).Spelling()) {
 		usemod := get_decl_mod(cursor)
 		pkgPref := gopp.IfElseStr(usemod == "core", "", "qtcore.")
+		pkgPref = gopp.IfElseStr(isgenqt3(), "", pkgPref)
 		cp.APf("body", "    mut conv_arg%d := %snew%s()", aidx, pkgPref, get_bare_type(argty).Spelling())
 	} else if is_qt_class(argty) && get_bare_type(argty).Spelling() == "QChar" {
 		usemod := get_decl_mod(cursor)
 		pkgPref := gopp.IfElseStr(usemod == "core", "", "qtcore.")
+		pkgPref = gopp.IfElseStr(isgenqt3(), "",  pkgPref)
 		cp.APf("body", "    mut conv_arg%d  := %snewQChar8(`%s`)", aidx,
 			pkgPref, strings.Split(argdv, "'")[1])
 	} else if is_qt_class(argty) && !isPrimitiveType(argty.CanonicalType()) {
@@ -1651,6 +1653,7 @@ func (this *GenerateV) genRetFFI(cursor, parent clang.Cursor, midx int) {
 	var cp = this.getpropercp(cursor)
 
 	rety := cursor.ResultType()
+	retyx := TypexxNew(rety)
 	retybare := get_bare_type(rety.CanonicalType()).Declaration()
 	defmod := get_decl_mod(retybare)
 	if retybare.Spelling() == "QList" {
@@ -1827,8 +1830,8 @@ func (this *GenerateV) genRetFFI(cursor, parent clang.Cursor, midx int) {
 				cp.APf("body", "    return voidptr(rv)")
 			} else {
 				barety := get_bare_type(rety)
-				cp.APf("body", "    return %s%s{} // 444",
-					pkgPrefix, barety.Spelling())
+				cp.APf("body", "    return %s%s{} // 444 %s",
+					pkgPrefix, barety.Spelling(), retyx.Kind().String())
 			}
 		} else {
 			cp.APf("body", "    return int(rv)")

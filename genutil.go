@@ -94,16 +94,23 @@ func calc_package_prefix(curc, refc clang.Cursor) string {
 	}
 	return ""
 }
-
 func is_qt_class(ty clang.Type) bool {
+	canty := ty.CanonicalType() // typedef
+	return is_qt_class_bare(ty) && is_qt_class_bare(canty)
+}
+func is_qt_class_bare(ty clang.Type) bool {
 	nty := get_bare_type(ty)
 	name := nty.Spelling()
 	if len(name) < 2 {
 		return false
 	}
+	if ty.Declaration().Kind() != clang.Cursor_ClassDecl {
+		// return false
+	}
 	// QImageCleanupFunction
 	if name[0:1] == "Q" && strings.ToUpper(name[1:2]) == name[1:2] &&
-		!strings.Contains(name, "::") && !strings.HasSuffix(name, "Function") {
+		!strings.Contains(name, "::") && !strings.HasSuffix(name, "Function") &&
+	 	!strings.HasPrefix(name, "Q_") /* Q_LONG */ {
 		return true
 	}
 	return false
@@ -127,6 +134,8 @@ func is_private_method(c clang.Cursor) bool {
 		c.AccessSpecifier() == clang.AccessSpecifier_Private
 }
 
+// it not very bare indeed!!!
+// not handle typedef
 // 去掉reference和pointer,并查找其定义类型名，不带const
 // QCameraFocusZoneList => QList???
 func get_bare_type(ty clang.Type) clang.Type {
@@ -174,7 +183,7 @@ func is_nim_keyword(s string) bool {
 func is_v_keyword(s string) bool {
 	keywords := map[string]int{"match": 1, "type": 1, "move": 1, "select": 1, "case": 1,
 		"map": 1, "range": 1, "var": 1, "len": 1, "fmt": 1, "err": 1, "go": 1, "func": 1,
-		"package": 1, "import": 1, "string": 1, "in": 1, "sql": 1,
+		"package": 1, "import": 1, "string": 1, "in": 1, "sql": 1,  "free": 1,
 		"begin": 1, "end": 1, "lock": 1, "unlock": 1, "try_lock": 1, "thread": 1,
 		"out": 1, "include": 1, "extern": 1, "module": 1, "require": 1}
 	_, ok := keywords[s]
