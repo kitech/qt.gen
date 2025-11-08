@@ -1,0 +1,42 @@
+
+method, =, QWidget, QWidget, ~QWidget, show, hide, resize
+method, =, QObject, QObject, ~QObject, sender, name, setName, connect, disconnect, parent
+method, =, QObject, deleteLater, setProperty, property
+method, =, QApplication, QApplication, ~QApplication, exec
+method, =, QString, QString, ~QString, toUtf8
+method, =, QByteArray, QByteArray, ~QByteArray, data
+method, =, QColor, QColor, ~QColor
+
+methed, =, QMainWindow, QMainWindow, ~QMainWindow, setCentralWidget, centralWidget, menuBar, statusBar
+method, =, QDockWindow, QDockWindow, ~QDockWindow, setWidget, widget, place, undock, dock, setOrientation
+method, =, QPushButton, QPushButton, ~QPushButton, setToggleButton, setFlat, isFlat, setOn
+method, =, QButton, text, setText, autoRepeat, setAutoRepeat, toggle
+methed, =, QToolButton, QToolButton, ~QToolButton, setAutoRaise, autoRaise, setTextLabel, textLabel
+method, =, QToolBar, QToolBar, ~QToolBar, addSeparator, mainWindow, setStretchableWidget, setLabel, label
+method, =, QCheckBox, QCheckBox, ~QCheckBox, isChecked, setTristate, isTristate, setChecked
+method, =, QRadioButton, QRadioButton, ~QRadioButton, isChecked, setChecked
+method, =, QLineEdit, QLineEdit, ~QLineEdit, displayText, text, setText, clear, copy, paste, cut, isReadOnly
+method, =, QLabel, QLabel, ~QLabel, text, setText, setNum, clear
+method, =, QLayout, QLayout, ~QLayout, add, addItem, remove, remoteItem
+method, =, QBoxLayout, QBoxLayout, ~QBoxLayout, addItem, addSpace, addStretch, insertWidget, insertLayout
+method, =, QBoxLayout, findWidget, setDirection, direction, setStretchFactor
+method, =, QHBoxLayout, QHBoxLayout, ~QHBoxLayout
+method, =, QVBoxLayout, QVBoxLayout, ~QVBoxLayout
+method, =, QSplitter, QSplitter, ~QSplitter, setOrientation, orientation, setHandleWidth, handleWidth
+method, =, QFrame, QFrame, ~QFrame
+method, =, QSpinBox, QSpinBox, ~QSpinBox
+method, =, QSlider, QSlider, ~QSlider
+method, =, QProgressBar, QProgressBar, ~QProgressBar
+method, =, QListBox, QListBox, ~QListBox
+method, =, QListView, QListView, ~QListView
+method, =, QTextEdit, QTextEdit, ~QTextEdit
+method, =, QTabWidget, QTabWidget, ~QTabWidget
+
+methed, =, QPalette, QPalette, ~QPalette, setColor
+method, =, QMessageBox,	QMessageBox, ~QMessageBox, text, setText
+method, =, QMessageBox, information,  question, warning, critical, about, aboutQt
+
+# symbol, =, _ZN*
+
+# for all ???
+# method, ~, *, *

@@ -16,10 +16,12 @@ import (
 
 // any comment on this???
 // see blow init func
-var specifyClass string
+
+var genctx = &GenContext{}
 
 func init() {
-	flag.StringVar(&specifyClass, "gclass", specifyClass, "specify need generate one class")
+	flag.StringVar(&genctx.specifyClass, "gclass", "", "specify need generate one class")
+	flag.BoolVar(&genctx.noclip, "noclip", false, "weither noclip, default cliped")
 }
 
 type GenFilter interface {
@@ -29,8 +31,6 @@ type GenFilter interface {
 	skipFunc(cursor clang.Cursor) (bool,any)
 }
 
-// allow # comment, empty line
-var qtgen_filter_rules string
 
 type GenFilterRuleItem struct {
 	Name       string
@@ -57,48 +57,93 @@ const ( // GR name
 	GROP_RMT = "~" // reg match
 )
 
-var GenFilterRules = []*GenFilterRuleItem{}
+
+// var GenFilterRules = []*GenFilterRuleItem{}
+// // allow # comment, empty line
+// var qtgen_filter_rules string
+// var qtgen_clip_rules string // whitelist
+var filter_blacklist_rule = NewFilterRuleGroup("./genfilter_rules.txt")
+var filter_whitelist_rule = NewFilterRuleGroup("./genclip_rules.txt")
 
 // parse qt gen rules
 func init() {
-	qtgenrules_, err := os.ReadFile("./genfilter_rules.txt")
-	gopp.ErrPrint(err)
-	qtgen_filter_rules = string(qtgenrules_)
-	initParseGenRules()
-	initGenRulesTests()
+	filter_blacklist_rule.init().Parse()
+	filter_whitelist_rule.init().Parse()
+	// qtgenrules_, err := os.ReadFile("./genfilter_rules.txt")
+	// gopp.ErrPrint(err)
+	// qtgen_filter_rules = string(qtgenrules_)
+	// qtcliprules, err := os.ReadFile("./genclip_rules.txt")
+	// gopp.ErrPrint(err)
+	// qtgen_clip_rules = string(qtcliprules)
+	// initParseGenRules()
+	// initGenRulesTests()
 	// log.Fatalln("stop test")
 }
 
-func initGenRulesTests() {
-	val := ""
 
-	val = "QString"
-	if GenFilterRulesTest(GRN_CLASS, val, "") {
-		panic("wt " + val)
-	}
-	val = "QMetaType"
-	if !GenFilterRulesTest(GRN_CLASS, val, "") {
-		panic("wt " + val)
-	}
-	val = "operator+"
-	if !GenFilterRulesTest(GRN_METHOD, val, "") {
-		panic("wt " + val)
-	}
+type FilterRuleGroup struct {
+	Name string
+	File string
+	RuleData string
+	Rules []*GenFilterRuleItem
 }
 
-func initParseGenRules() {
-	for _, line_ := range strings.Split(qtgen_filter_rules, "\n") {
+func NewFilterRuleGroup(file string) *FilterRuleGroup {
+	frg := &FilterRuleGroup{}
+	frg.File = file
+	return frg
+}
+
+func (g *FilterRuleGroup) init() *FilterRuleGroup {
+	qtcliprules, err := os.ReadFile(g.File)
+	gopp.ErrPrint(err)
+	g.RuleData = string(qtcliprules)
+
+	return g
+}
+
+func (g *FilterRuleGroup) Parse() {
+	for _, line_ := range strings.Split(g.RuleData, "\n") {
 		line := strings.TrimSpace(line_)
 		if strings.HasPrefix(line, "#") || line == "" {
 			continue
 		}
-		parse_genrule_line(line)
+		g.parse_genrule_line(line)
 	}
-	log.Println("Got gen rules count", len(GenFilterRules))
+	log.Println("Got gen rules count", len(g.Rules))
 
 }
 
-func parse_genrule_line(line string) {
+// func initGenRulesTests() {
+// 	val := ""
+
+// 	val = "QString"
+// 	if GenFilterRulesTest(GRN_CLASS, val, "") {
+// 		panic("wt " + val)
+// 	}
+// 	val = "QMetaType"
+// 	if !GenFilterRulesTest(GRN_CLASS, val, "") {
+// 		panic("wt " + val)
+// 	}
+// 	val = "operator+"
+// 	if !GenFilterRulesTest(GRN_METHOD, val, "") {
+// 		panic("wt " + val)
+// 	}
+// }
+
+// func initParseGenRules() {
+// 	for _, line_ := range strings.Split(qtgen_filter_rules, "\n") {
+// 		line := strings.TrimSpace(line_)
+// 		if strings.HasPrefix(line, "#") || line == "" {
+// 			continue
+// 		}
+// 		parse_genrule_line(line)
+// 	}
+// 	log.Println("Got gen rules count", len(GenFilterRules))
+
+// }
+
+func (g *FilterRuleGroup) parse_genrule_line(line string) {
 	flds := strings.Split(line, ",")
 	for i, fld := range flds {
 		flds[i] = strings.TrimSpace(fld)
@@ -148,12 +193,14 @@ func parse_genrule_line(line string) {
 		}
 	}
 	for _, item := range items {
-		GenFilterRules = append(GenFilterRules, item)
+		g.Rules = append(g.Rules, item)
 	}
 }
 
 // return match rule
-func GenFilterRulesTest(name string, value string, ScopeClass string) bool {
+func (g* FilterRuleGroup) Test(name string, value string, ScopeClass string) bool {
+	GenFilterRules := g.Rules
+
 	value = strings.Replace(value, "const ", "", 1)
 	value = strings.TrimRight(value, " *&")
 
@@ -182,7 +229,13 @@ func (r *GenFilterRuleItem) Test(value string, ScopeClass string) bool {
 	}
 }
 
-// ////
+func GenFilterRulesTest(name,value,scope string) bool {
+	return filter_blacklist_rule.Test(name,value,scope)
+}
+
+////////////////
+
+// /////
 type GenFilterBase struct {
 }
 
@@ -292,7 +345,7 @@ func (this *GenFilterBase) skipClassImpl(cursor, parent clang.Cursor) int {
 	if cname != "QCoreApplication" {
 		// return true
 	}
-	if len(specifyClass) > 0 && cname != specifyClass {
+	if len(genctx.specifyClass) > 0 && cname != genctx.specifyClass {
 		return 10
 	}
 
@@ -304,6 +357,10 @@ func (this *GenFilterBase) skipMethod(cursor, parent clang.Cursor) (bool, any) {
 	rv2, reason2 := this.skipMethodV2(cursor, parent)
 	if rv0 != rv2 {
 		log.Println(GRN_METHOD, cursor.Spelling(), parent.Spelling(), "v0", rv0, reason0, "v2", rv2, reason2)
+	}
+	if !(rv0 || rv2) && !genctx.noclip {
+		wlmat := filter_whitelist_rule.Test(GRN_METHOD, cursor.Spelling(), parent.Spelling())
+		return !wlmat, 361
 	}
 	return rv0 || rv2, fmt.Sprintf("reasons: %v, %v", reason0, reason2)
 }
@@ -739,7 +796,7 @@ func (this *GenFilterBase2) skipClassImpl(cursor, parent clang.Cursor) int {
 	if cname != "QCoreApplication" {
 		// return true
 	}
-	if len(specifyClass) > 0 && cname != specifyClass {
+	if len(genctx.specifyClass) > 0 && cname != genctx.specifyClass {
 		return 10
 	}
 	if parent.Spelling() == "QtPrivate" || parent.Spelling() == "QtMetaTypePrivate" {

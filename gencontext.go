@@ -9,6 +9,8 @@ type GenContext struct {
 	qtdir      string
 	qtver      string
 	genlang    string
+	noclip 		bool
+	specifyClass string
 	bsast_file string
 	bshdr_file string
 }
