@@ -420,8 +420,6 @@ func (this *GenerateV) genMethods(cursor, parent clang.Cursor) {
 		// case x
 		for idx, cursor := range cursors {
 			parent := cursor.SemanticParent()
-			funco, found := qdi.findCoMethodObj(cursor)
-			_, _ = funco, found
 			// log.Println(idx, cursor.Kind().String(), cursor.DisplayName())
 			switch cursor.Kind() {
 			case clang.Cursor_Constructor:

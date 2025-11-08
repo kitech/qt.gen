@@ -77,12 +77,6 @@ func (this *GenCtrl) main() {
 	btime := time.Now()
 	defer func() { log.Println("used time", time.Now().Sub(btime)) }()
 
-	if false {
-		qdi.load(genQtdir, genQtver)
-		log.Println("qdocindex load time:", time.Now().Sub(btime))
-		// log.Fatalln("test exit")
-	}
-
 	this.setupLang()
 	this.setupEnv()
 	this.createTU()

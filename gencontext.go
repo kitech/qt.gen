@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/go-clang/v3.9/clang"
-	"github.com/therecipe/qt/internal/binding/parser"
+	// "github.com/therecipe/qt/internal/binding/parser"
 )
 
 type GenContext struct {
@@ -15,7 +15,7 @@ type GenContext struct {
 
 type GenClassContext struct {
 	clscs clang.Cursor
-	clso  *parser.Class
+	// clso  *parser.Class
 
 	clsty    clang.Type
 	clscanty clang.Type

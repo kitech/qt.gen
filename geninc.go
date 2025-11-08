@@ -12,7 +12,7 @@ import (
 	"unsafe"
 
 	"github.com/go-clang/v3.9/clang"
-	"github.com/therecipe/qt/internal/binding/parser"
+	// "github.com/therecipe/qt/internal/binding/parser"
 	funk "github.com/thoas/go-funk"
 )
 
@@ -66,10 +66,6 @@ func (this *GenerateInline) genClass(cursor, parent clang.Cursor) {
 	}
 	clsctx := &GenClassContext{}
 	clsctx.clscs = cursor
-	clso, found := qdi.findClass(cursor.Spelling())
-	if found {
-		clsctx.clso = clso
-	}
 
 	this.isPureVirtualClass = false
 	this.hasMyCls = false
@@ -131,9 +127,9 @@ func (this *GenerateInline) genFileHeader(clsctx *GenClassContext, cursor, paren
 		this.cp.APf("footer", "#endif // #ifndef QT_MINIMAL")
 	}
 
-	if clsctx.clso != nil && clsctx.clso.Since != "" {
-		this.cp.APf("header", "// since %s", sinceVer2Hex(clsctx.clso.Since))
-	}
+	// if clsctx.clso != nil && clsctx.clso.Since != "" {
+	// 	this.cp.APf("header", "// since %s", sinceVer2Hex(clsctx.clso.Since))
+	// }
 	this.cp.APf("header", "// %s", fix_inc_name(file.Name()))
 	this.cp.APf("header", "#ifndef protected")        // for combile source code, so with #ifdef
 	this.cp.APf("header", "#define protected public") // for protected function call
@@ -623,13 +619,13 @@ func (this *GenerateInline) genMethodHeader(clsctx *GenClassContext, cursor, par
 		this.cp.APf("main", "// %s", strings.Join(qualities, " "))
 	}
 
-	funco, found := (*parser.Function)(nil), false
-	if clsctx.clso != nil {
-		funco, found = qdi.findMethod(clsctx.clso, cursor)
-		if found && funco.Since != "" {
-			this.cp.APf("main", "// since %s", funco.Since)
-		}
-	}
+	// funco, found := (*parser.Function)(nil), false
+	// if clsctx.clso != nil {
+	// 	funco, found = qdi.findMethod(clsctx.clso, cursor)
+	// 	if found && funco.Since != "" {
+	// 		this.cp.APf("main", "// since %s", funco.Since)
+	// 	}
+	// }
 	if cursor.Spelling() == "layoutChanged" && parent.Spelling() == "QAbstractItemModel" {
 		// log.Fatalln(found, funco == nil)
 	}
@@ -659,14 +655,14 @@ func (this *GenerateInline) genCtor(clsctx *GenClassContext, cursor, parent clan
 		cursor.SemanticParent().DisplayName(), cursor.LexicalParent().DisplayName(),
 		pparent.Spelling(), parent.CanonicalCursor().DisplayName())
 
-	funco, found := (*parser.Function)(nil), false
-	if clsctx.clso != nil {
-		funco, found = qdi.findMethod(clsctx.clso, cursor)
-	}
+	// funco, found := (*parser.Function)(nil), false
+	// if clsctx.clso != nil {
+	// 	funco, found = qdi.findMethod(clsctx.clso, cursor)
+	// }
 
-	if found && funco.Since != "" {
-		this.cp.APf("main", "#if QT_VERSION >= %s", sinceVer2Hex(funco.Since))
-	}
+	// if found && funco.Since != "" {
+	// 	this.cp.APf("main", "#if QT_VERSION >= %s", sinceVer2Hex(funco.Since))
+	// }
 	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
 	this.cp.APf("main", "void* %s(%s) {", this.mangler.convTo(cursor), argStr)
 	pxyclsp := ""
@@ -696,9 +692,9 @@ func (this *GenerateInline) genCtor(clsctx *GenClassContext, cursor, parent clan
 	}
 	this.cp.APf("main", "}")
 	this.genMethodFooter(clsctx, cursor, parent)
-	if found && funco.Since != "" {
-		this.cp.APf("main", "#endif // QT_VERSION >= %s", sinceVer2Hex(funco.Since))
-	}
+	// if found && funco.Since != "" {
+	// 	this.cp.APf("main", "#endif // QT_VERSION >= %s", sinceVer2Hex(funco.Since))
+	// }
 	this.cp.APf("main", "")
 }
 
@@ -776,14 +772,14 @@ func (this *GenerateInline) genNonStaticMethod(clsctx *GenClassContext, cursor, 
 		}
 	}
 
-	funco, found := (*parser.Function)(nil), false
-	if clsctx.clso != nil {
-		funco, found = qdi.findMethod(clsctx.clso, cursor)
-	}
+	// funco, found := (*parser.Function)(nil), false
+	// if clsctx.clso != nil {
+	// 	funco, found = qdi.findMethod(clsctx.clso, cursor)
+	// }
 
-	if found && funco.Since != "" {
-		this.cp.APf("main", "#if QT_VERSION >= %s", sinceVer2Hex(funco.Since))
-	}
+	// if found && funco.Since != "" {
+	// 	this.cp.APf("main", "#if QT_VERSION >= %s", sinceVer2Hex(funco.Since))
+	// }
 
 	if featname := is_feated_method(cursor); featname != "" {
 		this.cp.APf("main", "#if QT_CONFIG(%s)", featname)
@@ -848,9 +844,9 @@ func (this *GenerateInline) genNonStaticMethod(clsctx *GenClassContext, cursor, 
 		this.cp.APf("main", "#endif // QT_CONFIG(%s)", featname)
 	}
 
-	if found && funco.Since != "" {
-		this.cp.APf("main", "#endif // QT_VERSION >= %s", sinceVer2Hex(funco.Since))
-	}
+	// if found && funco.Since != "" {
+	// 	this.cp.APf("main", "#endif // QT_VERSION >= %s", sinceVer2Hex(funco.Since))
+	// }
 	this.cp.APf("main", "")
 }
 
@@ -889,14 +885,14 @@ func (this *GenerateInline) genStaticMethod(clsctx *GenClassContext, cursor, par
 
 	}
 
-	funco, found := (*parser.Function)(nil), false
-	if clsctx.clso != nil {
-		funco, found = qdi.findMethod(clsctx.clso, cursor)
-	}
+	// funco, found := (*parser.Function)(nil), false
+	// if clsctx.clso != nil {
+	// 	funco, found = qdi.findMethod(clsctx.clso, cursor)
+	// }
 
-	if found && funco.Since != "" {
-		this.cp.APf("main", "#if QT_VERSION >= %s", sinceVer2Hex(funco.Since))
-	}
+	// if found && funco.Since != "" {
+	// 	this.cp.APf("main", "#if QT_VERSION >= %s", sinceVer2Hex(funco.Since))
+	// }
 
 	if featname := is_feated_method(cursor); featname != "" {
 		this.cp.APf("main", "#if QT_CONFIG(%s)", featname)
@@ -950,9 +946,9 @@ func (this *GenerateInline) genStaticMethod(clsctx *GenClassContext, cursor, par
 		this.cp.APf("main", "#endif // QT_CONFIG(%s)", featname)
 	}
 
-	if found && funco.Since != "" {
-		this.cp.APf("main", "#endif // QT_VERSION >= %s", sinceVer2Hex(funco.Since))
-	}
+	// if found && funco.Since != "" {
+	// 	this.cp.APf("main", "#endif // QT_VERSION >= %s", sinceVer2Hex(funco.Since))
+	// }
 	this.cp.APf("main", "")
 }
 

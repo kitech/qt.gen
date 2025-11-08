@@ -13,7 +13,7 @@ import (
 
 	"github.com/go-clang/v3.9/clang"
 	"github.com/ianlancetaylor/demangle"
-	"github.com/therecipe/qt/internal/binding/parser"
+	// "github.com/therecipe/qt/internal/binding/parser"
 	funk "github.com/thoas/go-funk"
 )
 
@@ -68,10 +68,10 @@ func (this *GenerateInlinev0) genClass(cursor, parent clang.Cursor) {
 	}
 	clsctx := &GenClassContext{}
 	clsctx.clscs = cursor
-	clso, found := qdi.findClass(cursor.Spelling())
-	if found {
-		clsctx.clso = clso
-	}
+	// clso, found := qdi.findClass(cursor.Spelling())
+	// if found {
+	// 	clsctx.clso = clso
+	// }
 
 	this.isPureVirtualClass = false
 	this.hasMyCls = false
@@ -134,9 +134,9 @@ func (this *GenerateInlinev0) genFileHeader(clsctx *GenClassContext, cursor, par
 		this.cp.APf("footer", "#endif // #ifndef QT_MINIMAL")
 	}
 
-	if clsctx.clso != nil && clsctx.clso.Since != "" {
-		this.cp.APf("header", "// since %s", sinceVer2Hex(clsctx.clso.Since))
-	}
+	// if clsctx.clso != nil && clsctx.clso.Since != "" {
+	// 	this.cp.APf("header", "// since %s", sinceVer2Hex(clsctx.clso.Since))
+	// }
 	this.cp.APf("header", "// %s", fix_inc_name(file.Name()))
 	this.cp.APf("header", "#ifndef protected")        // for combile source code, so with #ifdef
 	this.cp.APf("header", "#define protected public") // for protected function call
@@ -706,16 +706,16 @@ func (this *GenerateInlinev0) genMethodHeader(clsctx *GenClassContext, cursor, p
 		this.cp.APf("main", "// %s", strings.Join(qualities, " "))
 	}
 
-	funco, found := (*parser.Function)(nil), false
-	if clsctx.clso != nil {
-		funco, found = qdi.findMethod(clsctx.clso, cursor)
-		if found && funco.Since != "" {
-			this.cp.APf("main", "// since %s", funco.Since)
-		}
-	}
-	if cursor.Spelling() == "layoutChanged" && parent.Spelling() == "QAbstractItemModel" {
-		// log.Fatalln(found, funco == nil)
-	}
+	// funco, found := (*parser.Function)(nil), false
+	// if clsctx.clso != nil {
+	// 	funco, found = qdi.findMethod(clsctx.clso, cursor)
+	// 	if found && funco.Since != "" {
+	// 		this.cp.APf("main", "// since %s", funco.Since)
+	// 	}
+	// }
+	// if cursor.Spelling() == "layoutChanged" && parent.Spelling() == "QAbstractItemModel" {
+	// 	// log.Fatalln(found, funco == nil)
+	// }
 
 	file, lineno, _, _ := cursor.Location().FileLocation()
 	this.cp.APf("main", "// %s:%d", fix_inc_name(file.Name()), lineno)
@@ -766,14 +766,14 @@ func (this *GenerateInlinev0) genCtor(clsctx *GenClassContext, cursor, parent cl
 		cursor.SemanticParent().DisplayName(), cursor.LexicalParent().DisplayName(),
 		pparent.Spelling(), parent.CanonicalCursor().DisplayName())
 
-	funco, found := (*parser.Function)(nil), false
-	if clsctx.clso != nil {
-		funco, found = qdi.findMethod(clsctx.clso, cursor)
-	}
+	// funco, found := (*parser.Function)(nil), false
+	// if clsctx.clso != nil {
+	// 	funco, found = qdi.findMethod(clsctx.clso, cursor)
+	// }
 
-	if found && funco.Since != "" {
-		this.cp.APf("main", "#if QT_VERSION >= %s", sinceVer2Hex(funco.Since))
-	}
+	// if found && funco.Since != "" {
+	// 	this.cp.APf("main", "#if QT_VERSION >= %s", sinceVer2Hex(funco.Since))
+	// }
 	// this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
 	this.cp.APf("main", "/*void* %s(%s)*/{", this.mangler.crc32p(cursor), argStr)
 	pxyclsp := ""
@@ -834,9 +834,9 @@ func (this *GenerateInlinev0) genCtor(clsctx *GenClassContext, cursor, parent cl
 	}
 	this.cp.APf("main", "}")
 	this.genMethodFooter(clsctx, cursor, parent)
-	if found && funco.Since != "" {
-		this.cp.APf("main", "#endif // QT_VERSION >= %s", sinceVer2Hex(funco.Since))
-	}
+	// if found && funco.Since != "" {
+	// 	this.cp.APf("main", "#endif // QT_VERSION >= %s", sinceVer2Hex(funco.Since))
+	// }
 	this.cp.APf("main", "")
 }
 
@@ -887,14 +887,14 @@ func (this *GenerateInlinev0) genNonStaticMethod(clsctx *GenClassContext, cursor
 		// pparentstr = fmt.Sprintf("%s::", pparent.Spelling())
 	}
 
-	funco, found := (*parser.Function)(nil), false
-	if clsctx.clso != nil {
-		funco, found = qdi.findMethod(clsctx.clso, cursor)
-	}
+	// funco, found := (*parser.Function)(nil), false
+	// if clsctx.clso != nil {
+	// 	funco, found = qdi.findMethod(clsctx.clso, cursor)
+	// }
 
-	if found && funco.Since != "" {
-		this.cp.APf("main", "#if QT_VERSION >= %s", sinceVer2Hex(funco.Since))
-	}
+	// if found && funco.Since != "" {
+	// 	this.cp.APf("main", "#if QT_VERSION >= %s", sinceVer2Hex(funco.Since))
+	// }
 
 	if featname := is_feated_method(cursor); featname != "" {
 		this.cp.APf("main", "#if QT_CONFIG(%s)", featname)
@@ -947,9 +947,9 @@ func (this *GenerateInlinev0) genNonStaticMethod(clsctx *GenClassContext, cursor
 		this.cp.APf("main", "#endif // QT_CONFIG(%s)", featname)
 	}
 
-	if found && funco.Since != "" {
-		this.cp.APf("main", "#endif // QT_VERSION >= %s", sinceVer2Hex(funco.Since))
-	}
+	// if found && funco.Since != "" {
+	// 	this.cp.APf("main", "#endif // QT_VERSION >= %s", sinceVer2Hex(funco.Since))
+	// }
 	this.cp.APf("main", "")
 }
 
@@ -965,14 +965,14 @@ func (this *GenerateInlinev0) genStaticMethod(clsctx *GenClassContext, cursor, p
 		// pparentstr = fmt.Sprintf("%s::", pparent.Spelling())
 	}
 
-	funco, found := (*parser.Function)(nil), false
-	if clsctx.clso != nil {
-		funco, found = qdi.findMethod(clsctx.clso, cursor)
-	}
+	// funco, found := (*parser.Function)(nil), false
+	// if clsctx.clso != nil {
+	// 	funco, found = qdi.findMethod(clsctx.clso, cursor)
+	// }
 
-	if found && funco.Since != "" {
-		this.cp.APf("main", "#if QT_VERSION >= %s", sinceVer2Hex(funco.Since))
-	}
+	// if found && funco.Since != "" {
+	// 	this.cp.APf("main", "#if QT_VERSION >= %s", sinceVer2Hex(funco.Since))
+	// }
 
 	if featname := is_feated_method(cursor); featname != "" {
 		this.cp.APf("main", "#if QT_CONFIG(%s)", featname)
@@ -1020,9 +1020,9 @@ func (this *GenerateInlinev0) genStaticMethod(clsctx *GenClassContext, cursor, p
 		this.cp.APf("main", "#endif // QT_CONFIG(%s)", featname)
 	}
 
-	if found && funco.Since != "" {
-		this.cp.APf("main", "#endif // QT_VERSION >= %s", sinceVer2Hex(funco.Since))
-	}
+	// if found && funco.Since != "" {
+	// 	this.cp.APf("main", "#endif // QT_VERSION >= %s", sinceVer2Hex(funco.Since))
+	// }
 	this.cp.APf("main", "")
 }
 
