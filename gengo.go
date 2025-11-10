@@ -858,6 +858,7 @@ func (this *GenerateGo) genNonStaticMethod(cursor, parent clang.Cursor, midx int
 	}
 	var cp = this.getpropercp(cursor)
 
+	this.genArgs(cursor, parent, midx, -1)
 	this.genArgsConvFFI(cursor, parent, midx)
 
 	retype := cursor.ResultType() // move like sementic, compiler auto behaiver
@@ -908,6 +909,7 @@ func (this *GenerateGo) genNonStaticMethodDv(cursor, parent clang.Cursor, midx i
 	this.genMethodHeader(cursor, parent, midx)
 	this.genMethodSignatureDv(cursor, parent, midx, dvidx)
 
+	this.genArgs(cursor, parent, midx, dvidx)
 	this.genArgsConvFFIDv(cursor, parent, midx, dvidx)
 	var cp = this.getpropercp(cursor)
 
@@ -1105,18 +1107,38 @@ func (this *GenerateGo) genProtectedCallback(cursor, parent clang.Cursor, midx i
 	}
 }
 
-func (this *GenerateGo) genArgs(cursor, parent clang.Cursor) {
+// if not gen default value, dvidx == -1
+func (this *GenerateGo) genArgs(cursor, parent clang.Cursor, midx int, dvidx int) {
 	this.argDesc = make([]string, 0)
 	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
-		argc := cursor.Argument(uint32(idx))
-		this.genArg(argc, cursor, idx)
+		argcs := cursor.Argument(uint32(idx))
+		aitm := this.NewGenArgItem(argcs, cursor, idx)
+		// aitm.dest_tyname = this.tyconver.toDest(aitm.argty, aitm.argcs)
+		// aitm.ffi_tyname = getTyDesc(aitm.argty, AsGoSignature, aitm.argcs)
+
+		this.genArg(argcs, cursor, idx, aitm)
 	}
 	// log.Println(strings.Join(this.argDesc, ", "), this.mangler.origin(cursor))
 }
 
-func (this *GenerateGo) genArg(cursor, parent clang.Cursor, idx int) {
+func (this *GenerateGo) genArg(cursor, parent clang.Cursor, idx int, aitm *GenArgItem) {
 	// log.Println(cursor.DisplayName(), cursor.Type().Spelling(), cursor.Type().Kind() == clang.Type_LValueReference, this.mangler.origin(parent))
 
+	var cp = this.getpropercp(parent)
+	cp.APf("body", "    // %d cvty=%d, %s, dftval=%v, type=%s destty=%s, ffity=%s", aitm.idx, aitm.convtype, aitm.oriname, aitm.dftval, aitm.argty.Spelling(), "","")
+
+	switch aitm.convtype {
+		case get_cthis :
+			cp.APf("body", "  var %s unsafe.Pointer", aitm.convname)
+		default: {
+
+		}
+	}
+
+
+	if true {
+		return
+	}
 	if len(cursor.Spelling()) == 0 {
 		this.argDesc = append(this.argDesc, fmt.Sprintf("%s arg%d", cursor.Type().Spelling(), idx))
 	} else {

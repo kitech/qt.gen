@@ -219,6 +219,10 @@ type GenArgItem struct {
 	convname string
 	convval any
 	dvnme string
+
+	tycv_item *TypeConvItem
+	// dest_tyname string
+	// ffi_tyname string
 }
 
 func NewGenArgItem(cursor, parent clang.Cursor, idx int) *GenArgItem {
@@ -255,6 +259,7 @@ func (this *GenBase) NewGenArgItem(cursor, parent clang.Cursor, idx int) * GenAr
 	aitm.oriname = this.genParamRefName(aitm.argcs, aitm.prtcs, aitm.idx)
 
 	aitm.convtype = this.typeToConvty(aitm.argty)
+
 	return aitm
 }
 

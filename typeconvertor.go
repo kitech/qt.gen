@@ -16,6 +16,35 @@ func init() {
 	}
 }
 
+
+type LangName = string
+const (
+	LNCPP LangName = "cpp"
+	LNC = "c"
+	LNGo = "go"
+	LNCgo = "cgo"
+	LNCy = "cy"
+	LNRs = "rs"
+	LNV = "v"
+	LNDT = "dt"
+	LNCR = "cr"
+)
+
+// lang, cpp,c,cgo,go,rs,v
+
+// lang => type => Item
+type TypeConvItem struct {
+	AsArgSign string // 转换到go函数签名相应的类型
+	AsITFSign string // 转换到go函数签名中需要用到interface的相应的类型
+	AsReturn string// 转换 go函数返回值相应的类型，可能与签名中的不一样
+	AsCCall string// direct call C for some lang
+	AsFfiCall string// by ffi call
+	AsReserve string
+
+	ToCCallConv string// convert code
+	ToFfiConv string
+}
+
 // 需要考虑的目标类型转换，还是挺多的
 // 转换的源类型为CPP类型
 const (
@@ -127,8 +156,18 @@ const (
 var tycvCache = map[clang.Type]map[int]string{}
 var argcvCache = map[string]string{}
 
+var tycvItems = map[LangName]map[clang.Type]*TypeConvItem{}
+
+// it by type, not lang, so TypeConver method not good
+
 // cusecs 当前类型引用位置，用于定位模块
-func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor) string {
+func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor/*, lang LangName */) string {
+	return getTyDescPrimitive(ty, usecat, usecs)
+}
+func getTyDescClassType(ty clang.Type, usecat int, usecs clang.Cursor/*, lang LangName */) string {
+	return "TODO168"
+}
+func getTyDescPrimitive(ty clang.Type, usecat int, usecs clang.Cursor/*, lang LangName */) string {
 	che, ok := tycvCache[ty]
 	if !ok {
 		che = map[int]string{}
