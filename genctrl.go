@@ -603,16 +603,17 @@ func (this *GenCtrl) collectClasses() {
 	this.qtfuncgen.genFunctions(cursor, cursor.SemanticParent())
 	if genLang == "go" {
 		var gg *GenerateGo = this.qtenumgen.(*GenerateGo)
-		gg.cp.APf("header", "package qtcore")
+		qtmod := gopp.IfElseStr(isgenqt3(), "3", "core")
+		gg.cp.APf("header", "package qt%s", qtmod)
 		gg.cp.APf("header", "import \"fmt\"")
 		gg.genEnumsGlobal(cursor, cursor.SemanticParent())
 		gg.cp.APf("keep", "func make_sure_usepkg_qnamespace(){if false{fmt.Println(123)}}")
-		gg.saveCodeToFile("core", "qnamespace")
+		gg.saveCodeToFile(qtmod, "qnamespace")
 
 		gg = this.qtconstgen.(*GenerateGo)
-		gg.cp.APf("header", "package qtcore")
+		gg.cp.APf("header", "package qt%s", qtmod)
 		gg.genConstantsGlobal(cursor, cursor.SemanticParent())
-		gg.saveCodeToFile("core", "qconstants")
+		gg.saveCodeToFile(qtmod, "qconstants")
 
 		/*
 			gg = this.genor.(*GenerateGo)

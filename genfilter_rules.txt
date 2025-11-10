@@ -3,7 +3,7 @@ class,~, ^QMetaTypeId, ^QTypeInfo, ^QQmlTypeInfo, ^QIntegerForSize
 class,~, ^QOpenGLFunctions, ^QOpenGLExtraFunctions,^QOpenGLVersion
 class,~, ^QOpenGL, ^QAbstract-, ^QPrivate
 
-class,=, Qt, QCOORD
+class,=, Qt, QCOORD, QCString
 class,=, QAbstractOpenGLFunctionsPrivate, QOpenGLFunctionsPrivate
 class,=, QOpenGLExtraFunctionsPrivate, QAnimationGroup
 class,=, QMetaType, QAtomicOpsSupport, QAtomicOpsSupport
@@ -14,7 +14,7 @@ class, ~, ^QOpenGLFunctions_ && DeprecatedBackend
 class, ~, ^QFlags<, ^QPtrList<, ^QMemArray<
 class, ~, QValueList, QPair<, QStringList
 class, ~, QList<, QMap<, QHash<, Q*Iterator
-class, ~, Q*Map<, Q*Hash<
+class, ~, Q*Map<, Q*Hash<, Q*List<
 argty, ~, QList<, QMap<, QHash<
 argty, ~, Q*Map<, Q*Hash<
 argty, ~, QTSMFI
@@ -27,9 +27,12 @@ method, ~, styleHint
 
 class, ~, QWidgetMapper, QFileInfoList, QTextDrag, QTextParag
 class, ~, QPDevCmdParam, QSqlRecordInfo
+class, ~, QCanvasItemList, QObjectDictionary, QObjectList, QPointArray, QStrList
+class, ~, QWidgetList
 
 class, =, QSqlExtension
 # class, ~, QXml, QSql, QWMatrix,
+class, =, QDns
 class, =, QDebug, QNoDebug, QDebugStateSaver, QLibraryInfo
 class, =, QInternal, QAccessibleObject, QAccessibleActionInterface, QGraphicsObject
 

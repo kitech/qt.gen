@@ -347,7 +347,7 @@ func (this *GenerateGo) genClassDef(cursor, parent clang.Cursor) {
 func (this *GenerateGo) filter_base_classes(bcs []clang.Cursor) []clang.Cursor {
 	newbcs := make([]clang.Cursor, 0)
 	for _, bc := range bcs {
-		if skip, _ := this.filter.skipClass(bc, bc.SemanticParent()); skip {
+		if skip, _ := this.filter.skipClass(bc, bc.SemanticParent()); !skip {
 			newbcs = append(newbcs, bc)
 		}
 	}
@@ -1165,7 +1165,7 @@ func (this *GenerateGo) genArgDest(cursor, parent clang.Cursor, idx int, asitf b
 		this.destArgDesc = append(this.destArgDesc, fmt.Sprintf("%s int", argName))
 	} else if is_qt_class(cursor.Type()) && get_bare_type(cursor.Type()).Spelling() == "QString" {
 		this.destArgDesc = append(this.destArgDesc, fmt.Sprintf("%s string", argName))
-	} else if is_qt_class(cursor.Type()) {
+	} else if is_qt_class(cursor.Type()) && !isPrimitiveType(cursor.Type().PointeeType()) {
 		destTyITF := destTy
 		if asitf && (strings.HasPrefix(destTy, "*Q") || strings.Contains(destTy, ".Q")) {
 			if pos := strings.Index(destTy, "/*"); pos > 0 {
@@ -1240,11 +1240,13 @@ func (this *GenerateGo) genArgConvFFI(cursor, parent clang.Cursor, midx, aidx in
 	} else if is_qt_class(argty) && get_bare_type(argty).Spelling() == "QString" {
 		usemod := get_decl_mod(cursor)
 		pkgPref := gopp.IfElseStr(usemod == "core", "", "qtcore.")
+		pkgPref = gopp.IfElseStr(isgenqt3(), "", pkgPref)
 		cp.APf("body", "    var tmpArg%d = %sNewQString5(%s)", aidx, pkgPref,
 			this.genParamRefName(cursor, parent, aidx))
 		// this.cp.APf("body", "    defer %sDeleteQString(tmpArg%d)", pkgPref, aidx) // not needed
 		cp.APf("body", "    var convArg%d = tmpArg%d.GetCthis()", aidx, aidx)
-	} else if is_qt_class(argty) && !isPrimitiveType(argty.CanonicalType()) {
+	} else if is_qt_class(argty) && !isPrimitiveType(argty.CanonicalType()) &&
+			! isPrimitiveType(argty.PointeeType()) {
 		if argty.Spelling() == "QRgb" {
 			log.Fatalln(argty.Spelling(), argty.CanonicalType().Kind().String())
 		}
@@ -1263,6 +1265,9 @@ func (this *GenerateGo) genArgConvFFI(cursor, parent clang.Cursor, midx, aidx in
 				this.genParamRefName(cursor, parent, aidx), barety.Spelling())
 			cp.APf("body", "    }")
 		}
+	} else if is_qt_class(argty) && (isPrimitiveType(argty.CanonicalType()) ||
+	 			isPrimitiveType(argty.PointeeType())) {
+			// cp.APf("body", "    var convArg%d = %s", aidx)
 	} else { // no convert needed
 		// log.Fatalln("wtf", argty.Kind(), argty.Spelling(), parent.Spelling())
 	}
@@ -1305,7 +1310,8 @@ func (this *GenerateGo) genArgConvFFIDv(cursor, parent clang.Cursor, midx, aidx 
 	}
 	_ = argdvs
 
-	cp.APf("body", "    // arg: %d, %s=%s, %s=%s, %s, %s", aidx,
+	cp.APf("body", "    // arg: %d, name=%s %s=%s, %s=%s, %s, %s", aidx,
+		this.genParamRefName(cursor, parent, aidx),
 		argty.Spelling(), argty.Kind().String(), barety.Spelling(), barety.Kind().String(),
 		undty.Spelling(), undty.Kind().String())
 
@@ -1348,10 +1354,12 @@ func (this *GenerateGo) genArgConvFFIDv(cursor, parent clang.Cursor, midx, aidx 
 			"QSize", "QAbstractState" /*"QScreen", "QAction"*/}, get_bare_type(argty).Spelling()) {
 		usemod := get_decl_mod(cursor)
 		pkgPref := gopp.IfElseStr(usemod == "core", "", "qtcore.")
+		pkgPref = gopp.IfElseStr(isgenqt3(), "", pkgPref)
 		cp.APf("body", "    var convArg%d = %sNew%s()", aidx, pkgPref, get_bare_type(argty).Spelling())
 	} else if is_qt_class(argty) && get_bare_type(argty).Spelling() == "QChar" {
 		usemod := get_decl_mod(cursor)
 		pkgPref := gopp.IfElseStr(usemod == "core", "", "qtcore.")
+		pkgPref = gopp.IfElseStr(isgenqt3(), "", pkgPref)
 		cp.APf("body", "    var convArg%d  = %sNewQChar8('%s')", aidx,
 			pkgPref, strings.Split(argdv, "'")[1])
 	} else if is_qt_class(argty) && !isPrimitiveType(argty.CanonicalType()) {
@@ -1368,6 +1376,7 @@ func (this *GenerateGo) genArgConvFFIDv(cursor, parent clang.Cursor, midx, aidx 
 			cp.APf("body", "    var %s unsafe.Pointer", this.genParamRefName(cursor, parent, aidx))
 		} else {
 			cp.APf("body", "    var convArg%d unsafe.Pointer", aidx)
+				cp.APf("body", "    var _ = convArg%d", aidx)
 		}
 	} else if argty.Spelling() == "WId" {
 		cp.APf("body", "    var %s unsafe.Pointer ", this.genParamRefName(cursor, parent, aidx))
@@ -1541,7 +1550,7 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 			cp.APf("body", "    rv3 := rv2.ToUtf8().Data()")
 			cp.APf("body", "    %sDeleteQString(rv2)", pkgPrefix)
 			cp.APf("body", "    return rv3")
-		} else if is_qt_class(rety) {
+		} else if is_qt_class(rety) && !isPrimitiveType(rety.PointeeType()) {
 			barety := get_bare_type(rety)
 			cp.APf("body", "    rv2 := %sNew%sFromPointer(unsafe.Pointer(uintptr(rv))) // 4441",
 				pkgPrefix, barety.Spelling())
@@ -1662,15 +1671,20 @@ func (this *GenerateGo) genClassEnums(cursor, parent clang.Cursor) {
 		this.cp.APf("body", "%s", pcomment)
 		this.cp.APf("body", "*/")
 		// must use uint, because on android
-		this.cp.APf("body", "type %s__%s = int", cursor.DisplayName(), enum.DisplayName())
+		enumname := enum.DisplayName()
+		// type QMessageBox__(unnamed enum at /opt/qt338sh/include/qmessagebox.h:74:5) = int
+		enumname = gopp.IfElseStr(strings.HasPrefix(enumname, "(unnamed"), "", enumname)
+		this.cp.APf("body", "type %s__%s = int", cursor.DisplayName(), enumname)
 		enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
+			p1name := p1.DisplayName()
+			p1name = gopp.IfElseStr(strings.HasPrefix(p1name, "(unnamed"), "", p1name)
 			switch c1.Kind() {
 			case clang.Cursor_EnumConstantDecl:
 				log.Println("yyyyyyyyy", c1.EnumConstantDeclValue(), c1.DisplayName(), p1.DisplayName(), cursor.DisplayName())
 				this.cp.APf("body", "// %s", elems[c1.DisplayName()])
 				this.cp.APf("body", "const %s__%s %s__%s = %d",
 					cursor.DisplayName(), c1.DisplayName(),
-					cursor.DisplayName(), p1.DisplayName(),
+					cursor.DisplayName(), p1name,
 					c1.EnumConstantDeclValue())
 			}
 
@@ -1694,7 +1708,7 @@ func (this *GenerateGo) genClassEnums(cursor, parent clang.Cursor) {
 		})
 
 		this.cp.APf("body", "func (this *%s) %sItemName(val int) string {",
-			cursor.DisplayName(), enum.DisplayName())
+			cursor.DisplayName(), enumname)
 		if isobjty {
 			this.cp.APf("body", "  return qtrt.GetClassEnumItemName(this, val)")
 		} else {
@@ -1719,9 +1733,9 @@ func (this *GenerateGo) genClassEnums(cursor, parent clang.Cursor) {
 		}
 		this.cp.APf("body", "}")
 		this.cp.APf("body", "func %s_%sItemName(val int) string {",
-			cursor.DisplayName(), enum.DisplayName())
+			cursor.DisplayName(), enumname)
 		this.cp.APf("body", "  var nilthis *%s", cursor.DisplayName())
-		this.cp.APf("body", "  return nilthis.%sItemName(val)", enum.DisplayName())
+		this.cp.APf("body", "  return nilthis.%sItemName(val)", enumname)
 		this.cp.APf("body", "}")
 		this.cp.APf("body", "")
 	}
@@ -1732,16 +1746,19 @@ func (this *GenerateGo) genEnumsGlobal(cursor, parent clang.Cursor) {
 	// log.Println("yyyyyyyy", cursor.DisplayName(), parent.DisplayName())
 	dedups := map[string]int{}
 	for _, enum := range this.enums {
+		enumname := enum.DisplayName()
+		// type QMessageBox__(unnamed enum at /opt/qt338sh/include/qmessagebox.h:74:5) = int
+		enumname = gopp.IfElseStr(strings.HasPrefix(enumname, "(unnamed"), "", enumname)
 		if enum.DisplayName() == "" || enum.DisplayName() == "Uninitialized" ||
 			enum.DisplayName() == "timeout" || enum.DisplayName() == "deferred" ||
 			enum.DisplayName() == "GuardValues" || enum.DisplayName() == "cv_status" ||
 			enum.DisplayName() == "future_statu" || enum.DisplayName() == "launch" {
 			continue
 		}
-		if _, ok := dedups[enum.DisplayName()]; ok {
+		if _, ok := dedups[enumname]; ok {
 			continue
 		}
-		dedups[enum.DisplayName()] = 1
+		dedups[enumname] = 1
 
 		comment := queryComment(enum, this.qtdir, this.qtver)
 		pcomment, elems := extractEnumElem(comment)
@@ -1750,8 +1767,10 @@ func (this *GenerateGo) genEnumsGlobal(cursor, parent clang.Cursor) {
 		this.cp.APf("body", "/*")
 		this.cp.APf("body", "%s", pcomment)
 		this.cp.APf("body", "*/")
-		this.cp.APUf("body", "type %s__%s = int // %s", "Qt", enum.DisplayName(), qtmod)
+		this.cp.APUf("body", "type %s__%s = int // %s", "Qt", enumname, qtmod)
 		enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
+			p1name := p1.DisplayName()
+			p1name = gopp.IfElseStr(strings.HasPrefix(p1name, "(unnamed"), "", p1name)
 			switch c1.Kind() {
 			case clang.Cursor_EnumConstantDecl:
 				log.Println("yyyyyyyyy", c1.EnumConstantDeclValue(), c1.DisplayName(), p1.DisplayName(), cursor.DisplayName())
@@ -1762,7 +1781,7 @@ func (this *GenerateGo) genEnumsGlobal(cursor, parent clang.Cursor) {
 
 				this.cp.APUf("body", "// %s", elems[c1.DisplayName()])
 				this.cp.APUf("body", "const %s__%s %s__%s = %d",
-					"Qt", c1.DisplayName(), "Qt", p1.DisplayName(),
+					"Qt", c1.DisplayName(), "Qt", p1name,
 					c1.EnumConstantDeclValue())
 			}
 
@@ -1785,7 +1804,7 @@ func (this *GenerateGo) genEnumsGlobal(cursor, parent clang.Cursor) {
 			return clang.ChildVisit_Continue
 		})
 
-		this.cp.APf("body", "func %sItemName(val int) string {", enum.DisplayName())
+		this.cp.APf("body", "func %sItemName(val int) string {", enumname)
 		this.cp.APf("body", "  switch val {")
 		enum.Visit(func(c1, p1 clang.Cursor) clang.ChildVisitResult {
 			switch c1.Kind() {

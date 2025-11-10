@@ -176,11 +176,20 @@ func (this *GenBase) groupFunctionsByModule() map[string][]clang.Cursor {
 	return rets
 }
 
+// check empty
+// check keyword
+// check name rule
 func (this *GenBase) genParamRefName(cursor, parent clang.Cursor, aidx int) string {
 	argName := cursor.Spelling()
 	argName = gopp.IfElseStr(is_go_keyword(argName), argName+"_", argName)
 
 	return gopp.IfElseStr(cursor.Spelling() == "", fmt.Sprintf("arg%d", aidx), argName)
+}
+
+// when forward call ffi
+func (this *GenBase) isArgConvNeeded(cursor, parent clang.Cursor, aidx int) bool {
+
+	return false
 }
 
 // mod lower case, include need camel case
