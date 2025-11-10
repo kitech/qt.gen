@@ -40,9 +40,31 @@ type TypeConvItem struct {
 	AsCCall string// direct call C for some lang
 	AsFfiCall string// by ffi call
 	AsReserve string
+	AsReflect string // reflect.Type for some lang
 
 	ToCCallConv string// convert code
 	ToFfiConv string
+}
+
+func (item *TypeConvItem) SetAllAs(tyname string) {
+	item.AsArgSign = tyname
+	item.AsReturn =  tyname
+	item.AsCCall =   tyname
+	item.AsFfiCall = tyname
+	item.AsReserve = tyname
+	item.AsITFSign = tyname
+	item.AsReflect = tyname
+}
+// fix value, &, *
+func (item *TypeConvItem) AddAllFix(fix string, prefix bool) {
+	fmtstr := gopp.IfElseStr(prefix, fix +"%s", "%s"+fix)
+	item.AsArgSign = fmt.Sprintf(fmtstr, item.AsArgSign)
+	item.AsReturn =  fmt.Sprintf(fmtstr, item.AsReturn)
+	item.AsCCall =   fmt.Sprintf(fmtstr, item.AsCCall)
+	item.AsFfiCall = fmt.Sprintf(fmtstr, item.AsFfiCall)
+	item.AsReserve = fmt.Sprintf(fmtstr, item.AsReserve)
+	item.AsITFSign = fmt.Sprintf(fmtstr, item.AsITFSign)
+	item.AsReflect = fmt.Sprintf(fmtstr, item.AsReflect)
 }
 
 // 需要考虑的目标类型转换，还是挺多的
@@ -183,6 +205,16 @@ func getTyDescPrimitive(ty clang.Type, usecat int, usecs clang.Cursor/*, lang La
 	// 类继承的处理，继承某类型，并做特殊处理
 	// che[AsGoITF] = getTyDesc(ty, AsGoSignature, usecs)
 
+	tycv_item := &TypeConvItem{}
+	var lang = LNCPP
+
+	item := tycv_item
+	// default same part
+	item.SetAllAs(ty.Spelling())
+	item.ToCCallConv = fmt.Sprintf("(%s)(%%s)", ty.Spelling())
+	item.ToFfiConv = fmt.Sprintf("(%s)(%%s)", ty.Spelling())
+
+
 	// 重新计算
 	switch ty.Kind() {
 	case clang.Type_Int:
@@ -202,6 +234,15 @@ func getTyDescPrimitive(ty clang.Type, usecat int, usecs clang.Cursor/*, lang La
 
 		che[ArgDesc_CR_SIGNATURE] = "Int"
 		che[ArgDesc_DT_SIGNATURE] = "int"
+
+		switch lang {
+			case LNGo :
+
+			case LNCgo :
+			item.AsArgSign = "C.int"
+			case LNV :
+
+		}
 
 	case clang.Type_UInt:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.uint"
@@ -238,6 +279,15 @@ func getTyDescPrimitive(ty clang.Type, usecat int, usecs clang.Cursor/*, lang La
 		che[ArgDesc_CR_SIGNATURE] = "Int64"
 		che[ArgDesc_DT_SIGNATURE] = "int"
 
+		switch lang {
+			case LNGo :
+			item.SetAllAs("int64")
+			item.ToCCallConv = fmt.Sprintf("(int64)(%%s)")
+			item.ToFfiConv = fmt.Sprintf("(int64)(%%s)")
+			case LNV:
+			item.SetAllAs("i64")
+		}
+
 	case clang.Type_ULongLong:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.uint64_t"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "uint64_t"
@@ -255,6 +305,13 @@ func getTyDescPrimitive(ty clang.Type, usecat int, usecs clang.Cursor/*, lang La
 
 		che[ArgDesc_CR_SIGNATURE] = "UInt64"
 		che[ArgDesc_DT_SIGNATURE] = "int"
+
+		switch lang {
+			case LNGo:
+			item.SetAllAs("uint64")
+			case LNV:
+			item.SetAllAs("u64")
+		}
 
 	case clang.Type_Short:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.int16_t"
@@ -274,6 +331,13 @@ func getTyDescPrimitive(ty clang.Type, usecat int, usecs clang.Cursor/*, lang La
 		che[ArgDesc_CR_SIGNATURE] = "Int16"
 		che[ArgDesc_DT_SIGNATURE] = "int"
 
+		switch lang {
+			case LNGo:
+			item.SetAllAs("int16")
+			case LNV:
+			item.SetAllAs("i16")
+		}
+
 	case clang.Type_UShort:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.uint16_t"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "uint16_t"
@@ -291,6 +355,13 @@ func getTyDescPrimitive(ty clang.Type, usecat int, usecs clang.Cursor/*, lang La
 
 		che[ArgDesc_CR_SIGNATURE] = "UInt16"
 		che[ArgDesc_DT_SIGNATURE] = "int"
+
+		switch lang {
+			case LNGo:
+			item.SetAllAs("uint16")
+			case LNV:
+			item.SetAllAs("u16")
+		}
 
 	case clang.Type_UChar:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.uint8_t"
@@ -310,25 +381,14 @@ func getTyDescPrimitive(ty clang.Type, usecat int, usecs clang.Cursor/*, lang La
 		che[ArgDesc_CR_SIGNATURE] = "UInt8"
 		che[ArgDesc_DT_SIGNATURE] = "int"
 
-	case clang.Type_Char_S:
-		che[ArgTyDesc_CGO_SIGNATURE] = "C.int8_t"
-		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "int8_t"
-		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
-		che[AsCReturn] = "int8_t"
-		che[AsGoReturn] = "byte"
-		che[AsGoSignature] = "byte"
+		switch lang {
+			case LNGo:
+			item.SetAllAs("byte")
+			case LNV:
+			item.SetAllAs("u8")
+		}
 
-		che[AsVReturn] = "byte"
-		che[AsVSignature] = "byte"
-		che[ArgTyDesc_CV_SIGNATURE] = "byte"
-
-		che[ArgDesc_RS_SIGNATURE] = "i8"
-		che[AsRsCallFFITy] = "SINT8"
-
-		che[ArgDesc_CR_SIGNATURE] = "Int8"
-		che[ArgDesc_DT_SIGNATURE] = "int"
-
-	case clang.Type_SChar:
+	case clang.Type_Char_S, clang.Type_SChar:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.char"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "char"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
@@ -346,7 +406,14 @@ func getTyDescPrimitive(ty clang.Type, usecat int, usecs clang.Cursor/*, lang La
 		che[ArgDesc_CR_SIGNATURE] = "Int8"
 		che[ArgDesc_DT_SIGNATURE] = "int"
 
-	case clang.Type_Long:
+		switch lang {
+			case LNGo:
+			item.SetAllAs("byte")
+			case LNV:
+			item.SetAllAs("i8")
+		}
+
+	case clang.Type_Long: // in c x32 is 4B, x64 is 8B
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.long"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "long"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
@@ -364,7 +431,14 @@ func getTyDescPrimitive(ty clang.Type, usecat int, usecs clang.Cursor/*, lang La
 		che[ArgDesc_CR_SIGNATURE] = "Int64"
 		che[ArgDesc_DT_SIGNATURE] = "int"
 
-	case clang.Type_ULong:
+		switch lang {
+			case LNGo:
+			item.SetAllAs("uintptr")
+			case LNV:
+			item.SetAllAs("isize")
+		}
+
+	case clang.Type_ULong: // in c x32 is 4B, x64 is 8B
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.ulong"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "ulong"
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
@@ -382,7 +456,21 @@ func getTyDescPrimitive(ty clang.Type, usecat int, usecs clang.Cursor/*, lang La
 		che[ArgDesc_CR_SIGNATURE] = "UInt64"
 		che[ArgDesc_DT_SIGNATURE] = "int"
 
+		switch lang {
+			case LNGo:
+			item.SetAllAs("uintptr")
+			case LNV:
+			item.SetAllAs("usize")
+		}
+
 	case clang.Type_Typedef:
+		if ty.CanonicalType().Kind()!=clang.Type_Typedef {
+			getTyDesc(ty.CanonicalType(), usecat, usecs)
+			if true {
+				break
+			}
+		}
+
 		che[ArgTyDesc_CPP_SIGNAUTE] = ty.Spelling()
 		if TypeIsQFlags(ty) {
 			che[ArgTyDesc_CGO_SIGNATURE] = "C.int"
@@ -510,6 +598,13 @@ func getTyDescPrimitive(ty clang.Type, usecat int, usecs clang.Cursor/*, lang La
 			che[ArgDesc_DT_SIGNATURE] = get_bare_type(ty.PointeeType()).Spelling()
 		}
 
+		switch lang {
+			case LNGo:
+			item.SetAllAs("uintptr")
+			case LNV:
+			item.SetAllAs("voidptr")
+		}
+
 	case clang.Type_LValueReference: // TODO qt class
 		if isPrimitiveType(ty.PointeeType()) {
 			// return this.toDest(ty.PointeeType(), cursor)
@@ -531,6 +626,13 @@ func getTyDescPrimitive(ty clang.Type, usecat int, usecs clang.Cursor/*, lang La
 		che[ArgDesc_CR_SIGNATURE] = "UInt64"
 		che[ArgDesc_DT_SIGNATURE] = "int"
 
+		switch lang {
+			case LNGo:
+			item.SetAllAs("uintptr")
+			case LNV:
+			item.SetAllAs("voidptr")
+		}
+
 	case clang.Type_RValueReference:
 		che[ArgTyDesc_CGO_SIGNATURE] = "unsafe.Pointer  /*333*/"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "void*"
@@ -547,6 +649,13 @@ func getTyDescPrimitive(ty clang.Type, usecat int, usecs clang.Cursor/*, lang La
 		che[AsRsCallFFITy] = "POINTER"
 		che[ArgDesc_CR_SIGNATURE] = "UInt64"
 		che[ArgDesc_DT_SIGNATURE] = "int"
+
+		switch lang {
+			case LNGo:
+			item.SetAllAs("uintptr")
+			case LNV:
+			item.SetAllAs("voidptr")
+		}
 
 	case clang.Type_Elaborated:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.int"
@@ -565,6 +674,13 @@ func getTyDescPrimitive(ty clang.Type, usecat int, usecs clang.Cursor/*, lang La
 		che[ArgDesc_CR_SIGNATURE] = "Int"
 		che[ArgDesc_DT_SIGNATURE] = "int"
 
+		switch lang {
+			case LNGo:
+			item.SetAllAs("int32")
+			case LNV:
+			item.SetAllAs("i32")
+		}
+
 	case clang.Type_Enum:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.int"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "int"
@@ -581,6 +697,13 @@ func getTyDescPrimitive(ty clang.Type, usecat int, usecs clang.Cursor/*, lang La
 		che[AsRsCallFFITy] = "INT"
 		che[ArgDesc_CR_SIGNATURE] = "Int"
 		che[ArgDesc_DT_SIGNATURE] = "int"
+
+		switch lang {
+			case LNGo:
+			item.SetAllAs("int32")
+			case LNV:
+			item.SetAllAs("int")
+		}
 
 	case clang.Type_Bool:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.bool"
@@ -599,6 +722,13 @@ func getTyDescPrimitive(ty clang.Type, usecat int, usecs clang.Cursor/*, lang La
 		che[ArgDesc_CR_SIGNATURE] = "Bool"
 		che[ArgDesc_DT_SIGNATURE] = "bool"
 
+		switch lang {
+			case LNGo:
+			item.SetAllAs("bool")
+			case LNV:
+			item.SetAllAs("bool")
+		}
+
 	case clang.Type_Double:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.double"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "double"
@@ -615,6 +745,13 @@ func getTyDescPrimitive(ty clang.Type, usecat int, usecs clang.Cursor/*, lang La
 		che[AsRsCallFFITy] = "DOUBLE"
 		che[ArgDesc_CR_SIGNATURE] = "Float64"
 		che[ArgDesc_DT_SIGNATURE] = "double"
+
+		switch lang {
+			case LNGo:
+			item.SetAllAs("float64")
+			case LNV:
+			item.SetAllAs("f64")
+		}
 
 	case clang.Type_LongDouble: // TODO?
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.double"
@@ -633,6 +770,13 @@ func getTyDescPrimitive(ty clang.Type, usecat int, usecs clang.Cursor/*, lang La
 		che[ArgDesc_CR_SIGNATURE] = "Float64"
 		che[ArgDesc_DT_SIGNATURE] = "double"
 
+		switch lang {
+			case LNGo:
+			item.SetAllAs("float80")
+			case LNV:
+			item.SetAllAs("f80")
+		}
+
 	case clang.Type_Float:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.float"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "float"
@@ -649,6 +793,13 @@ func getTyDescPrimitive(ty clang.Type, usecat int, usecs clang.Cursor/*, lang La
 		che[AsRsCallFFITy] = "FLOAT"
 		che[ArgDesc_CR_SIGNATURE] = "Float32"
 		che[ArgDesc_DT_SIGNATURE] = "double"
+
+		switch lang {
+			case LNGo:
+			item.SetAllAs("float32")
+			case LNV:
+			item.SetAllAs("f32")
+		}
 
 	case clang.Type_IncompleteArray:
 		// TODO xpm const char *const []
@@ -671,6 +822,13 @@ func getTyDescPrimitive(ty clang.Type, usecat int, usecs clang.Cursor/*, lang La
 		che[ArgDesc_CR_SIGNATURE] = "UInt64"
 		che[ArgDesc_DT_SIGNATURE] = "int"
 
+		switch lang {
+			case LNGo:
+			item.SetAllAs("uintptr")
+			case LNV:
+			item.SetAllAs("voidptr")
+		}
+
 	case clang.Type_ConstantArray:
 		// TODO xpm const char *const []
 		if TypeIsCharPtr(ty.ElementType()) {
@@ -692,6 +850,13 @@ func getTyDescPrimitive(ty clang.Type, usecat int, usecs clang.Cursor/*, lang La
 		che[ArgDesc_CR_SIGNATURE] = "UInt64"
 		che[ArgDesc_DT_SIGNATURE] = "int"
 
+		switch lang {
+			case LNGo:
+			item.SetAllAs("uintptr")
+			case LNV:
+			item.SetAllAs("voidptr")
+		}
+
 	case clang.Type_Char16:
 		che[ArgTyDesc_CGO_SIGNATURE] = "C.int16_t"
 		che[ArgTyDesc_C_SIGNATURE_USED_IN_CGO_EXTERN] = "int16_t"
@@ -708,6 +873,13 @@ func getTyDescPrimitive(ty clang.Type, usecat int, usecs clang.Cursor/*, lang La
 		che[AsRsCallFFITy] = "SINT16"
 		che[ArgDesc_CR_SIGNATURE] = "Int16"
 		che[ArgDesc_DT_SIGNATURE] = "int"
+
+		switch lang {
+			case LNGo:
+			item.SetAllAs("int16")
+			case LNV:
+			item.SetAllAs("i16")
+		}
 
 	case clang.Type_Void:
 		che[ArgTyDesc_CGO_SIGNATURE] = "/*wtf*/"
@@ -727,6 +899,13 @@ func getTyDescPrimitive(ty clang.Type, usecat int, usecs clang.Cursor/*, lang La
 		che[AsRsCallFFITy] = "()"
 		che[ArgDesc_CR_SIGNATURE] = "Void"
 		che[ArgDesc_DT_SIGNATURE] = "void"
+
+		switch lang {
+			case LNGo:
+			item.SetAllAs("/*void*/")
+			case LNV:
+			item.SetAllAs("/*void*/")
+		}
 
 	case clang.Type_Unexposed:
 		if ty.CanonicalType().Kind() != clang.Type_Unexposed {
@@ -754,6 +933,14 @@ func getTyDescPrimitive(ty clang.Type, usecat int, usecs clang.Cursor/*, lang La
 				// return "string"
 			} else if is_qt_class(ty.PointeeType()) {
 			}
+
+			switch lang {
+				case LNGo:
+				item.SetAllAs("int32")
+				case LNV:
+				item.SetAllAs("int")
+			}
+
 		}
 	default:
 		log.Fatalln(ty.Spelling(), ty.Kind().Spelling())
@@ -773,6 +960,7 @@ type TypeConvertor interface {
 	// 调用对应C函数时的类型
 	toCall(clang.Type, clang.Cursor) string // call C.xxx type
 
+	// get(clang.Type) *TypeConvItem
 }
 
 // ???
@@ -780,10 +968,17 @@ type ValueConvertor interface {
 }
 
 type TypeConvertBase struct {
+	Lang LangName
 }
 
 func (this *TypeConvertBase) IsQtClass(ty clang.Type) bool {
 	return false
+}
+
+func (this *TypeConvertV) get(ty clang.Type) *TypeConvItem {
+	gopp.TruePrint(this.Lang=="", "Not set Lang currently")
+	// getTyDesc(ty, this.Lang)
+	return nil
 }
 
 // /
@@ -793,6 +988,7 @@ type TypeConvertGo struct {
 
 func NewTypeConvertGo() *TypeConvertGo {
 	this := &TypeConvertGo{}
+	this.Lang = LNGo
 	return this
 }
 
@@ -1569,6 +1765,7 @@ type TypeConvertV struct {
 
 func NewTypeConvertV() *TypeConvertV {
 	this := &TypeConvertV{}
+	this.Lang = LNV
 	return this
 }
 
@@ -1979,27 +2176,24 @@ func isPrimitivePPType(ty clang.Type) bool {
 	return false
 }
 
+// does need recursive???
 func isPrimitiveType(ty clang.Type) bool {
 	switch ty.Kind() {
-	case clang.Type_Int:
+	case clang.Type_Int,
+		clang.Type_UInt,
+		clang.Type_LongLong,
+		clang.Type_ULongLong,
+		clang.Type_Short,
+		clang.Type_UShort,
+		clang.Type_UChar,
+		clang.Type_Char_S,
+		clang.Type_Long,
+		clang.Type_ULong,
+		clang.Type_Char16:
 		return true
-	case clang.Type_UInt:
+	case clang.Type_Enum, clang.Type_Bool:
 		return true
-	case clang.Type_LongLong:
-		return true
-	case clang.Type_ULongLong:
-		return true
-	case clang.Type_Short:
-		return true
-	case clang.Type_UShort:
-		return true
-	case clang.Type_UChar:
-		return true
-	case clang.Type_Char_S:
-		return true
-	case clang.Type_Long:
-		return true
-	case clang.Type_ULong:
+	case clang.Type_Double, clang.Type_Float:
 		return true
 	case clang.Type_Typedef:
 		return isPrimitiveType(ty.CanonicalType())
@@ -2016,18 +2210,8 @@ func isPrimitiveType(ty clang.Type) bool {
 			return false
 		}
 		return true
-	case clang.Type_Enum:
-		return true
-	case clang.Type_Bool:
-		return true
-	case clang.Type_Double:
-		return true
-	case clang.Type_Float:
-		return true
 	case clang.Type_IncompleteArray:
 		return false
-	case clang.Type_Char16:
-		return true
 	case clang.Type_Void:
 	default:
 		log.Println(ty.Spelling(), ty.Kind().Spelling())
