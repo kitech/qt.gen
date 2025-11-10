@@ -150,12 +150,27 @@ func get_bare_type(ty clang.Type) clang.Type {
 	return ty.Declaration().Type()
 }
 
-func is_go_keyword(s string) bool {
-	keywords := map[string]int{"match": 1, "type": 1, "move": 1, "select": 1, "case": 1,
+func MapMerge[KT comparable, VT any](m0 map[KT]VT, m1 map[KT]VT) map[KT]VT {
+	var res = make(map[KT]VT)
+	for k,v := range m1 {
+		res[k] = v
+	}
+	for k,v := range m0 {
+		res[k] = v
+	}
+	return res
+}
+
+var comlang_keywords = map[string]int{"for":1, "if":1, "else":1}
+
+var go_keywords = map[string]int{"match": 1, "type": 1, "move": 1, "select": 1, "case": 1,
 		"map": 1, "range": 1, "var": 1, "len": 1, "fmt": 1, "err": 1, "go": 1, "func": 1,
 		"package": 1, "import": 1,
 		"begin": 1, "end": 1,
 		"out": 1, "include": 1, "extern": 1, "module": 1, "require": 1}
+
+func is_go_keyword(s string) bool {
+	keywords := go_keywords // MapMerge(go_keywords, comlang_keywords)
 	_, ok := keywords[s]
 	return ok
 }
@@ -180,12 +195,13 @@ func is_nim_keyword(s string) bool {
 	return ok
 }
 
-func is_v_keyword(s string) bool {
-	keywords := map[string]int{"match": 1, "type": 1, "move": 1, "select": 1, "case": 1,
+var v_keywords = map[string]int{"match": 1, "type": 1, "move": 1, "select": 1, "case": 1,
 		"map": 1, "range": 1, "var": 1, "len": 1, "fmt": 1, "err": 1, "go": 1, "func": 1,
 		"package": 1, "import": 1, "string": 1, "in": 1, "sql": 1,  "free": 1,
 		"begin": 1, "end": 1, "lock": 1, "unlock": 1, "try_lock": 1, "thread": 1,
 		"out": 1, "include": 1, "extern": 1, "module": 1, "require": 1}
+func is_v_keyword(s string) bool {
+	var keywords = v_keywords // MapMerge(v_keywords, comlang_keywords)
 	_, ok := keywords[s]
 	return ok
 }

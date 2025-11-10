@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/go-clang/v3.9/clang"
+	funk "github.com/thoas/go-funk"
 )
 
 type Generator interface {
@@ -80,6 +81,16 @@ type GenBase struct {
 	_argtyDesc4 []string
 
 	clsidx int
+
+	keywords map[string]int
+	idfmtprop IdentRefmtProp
+}
+
+type IdentRefmtProp struct {
+	// func name, arg name
+	name_titled bool
+	name_snake bool
+	name_camel bool
 }
 
 // 这个是全局的，不能放在类内吧
@@ -186,10 +197,82 @@ func (this *GenBase) genParamRefName(cursor, parent clang.Cursor, aidx int) stri
 	return gopp.IfElseStr(cursor.Spelling() == "", fmt.Sprintf("arg%d", aidx), argName)
 }
 
-// when forward call ffi
-func (this *GenBase) isArgConvNeeded(cursor, parent clang.Cursor, aidx int) bool {
+func (this *GenBase) is_keyword(argName string) bool {
+	_, ok := this.keywords [argName];
+	return ok
+}
 
-	return false
+type GenArgItem struct {
+	idx int
+	hasdft bool
+	dftval string
+	convtype GenFFIConvty // 0, 1
+
+	argcs clang.Cursor
+	prtcs clang.Cursor
+	argty clang.Type
+
+	oriname string
+	orival any // nil when not need
+	tmpname string
+	tmpval any
+	convname string
+	convval any
+	dvnme string
+}
+
+func NewGenArgItem(cursor, parent clang.Cursor, idx int) *GenArgItem {
+	aitm := &GenArgItem{}
+	aitm.idx = idx
+	aitm.argcs = cursor
+	aitm.prtcs = parent
+	aitm.argty = cursor.Type()
+
+	dv, has := has_default_value(cursor)
+	aitm.hasdft = has
+	aitm.dftval = dv
+
+	aitm.tmpname = fmt.Sprintf("tmpArg%d", idx)
+	aitm.convname = fmt.Sprintf("convArg%d", idx)
+
+	return aitm
+}
+
+// Arg, Ret
+type GenFFIConvty = int
+const (
+	none = iota
+	get_cthis
+	qt_record_class
+	charptr
+	charptrptr
+	int_variant
+	float_variant
+)
+
+func (this *GenBase) NewGenArgItem(cursor, parent clang.Cursor, idx int) * GenArgItem {
+	aitm := NewGenArgItem(cursor, parent, idx)
+	aitm.oriname = this.genParamRefName(aitm.argcs, aitm.prtcs, aitm.idx)
+
+	aitm.convtype = this.typeToConvty(aitm.argty)
+	return aitm
+}
+
+func (this *GenBase) typeToConvty(argty clang.Type) GenFFIConvty {
+	if TypeIsCharPtrPtr(argty) {
+		return charptrptr
+	}else if TypeIsCharPtr(argty) {
+		return charptr
+	}else if   is_qt_class(argty) &&
+		funk.ContainsString([]string{"QString", "QByteArray", "QVariant", "QModelIndex", "QUrl",
+			"QSize", "QAbstractState" /*"QScreen", "QAction"*/}, get_bare_type(argty).Spelling()) {
+		return qt_record_class
+	} else if is_qt_class(argty) && !isPrimitiveType(argty.ClassType().CanonicalType()) {
+		return get_cthis
+	} else {
+		// should be direct assign/forword
+	}
+	return none
 }
 
 // mod lower case, include need camel case
