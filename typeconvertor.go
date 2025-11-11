@@ -45,14 +45,6 @@ const (
 	Fcty_Charptrptr
 	Fcty_IntVariant
 	Fcty_FloatVairant
-
-	none
-	get_cthis
-	qt_record_class
-	charptr
-	charptrptr
-	int_variant
-	float_variant
 )
 
 // lang => type => Item

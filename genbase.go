@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/go-clang/v3.9/clang"
-	funk "github.com/thoas/go-funk"
+	// funk "github.com/thoas/go-funk"
 )
 
 type Generator interface {
@@ -206,7 +206,6 @@ type GenArgItem struct {
 	idx int
 	hasdft bool
 	dftval string
-	convtype GenFFIConvty // 0, 1
 
 	argcs clang.Cursor
 	prtcs clang.Cursor
@@ -253,26 +252,7 @@ func (this *GenBase) NewGenArgItem(cursor, parent clang.Cursor, idx int) * GenAr
 	aitm := NewGenArgItem(cursor, parent, idx)
 	aitm.oriname = this.genParamRefName(aitm.argcs, aitm.prtcs, aitm.idx)
 
-	aitm.convtype = this.typeToConvty(aitm.argty)
-
 	return aitm
-}
-
-func (this *GenBase) typeToConvty(argty clang.Type) GenFFIConvty {
-	if TypeIsCharPtrPtr(argty) {
-		return charptrptr
-	}else if TypeIsCharPtr(argty) {
-		return charptr
-	}else if   is_qt_class(argty) &&
-		funk.ContainsString([]string{"QString", "QByteArray", "QVariant", "QModelIndex", "QUrl",
-			"QSize", "QAbstractState" /*"QScreen", "QAction"*/}, get_bare_type(argty).Spelling()) {
-		return qt_record_class
-	} else if is_qt_class(argty) && !isPrimitiveType(argty.ClassType().CanonicalType()) {
-		return get_cthis
-	} else {
-		// should be direct assign/forword
-	}
-	return none
 }
 
 // mod lower case, include need camel case

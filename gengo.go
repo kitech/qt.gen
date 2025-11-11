@@ -1181,7 +1181,7 @@ func (this *GenerateGo) genArg(cursor, parent clang.Cursor, idx int, aitm *GenAr
 
 	var cp = this.getpropercp(parent)
 	cp = NewCodePager()
-	cp.APf("body", "    // %d cvty=%d, %s, dftval(%v)=%v, type=%s destty=%s, ffity=%s, fcty=%d", aitm.idx, aitm.convtype, aitm.oriname, aitm.hasdft, aitm.dftval, aitm.argty.Spelling(), aitm.tycv_item.AsArgSign,aitm.tycv_item.AsFfiCall, aitm.tycv_item.ToFfiCvty)
+	cp.APf("body", "    // %d %s, dftval(%v)=%v, type=%s destty=%s, ffity=%s, fcty=%d", aitm.idx, aitm.oriname, aitm.hasdft, aitm.dftval, aitm.argty.Spelling(), aitm.tycv_item.AsArgSign,aitm.tycv_item.AsFfiCall, aitm.tycv_item.ToFfiCvty)
 
 	if aitm.hasdft {
 		dftval := aitm.dftval
@@ -1197,10 +1197,10 @@ func (this *GenerateGo) genArg(cursor, parent clang.Cursor, idx int, aitm *GenAr
 	}
 	aitm.ffiprm = aitm.oriname // default to
 	switch aitm.tycv_item.ToFfiCvty {
-		case get_cthis, Fcty_GetCthis :
+		case Fcty_GetCthis :
 			cp.APf("body", "    var %s = %s // %s", aitm.convname, fmt.Sprintf(aitm.tycv_item.ToFfiConv, aitm.oriname), aitm.tycv_item.AsFfiCall)
 			aitm.ffiprm = aitm.convname
-		case charptr, Fcty_Charptr:
+		case Fcty_Charptr:
 			usemod := get_decl_mod(parent)
 			pkgPref := gopp.IfElseStr(usemod == "core", "", "qtcore.")
 			pkgPref = gopp.IfElseStr(isgenqt3(), "", pkgPref)
