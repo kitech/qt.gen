@@ -2,14 +2,17 @@ package main
 
 import (
 	"fmt"
-	gopp "github.com/kitech/goplusplus"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
+	// "unicode"
+
+	gopp "github.com/kitech/goplusplus"
 
 	"github.com/go-clang/v3.9/clang"
 	funk "github.com/thoas/go-funk"
@@ -449,6 +452,9 @@ func (this *GenerateGo) getpropercp(cursor clang.Cursor) *CodePager {
 	}
 	return this.cp
 }
+
+// TODO common can move to base
+// a little about comment block, some #, ; ...
 func (this *GenerateGo) genMethodHeader(cursor, parent clang.Cursor, midx int) {
 	file, lineno, _, _ := cursor.Location().FileLocation()
 	fileName := strings.Replace(file.Name(), os.Getenv("HOME"), "/home/me", -1)
@@ -462,7 +468,7 @@ func (this *GenerateGo) genMethodHeader(cursor, parent clang.Cursor, midx int) {
 		cp.APf("body", "// %s", strings.Join(qualities, " "))
 	}
 
-	cp.APf("body", "// [%d] %s %s%s", cursor.ResultType().SizeOf(),
+	cp.APf("body", "// retlen[%d] %s %s%s", cursor.ResultType().SizeOf(),
 		cursor.ResultType().Spelling(), strings.Replace(cursor.DisplayName(), "class ", "", -1),
 		gopp.IfElseStr(cursor.CXXMethod_IsConst(), " const", ""))
 
@@ -500,7 +506,8 @@ func (this *GenerateGo) genMethodSignature(cursor, parent clang.Cursor, midx int
 	}
 	var cp = this.getpropercp(cursor)
 
-	this.genArgsDest(cursor, parent, true)
+	// this.genArgsDest(cursor, parent, true)
+	this.genArgs(cursor, parent, midx, -1)
 	argStr := strings.Join(this.destArgDesc, ", ")
 
 	overloadSuffix := gopp.IfElseStr(midx == 0, "", fmt.Sprintf("%d", midx))
@@ -527,6 +534,8 @@ func (this *GenerateGo) genMethodSignature(cursor, parent clang.Cursor, midx int
 		if cursor.ResultType().Kind() == clang.Type_Void {
 			retPlace = "" /*333*/
 		}
+		tycitm := getTyDescV2(cursor.ResultType(), cursor, LNGo)
+		retPlace = tycitm.AsArgSign
 		mthname := gopp.IfElseStr(strings.HasPrefix(cursor.Spelling(), "operator"),
 			rewriteOperatorMethodName(cursor.Spelling()), cursor.Spelling())
 		cp.APf("body", "func (this *%s) %s%s(%s) %s {",
@@ -543,6 +552,7 @@ func (this *GenerateGo) genMethodSignatureDv(cursor, parent clang.Cursor, midx i
 	dvn := num_default_value(cursor)
 	this.genArgsDest(cursor, parent, true)
 	this.destArgDesc = this.dvTrimArg(this.destArgDesc, dvn, dvidx)
+	this.genArgs(cursor, parent, midx, dvidx)
 	argStr := strings.Join(this.destArgDesc, ", ")
 	var cp = this.getpropercp(cursor)
 
@@ -567,6 +577,8 @@ func (this *GenerateGo) genMethodSignatureDv(cursor, parent clang.Cursor, midx i
 		if is_qstring_cls(retPlace) {
 			retPlace = "string"
 		}
+		tycitm := getTyDescV2(cursor.ResultType(), cursor, LNGo)
+		retPlace = tycitm.AsArgSign
 		if cursor.ResultType().Kind() == clang.Type_Void {
 			retPlace = ""
 		}
@@ -582,6 +594,7 @@ func (this *GenerateGo) genMethodSignatureDv(cursor, parent clang.Cursor, midx i
 // only for static member
 func (this *GenerateGo) genMethodSignatureNoThis(cursor, parent clang.Cursor, midx int) {
 	this.genArgsDest(cursor, parent, true)
+	this.genArgs(cursor, parent, midx, -1)
 	argStr := strings.Join(this.destArgDesc, ", ")
 	var cp = this.getpropercp(cursor)
 
@@ -672,6 +685,7 @@ func (this *GenerateGo) genCtor(cursor, parent clang.Cursor, midx int) {
 	this.genMethodSignature(cursor, parent, midx)
 
 	this.genParamsFFI(cursor, parent)
+	this.genArgs(cursor, parent, midx, -1)
 	paramStr := strings.Join(this.paramDesc, ", ")
 	_ = paramStr
 	var cp = this.getpropercp(cursor)
@@ -680,7 +694,10 @@ func (this *GenerateGo) genCtor(cursor, parent clang.Cursor, midx int) {
 		this.maxClassSize = parent.Type().SizeOf()
 	}
 	// this.cp.APf("body", "    cthis := qtrt.Calloc(1, 256) // %d", parent.Type().SizeOf())
-	this.genArgsConvFFI(cursor, parent, midx)
+	convlines := this.genArgs(cursor, parent, midx, -1)
+	this.outcodes(cursor, convlines)
+
+	// this.genArgsConvFFI(cursor, parent, midx)
 	cp.APf("body", "    rv, err := qtrt.InvokeQtFunc6(\"%s\", qtrt.FFI_TYPE_POINTER, %s)",
 		this.mangler.origin(cursor), paramStr)
 	cp.APf("body", "    qtrt.ErrPrint(err, rv)")
@@ -712,6 +729,7 @@ func (this *GenerateGo) genCtorDv(cursor, parent clang.Cursor, midx int, dvidx i
 	this.genMethodSignatureDv(cursor, parent, midx, dvidx)
 
 	this.genParamsFFI(cursor, parent)
+	this.genArgs(cursor, parent, midx, dvidx)
 	paramStr := strings.Join(this.paramDesc, ", ")
 	_ = paramStr
 	var cp = this.getpropercp(cursor)
@@ -719,8 +737,11 @@ func (this *GenerateGo) genCtorDv(cursor, parent clang.Cursor, midx int, dvidx i
 	if parent.Type().SizeOf() > this.maxClassSize {
 		this.maxClassSize = parent.Type().SizeOf()
 	}
+	convlines := this.genArgs(cursor, parent, midx, dvidx)
+	this.outcodes(cursor, convlines)
+
 	// this.cp.APf("body", "    cthis := qtrt.Calloc(1, 256) // %d", parent.Type().SizeOf())
-	this.genArgsConvFFIDv(cursor, parent, midx, dvidx)
+	// this.genArgsConvFFIDv(cursor, parent, midx, dvidx)
 	cp.APf("body", "    rv, err := qtrt.InvokeQtFunc6(\"%s\", qtrt.FFI_TYPE_POINTER, %s)",
 		this.mangler.origin(cursor), paramStr)
 	cp.APf("body", "    qtrt.ErrPrint(err, rv)")
@@ -858,8 +879,9 @@ func (this *GenerateGo) genNonStaticMethod(cursor, parent clang.Cursor, midx int
 	}
 	var cp = this.getpropercp(cursor)
 
-	this.genArgs(cursor, parent, midx, -1)
-	this.genArgsConvFFI(cursor, parent, midx)
+	convlines := this.genArgs(cursor, parent, midx, -1)
+	// this.genArgsConvFFI(cursor, parent, midx)
+	this.outcodes(cursor, convlines)
 
 	retype := cursor.ResultType() // move like sementic, compiler auto behaiver
 	mvexpr := ""                  // move expr
@@ -903,14 +925,16 @@ func (this *GenerateGo) genNonStaticMethodDvs(cursor, parent clang.Cursor, midx 
 // dvidx keep default argument num
 func (this *GenerateGo) genNonStaticMethodDv(cursor, parent clang.Cursor, midx int, dvidx int) {
 	this.genParamsFFI(cursor, parent)
+	this.genArgs(cursor, parent, midx, dvidx)
 	paramStr := strings.Join(this.paramDesc, ", ")
 	_ = paramStr
 
 	this.genMethodHeader(cursor, parent, midx)
 	this.genMethodSignatureDv(cursor, parent, midx, dvidx)
 
-	this.genArgs(cursor, parent, midx, dvidx)
-	this.genArgsConvFFIDv(cursor, parent, midx, dvidx)
+	convlines := this.genArgs(cursor, parent, midx, dvidx)
+	this.outcodes(cursor, convlines)
+	// this.genArgsConvFFIDv(cursor, parent, midx, dvidx)
 	var cp = this.getpropercp(cursor)
 
 	retype := cursor.ResultType() // move like sementic, compiler auto behaiver
@@ -943,6 +967,7 @@ func (this *GenerateGo) genNonStaticMethodDv(cursor, parent clang.Cursor, midx i
 
 func (this *GenerateGo) genStaticMethod(cursor, parent clang.Cursor, midx int) {
 	this.genParamsFFI(cursor, parent)
+	this.genArgs(cursor, parent, midx, -1)
 	paramStr := strings.Join(this.paramDesc, ", ")
 
 	if cursor.IsVariadic() && cursor.NumArguments() > 0 {
@@ -952,7 +977,9 @@ func (this *GenerateGo) genStaticMethod(cursor, parent clang.Cursor, midx int) {
 	if cursor.IsVariadic() && cursor.NumArguments() > 0 {
 	}
 
-	this.genArgsConvFFI(cursor, parent, midx)
+	convlines := this.genArgs(cursor,parent,midx, -1)
+	this.outcodes(cursor, convlines)
+	// this.genArgsConvFFI(cursor, parent, midx)
 	var cp = this.getpropercp(cursor)
 
 	cp.APf("body", "    rv, err := qtrt.InvokeQtFunc6(\"%s\", qtrt.FFI_TYPE_POINTER, %s)",
@@ -975,11 +1002,14 @@ func (this *GenerateGo) genStaticMethodDvs(cursor, parent clang.Cursor, midx int
 
 func (this *GenerateGo) genStaticMethodDv(cursor, parent clang.Cursor, midx int, dvidx int) {
 	this.genParamsFFI(cursor, parent)
+	this.genArgs(cursor, parent, midx, dvidx)
 	paramStr := strings.Join(this.paramDesc, ", ")
 
 	this.genMethodHeader(cursor, parent, midx)
 	this.genMethodSignatureDv(cursor, parent, midx, dvidx)
-	this.genArgsConvFFIDv(cursor, parent, midx, dvidx)
+	convlines := this.genArgs(cursor,parent, midx, dvidx)
+	this.outcodes(cursor, convlines)
+	// this.genArgsConvFFIDv(cursor, parent, midx, dvidx)
 	var cp = this.getpropercp(cursor)
 
 	cp.APf("body", "    rv, err := qtrt.InvokeQtFunc6(\"%s\", qtrt.FFI_TYPE_POINTER, %s)",
@@ -992,6 +1022,7 @@ func (this *GenerateGo) genStaticMethodDv(cursor, parent clang.Cursor, midx int,
 
 func (this *GenerateGo) genStaticMethodNoThis(cursor, parent clang.Cursor, midx int) {
 	this.genParams(cursor, parent)
+	// this.genArgs(cursor, parent, midx, -1)
 	paramStr := strings.Join(this.paramDesc, ", ")
 	_ = paramStr
 
@@ -1068,6 +1099,7 @@ func (this *GenerateGo) genProtectedCallback(cursor, parent clang.Cursor, midx i
 	argStrSign = gopp.IfElseStr(len(argStrSign) > 0, ", "+argStrSign, argStrSign)
 
 	this.genParams(cursor, parent)
+	this.genArgs(cursor, parent, midx, -1)
 	prmStr := strings.Join(this.paramDesc, ", ")
 	prmStr = gopp.IfElseStr(len(prmStr) > 0, ", "+prmStr, prmStr)
 
@@ -1090,6 +1122,7 @@ func (this *GenerateGo) genProtectedCallback(cursor, parent clang.Cursor, midx i
 			inheritMethods[key] = 1
 
 			this.genArgsDest(cursor, parent, false)
+			this.genArgs(cursor, parent, midx, -1)
 			argStr := strings.Join(this.destArgDesc, ", ")
 			retStr := getTyDesc(cursor.ResultType(), AsGoReturn, parent)
 			log.Println(parent.Spelling(), cursor.DisplayName(), argStr, retStr, get_decl_loc(cursor), get_decl_mod(cursor))
@@ -1107,34 +1140,80 @@ func (this *GenerateGo) genProtectedCallback(cursor, parent clang.Cursor, midx i
 	}
 }
 
+func (this *GenerateGo) outcodes(cursor clang.Cursor, codes []string) {
+	var cp = this.getpropercp(cursor)
+	for _, line := range codes {
+		cp.APf("body", line)
+	}
+}
+
 // if not gen default value, dvidx == -1
-func (this *GenerateGo) genArgs(cursor, parent clang.Cursor, midx int, dvidx int) {
+func (this *GenerateGo) genArgs(cursor, parent clang.Cursor, midx int, dvidx int) (convcodes []string) {
+	// return values
 	this.argDesc = make([]string, 0)
+	this.destArgDesc = make([]string, 0)
+	this.paramDesc = make([]string, 0)
+
 	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
 		argcs := cursor.Argument(uint32(idx))
 		aitm := this.NewGenArgItem(argcs, cursor, idx)
 		// aitm.dest_tyname = this.tyconver.toDest(aitm.argty, aitm.argcs)
 		// aitm.ffi_tyname = getTyDesc(aitm.argty, AsGoSignature, aitm.argcs)
+		aitm.tycv_item = getTyDescV2(aitm.argty, aitm.argcs, LNGo)
 
-		this.genArg(argcs, cursor, idx, aitm)
+		codes := this.genArg(argcs, cursor, idx, aitm)
+		this.argDesc=append(this.argDesc, aitm.ffiprm)
+		this.destArgDesc=append(this.destArgDesc, fmt.Sprintf("%s %s", aitm.oriname, aitm.tycv_item.AsArgSign))
+		this.paramDesc=append(this.paramDesc, aitm.ffiprm)
+		for _, line := range codes {
+			convcodes=append(convcodes, line)
+		}
 	}
+	convcodes = append(convcodes,
+		fmt.Sprintf("    // %s // prmlst4ffi", strings.Join(this.argDesc, ", ")))
 	// log.Println(strings.Join(this.argDesc, ", "), this.mangler.origin(cursor))
+
+	return
 }
 
-func (this *GenerateGo) genArg(cursor, parent clang.Cursor, idx int, aitm *GenArgItem) {
+func (this *GenerateGo) genArg(cursor, parent clang.Cursor, idx int, aitm *GenArgItem) (convcodes []string) {
 	// log.Println(cursor.DisplayName(), cursor.Type().Spelling(), cursor.Type().Kind() == clang.Type_LValueReference, this.mangler.origin(parent))
 
 	var cp = this.getpropercp(parent)
-	cp.APf("body", "    // %d cvty=%d, %s, dftval=%v, type=%s destty=%s, ffity=%s", aitm.idx, aitm.convtype, aitm.oriname, aitm.dftval, aitm.argty.Spelling(), "","")
+	cp = NewCodePager()
+	cp.APf("body", "    // %d cvty=%d, %s, dftval(%v)=%v, type=%s destty=%s, ffity=%s, fcty=%d", aitm.idx, aitm.convtype, aitm.oriname, aitm.hasdft, aitm.dftval, aitm.argty.Spelling(), aitm.tycv_item.AsArgSign,aitm.tycv_item.AsFfiCall, aitm.tycv_item.ToFfiCvty)
 
-	switch aitm.convtype {
-		case get_cthis :
-			cp.APf("body", "  var %s unsafe.Pointer", aitm.convname)
+	if aitm.hasdft {
+		dftval := aitm.dftval
+		TestAssign(&dftval, "QString::null", "nil")
+		if aitm.argty.Kind() == clang.Type_Pointer ||
+			aitm.argty.Kind() == clang.Type_LValueReference {
+			dftval = "nil"
+		}else if !regexp.MustCompile(`^[0-9\-]+$`).MatchString(dftval) {
+			dftval = "0"
+		}
+		cp.APf("body", "    var %s %s = %s // %s", aitm.dftname, aitm.tycv_item.AsFfiCall, dftval, aitm.dftval)
+		cp.APf("body", "   _ = %s", aitm.dftname)
+	}
+	aitm.ffiprm = aitm.oriname // default to
+	switch aitm.tycv_item.ToFfiCvty {
+		case get_cthis, Fcty_GetCthis :
+			cp.APf("body", "    var %s = %s // %s", aitm.convname, fmt.Sprintf(aitm.tycv_item.ToFfiConv, aitm.oriname), aitm.tycv_item.AsFfiCall)
+			aitm.ffiprm = aitm.convname
+		case charptr, Fcty_Charptr:
+			usemod := get_decl_mod(parent)
+			pkgPref := gopp.IfElseStr(usemod == "core", "", "qtcore.")
+			pkgPref = gopp.IfElseStr(isgenqt3(), "", pkgPref)
+			cp.APf("body", "    var %s = %sNewQString9(%s)", aitm.tmpname, pkgPref, aitm.oriname)
+			cp.APf("body", "    var %s = %s.ToUtf8().Data()", aitm.convname, aitm.tmpname)
+			cp.APf("body", "    defer %s.Dtor()", aitm.tmpname)
+			aitm.ffiprm = aitm.convname
 		default: {
 
 		}
 	}
-
+	convcodes = strings.Split(cp.ExportAll(), "\n")
+	convcodes = convcodes[1:len(convcodes)-2]
 
 	if true {
 		return
@@ -1163,6 +1242,7 @@ func (this *GenerateGo) genArg(cursor, parent clang.Cursor, idx int, aitm *GenAr
 			}
 		}
 	}
+	return
 }
 
 func (this *GenerateGo) genArgsDest(cursor, parent clang.Cursor, asitf bool) {
@@ -1481,6 +1561,22 @@ func (this *GenerateGo) genParamFFI(cursor, parent clang.Cursor, idx int) {
 
 func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 	var cp = this.getpropercp(cursor)
+
+	{
+		rety := cursor.ResultType().RemoveLocalConst()
+		if rety.Kind() == clang.Type_Void {
+			return
+		}
+
+		tycitm := getTyDescV2(rety, cursor, LNGo)
+		cp.APf("body", "    // %s, %s, %s", rety.Spelling(), tycitm.AsArgSign, tycitm.AsFfiCall)
+
+		switch tycitm.ToFfiCvty {
+			default :
+			cp.APf("body", "    return qtrt.Cretval2go(\"%s\", rv).(%s) // 1111", tycitm.AsArgSign, tycitm.AsArgSign)
+		}
+		return
+	}
 
 	rety := cursor.ResultType()
 	retybare := get_bare_type(rety.CanonicalType()).Declaration()

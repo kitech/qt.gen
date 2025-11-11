@@ -218,11 +218,15 @@ type GenArgItem struct {
 	tmpval any
 	convname string
 	convval any
-	dvnme string
+	dftname string
 
 	tycv_item *TypeConvItem
 	// dest_tyname string
 	// ffi_tyname string
+
+	// swap/tmp value
+	ffiprm string // only name part
+	// sigtprm string // lang func signature
 }
 
 func NewGenArgItem(cursor, parent clang.Cursor, idx int) *GenArgItem {
@@ -231,6 +235,8 @@ func NewGenArgItem(cursor, parent clang.Cursor, idx int) *GenArgItem {
 	aitm.argcs = cursor
 	aitm.prtcs = parent
 	aitm.argty = cursor.Type()
+	// for const &, const *, must first trim &*, or no effect
+	aitm.argty = aitm.argty.RemoveLocalConst() // const morest useless
 
 	dv, has := has_default_value(cursor)
 	aitm.hasdft = has
@@ -238,21 +244,10 @@ func NewGenArgItem(cursor, parent clang.Cursor, idx int) *GenArgItem {
 
 	aitm.tmpname = fmt.Sprintf("tmpArg%d", idx)
 	aitm.convname = fmt.Sprintf("convArg%d", idx)
+	aitm.dftname = fmt.Sprintf("dftArg%d", idx)
 
 	return aitm
 }
-
-// Arg, Ret
-type GenFFIConvty = int
-const (
-	none = iota
-	get_cthis
-	qt_record_class
-	charptr
-	charptrptr
-	int_variant
-	float_variant
-)
 
 func (this *GenBase) NewGenArgItem(cursor, parent clang.Cursor, idx int) * GenArgItem {
 	aitm := NewGenArgItem(cursor, parent, idx)

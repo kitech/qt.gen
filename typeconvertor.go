@@ -2,10 +2,13 @@ package main
 
 import (
 	"fmt"
-	gopp "github.com/kitech/goplusplus"
 	"log"
 	"reflect"
+	// "slices"
 	"strings"
+
+	gopp "github.com/kitech/goplusplus"
+	"github.com/thoas/go-funk"
 
 	"github.com/go-clang/v3.9/clang"
 )
@@ -32,6 +35,26 @@ const (
 
 // lang, cpp,c,cgo,go,rs,v
 
+// Arg, Ret
+type GenFFIConvty = int
+const (
+	Fcty_Direct = iota
+	Fcty_GetCthis
+	Fcty_RecondValue
+	Fcty_Charptr
+	Fcty_Charptrptr
+	Fcty_IntVariant
+	Fcty_FloatVairant
+
+	none
+	get_cthis
+	qt_record_class
+	charptr
+	charptrptr
+	int_variant
+	float_variant
+)
+
 // lang => type => Item
 type TypeConvItem struct {
 	AsArgSign string // 转换到go函数签名相应的类型
@@ -44,9 +67,13 @@ type TypeConvItem struct {
 
 	ToCCallConv string// convert code
 	ToFfiConv string
+	ToFfiCvty GenFFIConvty
+
+	OriDesc string // for typedef
+	TydefDim int
 }
 
-func (item *TypeConvItem) SetAllAs(tyname string) {
+func (item *TypeConvItem) SetAllAs(tyname string) *TypeConvItem {
 	item.AsArgSign = tyname
 	item.AsReturn =  tyname
 	item.AsCCall =   tyname
@@ -54,18 +81,404 @@ func (item *TypeConvItem) SetAllAs(tyname string) {
 	item.AsReserve = tyname
 	item.AsITFSign = tyname
 	item.AsReflect = tyname
+	return item
 }
 // fix value, &, *
-func (item *TypeConvItem) AddAllFix(fix string, prefix bool) {
+func (item *TypeConvItem) AddAllFix(fix string, prefix bool) *TypeConvItem {
 	fmtstr := gopp.IfElseStr(prefix, fix +"%s", "%s"+fix)
 	item.AsArgSign = fmt.Sprintf(fmtstr, item.AsArgSign)
 	item.AsReturn =  fmt.Sprintf(fmtstr, item.AsReturn)
 	item.AsCCall =   fmt.Sprintf(fmtstr, item.AsCCall)
+	if item.AsCCall=="*void" || item.AsCCall=="&void" {
+		// item.AsCCall = "voidptr"
+	}
 	item.AsFfiCall = fmt.Sprintf(fmtstr, item.AsFfiCall)
+	if item.AsFfiCall=="*void" || item.AsFfiCall=="&void" {
+		// item.AsFfiCall = "voidptr"
+	}
 	item.AsReserve = fmt.Sprintf(fmtstr, item.AsReserve)
 	item.AsITFSign = fmt.Sprintf(fmtstr, item.AsITFSign)
 	item.AsReflect = fmt.Sprintf(fmtstr, item.AsReflect)
+	return item
 }
+
+
+// 参数与返回值中的类型转换暂存
+// 1 key clang.Type表示的是? 可以是
+// 2 key int 表示的是转换的方式标识
+// 最终的值为转换的结果的字符串描述
+var tycvCache = map[clang.Type]map[int]string{}
+var argcvCache = map[string]string{}
+
+var tycvItems = map[LangName]map[clang.Type]*TypeConvItem{}
+
+// it by type, not lang, so TypeConver method not good
+
+// return if (oval == cmpval) {newval} else{oval}
+func TestAssign[T comparable](oval *T, cmpval T, newval T) T {
+	if *oval == cmpval {
+		*oval = newval
+	}
+	return *oval
+}
+
+// getTyDesc V2
+// cusecs 当前类型引用位置，用于定位模块
+func getTyDescV2(ty clang.Type, usecs clang.Cursor, lang LangName) *TypeConvItem {
+	return getTyDescPrimitiveV2(ty, usecs, lang)
+}
+func getTyDescClassTypeV2(ty clang.Type, usecs clang.Cursor, lang LangName)  *TypeConvItem {
+	return (&TypeConvItem{}).SetAllAs("TODO168")
+}
+func getTyDescPrimitiveV2(tyo clang.Type, usecs clang.Cursor, lang LangName)  *TypeConvItem {
+
+	canty := tyo.CanonicalType()
+	unptrty := tyo.PointeeType()
+	uncstty := tyo.RemoveLocalConst()
+	_, _, _ = canty, unptrty, uncstty
+	log.Println(tyo.Spelling(), tyo.Kind().Spelling(), usecs.Spelling(), uncstty.Spelling(), unptrty.Spelling())
+
+	// below not need const
+	ty := gopp.IfElse(uncstty.Spelling()!=tyo.Spelling(), uncstty, tyo).(clang.Type)
+
+	tycv_item := &TypeConvItem{}
+	// var lang = LNCPP
+	item := tycv_item
+	// default same part
+	item.SetAllAs(ty.Spelling())
+	item.ToCCallConv = fmt.Sprintf("(%s)(%%s)", ty.Spelling())
+	item.ToFfiConv = fmt.Sprintf("(%s)(%%s)", ty.Spelling())
+
+	// 重新计算
+	switch ty.Kind() {
+		case clang.Type_Typedef:
+			if ty.CanonicalType().Kind()!=clang.Type_Typedef {
+				getTyDescV2(ty.CanonicalType(), usecs, lang)
+				if true {
+					break
+				}
+			}
+
+			if TypeIsQFlags(ty) {
+				break
+				// typedef template classes
+			} else if strings.HasPrefix(ty.CanonicalType().Spelling(), "Q") &&
+				strings.ContainsAny(ty.CanonicalType().Spelling(), "<>") {
+				log.Println(ty.Spelling(), ty.CanonicalType().Spelling())
+
+
+				break
+			} else if is_qt_class(ty.CanonicalType()) {
+
+				break
+			}
+			return getTyDescV2(ty.CanonicalType(), usecs, lang)
+		case clang.Type_Record: // TODO qt class
+			if is_qt_class(ty) {
+			}
+
+		case clang.Type_Pointer: // TODO qt class
+			if isPrimitivePPType(ty) && ty.PointeeType().PointeeType().Kind() == clang.Type_Char_S {
+				// che[ArgDesc_DT_SIGNATURE] = "List<String>"
+			} else if ty.PointeeType().Kind() == clang.Type_Char_S {
+				// che[ArgDesc_DT_SIGNATURE] = "String"
+			} else if is_qt_class(ty.PointeeType()) {
+				// che[ArgDesc_DT_SIGNATURE] = get_bare_type(ty.PointeeType()).Spelling()
+			}
+			if TypeIsCharPtrPtr(ty) {
+
+			} else if TypeIsCharPtr(ty) {
+				switch lang {
+					case LNGo :
+					item.SetAllAs("string")
+					item.ToFfiCvty = Fcty_Charptr
+					item.AsFfiCall = "unsafe.Pointer"
+				}
+				break
+			}
+
+			item2 := getTyDescV2(unptrty, usecs, lang)
+			item = item2
+			switch lang {
+				case LNGo:
+				item.AddAllFix("*", true)
+				TestAssign(&item.AsCCall, "*void", "void*")
+				TestAssign(&item.AsFfiCall, "*void", "unsafe.Pointer")
+				TestAssign(&item.AsFfiCall, "*/*void*/", "unsafe.Pointer")
+				TestAssign(&item.AsArgSign, "*/*void*/", "unsafe.Pointer")
+				item.ToFfiConv = "%s.GetCthis()"
+				item.ToCCallConv = "%s.GetCthis()"
+				case LNV:
+				item.AddAllFix("&", true)
+				// item.SetAllAs("voidptr")
+			}
+		case clang.Type_LValueReference: // TODO qt class
+			if isPrimitiveType(ty.PointeeType()) {
+				// return this.toDest(ty.PointeeType(), cursor)
+			} else if is_qt_class(ty.PointeeType()) {
+			}
+
+			item2 := getTyDescV2(unptrty, usecs, lang)
+			item = item2
+			switch lang {
+				case LNGo:
+				item.AddAllFix("*", true)
+				TestAssign(&item.AsCCall, "*void", "void*")
+				TestAssign(&item.AsFfiCall, "*void", "unsafe.Pointer")
+				item.ToFfiConv = "%s.GetCthis()"
+				item.ToCCallConv = "%s.GetCthis()"
+				case LNV:
+				item.AddAllFix("&", true)
+				// item.SetAllAs("voidptr")
+			}
+
+		case clang.Type_RValueReference:
+
+			switch lang {
+				case LNGo:
+				item.SetAllAs("uintptr")
+				case LNV:
+				item.SetAllAs("voidptr")
+			}
+
+			// forward struct, enum, class, must a class, or typedef name
+		case clang.Type_Elaborated:
+		log.Println(ty.Spelling(), ty.Kind().Spelling(), usecs.Spelling(), ty.CanonicalType().Spelling())
+			if ty.CanonicalType().Spelling() == ty.Spelling() &&
+		 			!strings.Contains(ty.Spelling(), "::") {
+				// final class/struct
+				switch lang {
+					case LNGo:
+					item.AsFfiCall = "void"
+					item.AsCCall = "void"
+					item.ToFfiCvty = Fcty_GetCthis
+					case LNV:
+					// item.SetAllAs("i32")
+				}
+			}else{
+				// such as Q_UINT16 Elaborated  unsigned short
+				// Orientation Elaborated o Qt::Orientation
+				switch lang {
+					case LNGo:
+					item.SetAllAs("uint32")
+					case LNV:
+					item.SetAllAs("u32")
+				}
+			}
+
+		case clang.Type_Unexposed:
+			if ty.CanonicalType().Kind() != clang.Type_Unexposed {
+				return getTyDescV2(ty.CanonicalType(), usecs, lang)
+			} else {
+				if isPrimitivePPType(ty) && ty.PointeeType().PointeeType().Kind() == clang.Type_Char_S {
+					// return "[]string"
+				} else if ty.PointeeType().Kind() == clang.Type_Char_S {
+					// return "string"
+				} else if is_qt_class(ty.PointeeType()) {
+				}
+				switch lang {
+					case LNGo:
+					item.SetAllAs("int32")
+					case LNV:
+					item.SetAllAs("int")
+				}
+			}
+
+			// primitives below
+		case clang.Type_Int:
+
+			switch lang {
+				case LNGo :
+				item.AsArgSign = "int"
+				case LNCgo :
+				item.AsArgSign = "C.int"
+				case LNV :
+
+			}
+
+		case clang.Type_UInt:
+
+		case clang.Type_LongLong:
+
+			switch lang {
+				case LNGo :
+				item.SetAllAs("int64")
+				item.ToCCallConv = fmt.Sprintf("(int64)(%%s)")
+				item.ToFfiConv = fmt.Sprintf("(int64)(%%s)")
+				case LNV:
+				item.SetAllAs("i64")
+			}
+
+		case clang.Type_ULongLong:
+
+			switch lang {
+				case LNGo:
+				item.SetAllAs("uint64")
+				case LNV:
+				item.SetAllAs("u64")
+			}
+
+		case clang.Type_Short:
+			switch lang {
+				case LNGo:
+				item.SetAllAs("int16")
+				case LNV:
+				item.SetAllAs("i16")
+			}
+
+		case clang.Type_UShort:
+
+		switch lang {
+				case LNGo:
+				item.SetAllAs("uint16")
+				case LNV:
+				item.SetAllAs("u16")
+			}
+
+		case clang.Type_UChar:
+
+			switch lang {
+				case LNGo:
+				item.SetAllAs("byte")
+				case LNV:
+				item.SetAllAs("u8")
+			}
+
+		case clang.Type_Char_S, clang.Type_SChar:
+
+			switch lang {
+				case LNGo:
+				item.SetAllAs("byte")
+				case LNV:
+				item.SetAllAs("i8")
+			}
+
+		case clang.Type_Long: // in c x32 is 4B, x64 is 8B
+			switch lang {
+				case LNGo:
+				item.SetAllAs("uintptr")
+				case LNV:
+				item.SetAllAs("isize")
+			}
+
+		case clang.Type_ULong: // in c x32 is 4B, x64 is 8B
+
+			switch lang {
+				case LNGo:
+				item.SetAllAs("uintptr")
+				case LNV:
+				item.SetAllAs("usize")
+			}
+
+		case clang.Type_Enum:
+
+		switch lang {
+				case LNGo:
+				item.SetAllAs("int32")
+				case LNV:
+				item.SetAllAs("int")
+			}
+
+		case clang.Type_Bool:
+
+			switch lang {
+				case LNGo:
+				item.SetAllAs("bool")
+				item.AsCCall = "int32"
+				item.AsFfiCall = "int32"
+				case LNV:
+				item.SetAllAs("bool")
+			}
+
+		case clang.Type_Double:
+
+			switch lang {
+				case LNGo:
+				item.SetAllAs("float64")
+				case LNV:
+				item.SetAllAs("f64")
+			}
+
+		case clang.Type_LongDouble: // TODO?
+
+			switch lang {
+				case LNGo:
+				item.SetAllAs("float80")
+				case LNV:
+				item.SetAllAs("f80")
+			}
+
+		case clang.Type_Float:
+			switch lang {
+				case LNGo:
+				item.SetAllAs("float32")
+				case LNV:
+				item.SetAllAs("f32")
+			}
+
+		case clang.Type_IncompleteArray:
+			// TODO xpm const char *const []
+			if TypeIsCharPtr(ty.ElementType()) {
+				// return "[]string"
+			}
+
+			switch lang {
+				case LNGo:
+				item.SetAllAs("uintptr")
+				case LNV:
+				item.SetAllAs("voidptr")
+			}
+
+		case clang.Type_ConstantArray:
+			// TODO xpm const char *const []
+			if TypeIsCharPtr(ty.ElementType()) {
+				// return "[]string"
+			}
+
+			switch lang {
+				case LNGo:
+				item.SetAllAs("uintptr")
+				case LNV:
+				item.SetAllAs("voidptr")
+			}
+
+		case clang.Type_Char16:
+
+			switch lang {
+				case LNGo:
+				item.SetAllAs("int16")
+				case LNV:
+				item.SetAllAs("i16")
+			}
+
+		case clang.Type_Void:
+
+			switch lang {
+				case LNGo:
+				item.SetAllAs("/*void*/")
+				case LNV:
+				item.SetAllAs("/*void*/")
+			}
+
+	default:
+		log.Fatalln(ty.Spelling(), ty.Kind().Spelling())
+	}
+
+	switch lang {
+		case LNGo:
+		ok := funk.ContainsString([]string{"*QString", "QString", "*byte", "*string"}, item.AsArgSign)
+		if ok {
+			item.AsArgSign = "string"
+			item.ToFfiCvty = Fcty_Charptr
+		}
+		case LNV:
+	}
+
+	return item
+}
+
+///////// getTyDesc v1
+
 
 // 需要考虑的目标类型转换，还是挺多的
 // 转换的源类型为CPP类型
@@ -170,17 +583,6 @@ const (
 	PrmTyDesc_V_INVOKE_CRs // 同上
 	ArgTyDesc_CV_SIGNATURE
 )
-
-// 参数与返回值中的类型转换暂存
-// 1 key clang.Type表示的是? 可以是
-// 2 key int 表示的是转换的方式标识
-// 最终的值为转换的结果的字符串描述
-var tycvCache = map[clang.Type]map[int]string{}
-var argcvCache = map[string]string{}
-
-var tycvItems = map[LangName]map[clang.Type]*TypeConvItem{}
-
-// it by type, not lang, so TypeConver method not good
 
 // cusecs 当前类型引用位置，用于定位模块
 func getTyDesc(ty clang.Type, usecat int, usecs clang.Cursor/*, lang LangName */) string {
