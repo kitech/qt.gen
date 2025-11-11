@@ -550,9 +550,9 @@ func (this *GenerateGo) genMethodSignatureDv(cursor, parent clang.Cursor, midx i
 	}
 
 	dvn := num_default_value(cursor)
-	this.genArgsDest(cursor, parent, true)
-	this.destArgDesc = this.dvTrimArg(this.destArgDesc, dvn, dvidx)
+	// this.genArgsDest(cursor, parent, true)
 	this.genArgs(cursor, parent, midx, dvidx)
+	this.destArgDesc = this.dvTrimArg(this.destArgDesc, dvn, dvidx)
 	argStr := strings.Join(this.destArgDesc, ", ")
 	var cp = this.getpropercp(cursor)
 
@@ -1155,14 +1155,18 @@ func (this *GenerateGo) genArgs(cursor, parent clang.Cursor, midx int, dvidx int
 	this.destArgDesc = make([]string, 0)
 	this.paramDesc = make([]string, 0)
 
+	currdvidx := -1 // absolute argidx of dftval
 	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
 		argcs := cursor.Argument(uint32(idx))
 		aitm := this.NewGenArgItem(argcs, cursor, idx)
+		if dvidx>=0 && currdvidx<0 && aitm.hasdft {
+			currdvidx = idx + dvidx
+		}
 		// aitm.dest_tyname = this.tyconver.toDest(aitm.argty, aitm.argcs)
 		// aitm.ffi_tyname = getTyDesc(aitm.argty, AsGoSignature, aitm.argcs)
 		aitm.tycv_item = getTyDescV2(aitm.argty, aitm.argcs, LNGo)
 
-		codes := this.genArg(argcs, cursor, idx, aitm)
+		codes := this.genArg(argcs, cursor, idx, currdvidx, aitm)
 		this.argDesc=append(this.argDesc, aitm.ffiprm)
 		this.destArgDesc=append(this.destArgDesc, fmt.Sprintf("%s %s", aitm.oriname, aitm.tycv_item.AsArgSign))
 		this.paramDesc=append(this.paramDesc, aitm.ffiprm)
@@ -1177,7 +1181,13 @@ func (this *GenerateGo) genArgs(cursor, parent clang.Cursor, midx int, dvidx int
 	return
 }
 
-func (this *GenerateGo) genArg(cursor, parent clang.Cursor, idx int, aitm *GenArgItem) (convcodes []string) {
+func StrIsDigital(s string) bool {
+	return regexp.MustCompile(`^[0-9\-\.]+$`).MatchString(s)
+}
+
+// dvidx no arg in signature after this dvidx
+// dvidx==-1, means not process dv wrap
+func (this *GenerateGo) genArg(cursor, parent clang.Cursor, idx int, dvidx int, aitm *GenArgItem) (convcodes []string) {
 	// log.Println(cursor.DisplayName(), cursor.Type().Spelling(), cursor.Type().Kind() == clang.Type_LValueReference, this.mangler.origin(parent))
 
 	var cp = this.getpropercp(parent)
@@ -1186,15 +1196,21 @@ func (this *GenerateGo) genArg(cursor, parent clang.Cursor, idx int, aitm *GenAr
 
 	if aitm.hasdft {
 		dftval := aitm.dftval
-		TestAssign(&dftval, "QString::null", "nil")
-		if aitm.argty.Kind() == clang.Type_Pointer ||
+		if dftval == "QString::null" || TypeIsCharPtr(aitm.argty) {
+			dftval = "\"\""
+		}else if aitm.argty.Kind() == clang.Type_Pointer ||
 			aitm.argty.Kind() == clang.Type_LValueReference {
 			dftval = "nil"
-		}else if !regexp.MustCompile(`^[0-9\-]+$`).MatchString(dftval) {
+		} else if dftval=="TRUE" || dftval == "FALSE" {
+			dftval = strings.ToLower(dftval)
+		}else if !StrIsDigital(dftval) {
 			dftval = "0"
 		}
-		cp.APf("body", "    var %s %s = %s // %s", aitm.dftname, aitm.tycv_item.AsFfiCall, dftval, aitm.dftval)
+		cp.APf("body", "    var %s %s = %s // %s, %d|%d", aitm.dftname, aitm.tycv_item.AsArgSign, dftval, aitm.dftval, idx, dvidx)
 		cp.APf("body", "   _ = %s", aitm.dftname)
+		if dvidx >= 0 && idx >= dvidx {
+			cp.APf("body", "    %s := %s", aitm.oriname, aitm.dftname)
+		}
 	}
 	aitm.ffiprm = aitm.oriname // default to
 	switch aitm.tycv_item.ToFfiCvty {
