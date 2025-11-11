@@ -593,7 +593,7 @@ func (this *GenerateGo) genMethodSignatureDv(cursor, parent clang.Cursor, midx i
 
 // only for static member
 func (this *GenerateGo) genMethodSignatureNoThis(cursor, parent clang.Cursor, midx int) {
-	this.genArgsDest(cursor, parent, true)
+	// this.genArgsDest(cursor, parent, true)
 	this.genArgs(cursor, parent, midx, -1)
 	argStr := strings.Join(this.destArgDesc, ", ")
 	var cp = this.getpropercp(cursor)
@@ -684,7 +684,7 @@ func (this *GenerateGo) genCtor(cursor, parent clang.Cursor, midx int) {
 	this.genMethodHeader(cursor, parent, midx)
 	this.genMethodSignature(cursor, parent, midx)
 
-	this.genParamsFFI(cursor, parent)
+	// this.genParamsFFI(cursor, parent)
 	this.genArgs(cursor, parent, midx, -1)
 	paramStr := strings.Join(this.paramDesc, ", ")
 	_ = paramStr
@@ -728,7 +728,7 @@ func (this *GenerateGo) genCtorDv(cursor, parent clang.Cursor, midx int, dvidx i
 	this.genMethodHeader(cursor, parent, midx)
 	this.genMethodSignatureDv(cursor, parent, midx, dvidx)
 
-	this.genParamsFFI(cursor, parent)
+	// this.genParamsFFI(cursor, parent)
 	this.genArgs(cursor, parent, midx, dvidx)
 	paramStr := strings.Join(this.paramDesc, ", ")
 	_ = paramStr
@@ -867,7 +867,8 @@ func (this *GenerateGo) genDtorNoCode(cursor, parent clang.Cursor, midx int) {
 }
 
 func (this *GenerateGo) genNonStaticMethod(cursor, parent clang.Cursor, midx int) {
-	this.genParamsFFI(cursor, parent)
+	// this.genParamsFFI(cursor, parent)
+	this.genArgs(cursor, parent, midx, -1)
 	paramStr := strings.Join(this.paramDesc, ", ")
 	_ = paramStr
 
@@ -924,7 +925,7 @@ func (this *GenerateGo) genNonStaticMethodDvs(cursor, parent clang.Cursor, midx 
 
 // dvidx keep default argument num
 func (this *GenerateGo) genNonStaticMethodDv(cursor, parent clang.Cursor, midx int, dvidx int) {
-	this.genParamsFFI(cursor, parent)
+	// this.genParamsFFI(cursor, parent)
 	this.genArgs(cursor, parent, midx, dvidx)
 	paramStr := strings.Join(this.paramDesc, ", ")
 	_ = paramStr
@@ -966,7 +967,7 @@ func (this *GenerateGo) genNonStaticMethodDv(cursor, parent clang.Cursor, midx i
 }
 
 func (this *GenerateGo) genStaticMethod(cursor, parent clang.Cursor, midx int) {
-	this.genParamsFFI(cursor, parent)
+	// this.genParamsFFI(cursor, parent)
 	this.genArgs(cursor, parent, midx, -1)
 	paramStr := strings.Join(this.paramDesc, ", ")
 
@@ -1001,7 +1002,7 @@ func (this *GenerateGo) genStaticMethodDvs(cursor, parent clang.Cursor, midx int
 }
 
 func (this *GenerateGo) genStaticMethodDv(cursor, parent clang.Cursor, midx int, dvidx int) {
-	this.genParamsFFI(cursor, parent)
+	// this.genParamsFFI(cursor, parent)
 	this.genArgs(cursor, parent, midx, dvidx)
 	paramStr := strings.Join(this.paramDesc, ", ")
 
@@ -1098,7 +1099,7 @@ func (this *GenerateGo) genProtectedCallback(cursor, parent clang.Cursor, midx i
 	argStrSign := strings.Join(this.argDesc, ", ")
 	argStrSign = gopp.IfElseStr(len(argStrSign) > 0, ", "+argStrSign, argStrSign)
 
-	this.genParams(cursor, parent)
+	// this.genParams(cursor, parent)
 	this.genArgs(cursor, parent, midx, -1)
 	prmStr := strings.Join(this.paramDesc, ", ")
 	prmStr = gopp.IfElseStr(len(prmStr) > 0, ", "+prmStr, prmStr)
