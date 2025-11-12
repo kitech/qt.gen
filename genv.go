@@ -1380,27 +1380,6 @@ func (this *GenerateV) dvTrimArg(argsDesc []string, dvn int, dvidx int) []string
 }
 
 // midx method index
-func (this *GenerateV) genArgsConv(cursor, parent clang.Cursor, midx int) {
-	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
-		argc := cursor.Argument(uint32(idx))
-		this.genArgConv(argc, cursor, midx, idx)
-	}
-}
-
-// midx method index
-// aidx method index
-func (this *GenerateV) genArgConv(cursor, parent clang.Cursor, midx, aidx int) {
-	var cp = this.getpropercp(parent)
-
-	cp.APf("body", "	   var arg%d %s", aidx, this.tyconver.toCall(cursor.Type(), parent))
-	cp.APf("body", "	   // if %d >= len(args) {", aidx)
-	cp.APf("body", "	   //	  arg%d = defaultargx", aidx)
-	cp.APf("body", "	   // } else {")
-	cp.APf("body", "	   //	  arg%d = argx.toBind", aidx)
-	cp.APf("body", "	   // }")
-}
-
-// midx method index
 func (this *GenerateV) genArgsConvFFI(cursor, parent clang.Cursor, midx int) {
 	log.Println("gggggggggg", cursor.Spelling(), cursor.ResultType().Kind(), cursor.ResultType().Spelling(), parent.Spelling())
 	for idx := 0; idx < int(cursor.NumArguments()); idx++ {

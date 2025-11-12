@@ -1122,7 +1122,7 @@ func (this *GenerateGo) genProtectedCallback(cursor, parent clang.Cursor, midx i
 		if _, ok := inheritMethods[key]; !ok {
 			inheritMethods[key] = 1
 
-			this.genArgsDest(cursor, parent, false)
+			// this.genArgsDest(cursor, parent, false)
 			this.genArgs(cursor, parent, midx, -1)
 			argStr := strings.Join(this.destArgDesc, ", ")
 			retStr := getTyDesc(cursor.ResultType(), AsGoReturn, parent)
@@ -1235,276 +1235,11 @@ func (this *GenerateGo) genArg(cursor, parent clang.Cursor, idx int, dvidx int, 
 	if true {
 		return
 	}
-	if len(cursor.Spelling()) == 0 {
-		this.argDesc = append(this.argDesc, fmt.Sprintf("%s arg%d", cursor.Type().Spelling(), idx))
-	} else {
-		if cursor.Type().Kind() == clang.Type_LValueReference {
-			// 转成指针
-		}
-		if strings.Contains(cursor.Type().CanonicalType().Spelling(), "QFlags<") {
-			this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s",
-				cursor.Type().CanonicalType().Spelling(), cursor.Spelling()))
-		} else {
-			if cursor.Type().Kind() == clang.Type_IncompleteArray ||
-				cursor.Type().Kind() == clang.Type_ConstantArray {
-				this.argDesc = append(this.argDesc, fmt.Sprintf("%s unsafe.Pointer",
-					cursor.Spelling()))
-				// log.Println(cursor.Type().Spelling(), cursor.Type().ArrayElementType().Spelling())
-				// idx := strings.Index(cursor.Type().Spelling(), " [")
-				// this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s %s",
-				//	cursor.Type().Spelling()[0:idx], cursor.Spelling(), cursor.Type().Spelling()[idx+1:]))
-			} else {
-				this.argDesc = append(this.argDesc, fmt.Sprintf("%s %s",
-					cursor.Spelling(), cursor.Type().Spelling()))
-			}
-		}
-	}
 	return
-}
-
-func (this *GenerateGo) genArgsDest(cursor, parent clang.Cursor, asitf bool) {
-	this.destArgDesc = make([]string, 0)
-	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
-		argc := cursor.Argument(uint32(idx))
-		this.genArgDest(argc, cursor, idx, asitf)
-	}
-	// log.Println(strings.Join(this.destArgDesc, ", "), this.mangler.origin(cursor))
-}
-
-func (this *GenerateGo) genArgDest(cursor, parent clang.Cursor, idx int, asitf bool) {
-	// log.Println(cursor.DisplayName(), cursor.Type().Spelling(), cursor.Type().Kind() == clang.Type_LValueReference, this.mangler.origin(parent), get_bare_type(cursor.Type()).Spelling(), is_qt_class(cursor.Type()))
-
-	argName := this.genParamRefName(cursor, parent, idx)
-
-	destTy := this.tyconver.toDest(cursor.Type(), cursor)
-	if cursor.Type().Kind() == clang.Type_LValueReference {
-		// 转成指针
-	}
-	if strings.HasPrefix(cursor.Type().CanonicalType().Spelling(), "QFlags<") {
-		this.destArgDesc = append(this.destArgDesc, fmt.Sprintf("%s int", argName))
-	} else if is_qt_class(cursor.Type()) && get_bare_type(cursor.Type()).Spelling() == "QString" {
-		this.destArgDesc = append(this.destArgDesc, fmt.Sprintf("%s string", argName))
-	} else if is_qt_class(cursor.Type()) && !isPrimitiveType(cursor.Type().PointeeType()) {
-		destTyITF := destTy
-		if asitf && (strings.HasPrefix(destTy, "*Q") || strings.Contains(destTy, ".Q")) {
-			if pos := strings.Index(destTy, "/*"); pos > 0 {
-				destTyITF = destTy[1:pos] + "_ITF" + destTy[pos:]
-			} else {
-				destTyITF = strings.TrimLeft(destTy, "*") + "_ITF"
-			}
-		}
-		this.destArgDesc = append(this.destArgDesc, fmt.Sprintf("%s %s", argName, destTyITF))
-	} else {
-		if cursor.Type().Kind() == clang.Type_IncompleteArray {
-			this.destArgDesc = append(this.destArgDesc, fmt.Sprintf("%s %s", argName, destTy))
-		} else if cursor.Type().Kind() == clang.Type_ConstantArray {
-			this.destArgDesc = append(this.destArgDesc, fmt.Sprintf("%s %s", argName, destTy))
-			// idx := strings.Index(cursor.Type().Spelling(), " [")
-			// this.destArgDesc = append(this.destArgDesc, fmt.Sprintf("%s %s %s",
-			// 	cursor.Type().Spelling()[0:idx], argName, cursor.Type().Spelling()[idx+1:]))
-		} else {
-			this.destArgDesc = append(this.destArgDesc, fmt.Sprintf("%s %s", argName, destTy))
-		}
-	}
 }
 
 func (this *GenerateGo) dvTrimArg(argsDesc []string, dvn int, dvidx int) []string {
 	return argsDesc[:len(argsDesc)-dvn+dvidx]
-}
-
-// midx method index
-func (this *GenerateGo) genArgsConv(cursor, parent clang.Cursor, midx int) {
-	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
-		argc := cursor.Argument(uint32(idx))
-		this.genArgConv(argc, cursor, midx, idx)
-	}
-}
-
-// midx method index
-// aidx method index
-func (this *GenerateGo) genArgConv(cursor, parent clang.Cursor, midx, aidx int) {
-	var cp = this.getpropercp(parent)
-
-	cp.APf("body", "	   var arg%d %s", aidx, this.tyconver.toCall(cursor.Type(), parent))
-	cp.APf("body", "	   // if %d >= len(args) {", aidx)
-	cp.APf("body", "	   //	  arg%d = defaultargx", aidx)
-	cp.APf("body", "	   // } else {")
-	cp.APf("body", "	   //	  arg%d = argx.toBind", aidx)
-	cp.APf("body", "	   // }")
-}
-
-// midx method index
-func (this *GenerateGo) genArgsConvFFI(cursor, parent clang.Cursor, midx int) {
-	log.Println("gggggggggg", cursor.Spelling(), cursor.ResultType().Kind(), cursor.ResultType().Spelling(), parent.Spelling())
-	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
-		argc := cursor.Argument(uint32(idx))
-		this.genArgConvFFI(argc, cursor, midx, idx)
-	}
-}
-
-// midx method index
-// aidx method index
-func (this *GenerateGo) genArgConvFFI(cursor, parent clang.Cursor, midx, aidx int) {
-	var cp = this.getpropercp(parent)
-
-	argty := cursor.Type()
-	barety := get_bare_type(argty)
-	if TypeIsCharPtrPtr(argty) {
-		cp.APf("body", "    var convArg%d = qtrt.StringSliceToCCharPP(%s)", aidx,
-			this.genParamRefName(cursor, parent, aidx))
-	} else if TypeIsCharPtr(argty) {
-		cp.APf("body", "    var convArg%d = qtrt.CString(%s)", aidx,
-			this.genParamRefName(cursor, parent, aidx))
-		cp.APf("body", "    defer qtrt.FreeMem(convArg%d)", aidx)
-	} else if is_qt_class(argty) && get_bare_type(argty).Spelling() == "QString" {
-		usemod := get_decl_mod(cursor)
-		pkgPref := gopp.IfElseStr(usemod == "core", "", "qtcore.")
-		pkgPref = gopp.IfElseStr(isgenqt3(), "", pkgPref)
-		cp.APf("body", "    var tmpArg%d = %sNewQString5(%s)", aidx, pkgPref,
-			this.genParamRefName(cursor, parent, aidx))
-		// this.cp.APf("body", "    defer %sDeleteQString(tmpArg%d)", pkgPref, aidx) // not needed
-		cp.APf("body", "    var convArg%d = tmpArg%d.GetCthis()", aidx, aidx)
-	} else if is_qt_class(argty) && !isPrimitiveType(argty.CanonicalType()) &&
-			! isPrimitiveType(argty.PointeeType()) {
-		if argty.Spelling() == "QRgb" {
-			log.Fatalln(argty.Spelling(), argty.CanonicalType().Kind().String())
-		}
-		refmod := get_decl_mod(argty.PointeeType().Declaration())
-		usemod := get_decl_mod(cursor)
-		log.Println("kkkkk", refmod, usemod, parent.Spelling())
-		if _, ok := privClasses[argty.PointeeType().Spelling()]; ok {
-		} else if usemod == "core" && refmod == "widgets" {
-		} else if usemod == "gui" && refmod == "widgets" {
-		} else {
-			cp.APf("body", "    var convArg%d unsafe.Pointer", aidx)
-			cp.APf("body", "    if %s != nil && %s.%s_PTR() != nil {",
-				this.genParamRefName(cursor, parent, aidx),
-				this.genParamRefName(cursor, parent, aidx), barety.Spelling())
-			cp.APf("body", "        convArg%d = %s.%s_PTR().GetCthis()", aidx,
-				this.genParamRefName(cursor, parent, aidx), barety.Spelling())
-			cp.APf("body", "    }")
-		}
-	} else if is_qt_class(argty) && (isPrimitiveType(argty.CanonicalType()) ||
-	 			isPrimitiveType(argty.PointeeType())) {
-			// cp.APf("body", "    var convArg%d = %s", aidx)
-	} else { // no convert needed
-		// log.Fatalln("wtf", argty.Kind(), argty.Spelling(), parent.Spelling())
-	}
-}
-
-// midx method index
-func (this *GenerateGo) genArgsConvFFIDv(cursor, parent clang.Cursor, midx int, dvidx int) {
-	log.Println("gggggggggg", cursor.Spelling(), cursor.ResultType().Kind(), cursor.ResultType().Spelling(), parent.Spelling())
-	dvn := num_default_value(cursor)
-	argn := int(cursor.NumArguments())
-	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
-		argc := cursor.Argument(uint32(idx))
-		if idx < (argn - dvn + dvidx) {
-			this.genArgConvFFI(argc, cursor, midx, idx)
-		} else {
-			this.genArgConvFFIDv(argc, cursor, midx, idx, dvidx)
-		}
-	}
-}
-
-// midx method index
-// aidx method index
-func (this *GenerateGo) genArgConvFFIDv(cursor, parent clang.Cursor, midx, aidx int, dvidx int) {
-	argdv, _ := has_default_value(cursor)
-	argty := cursor.Type()
-	barety := get_bare_type(argty)
-	undty := barety.Declaration().TypedefDeclUnderlyingType()
-	var cp = this.getpropercp(parent)
-
-	argdvs := map[string]string{
-		"SH_Default":       "QStyleHintReturn__SH_Default",
-		"SO_Default":       "QStyleOption__SO_Default",
-		"SO_Complex":       "QStyleOption__SO_Complex",
-		"ApplicationFlags": "0",
-		"Q_NULLPTR":        "unsafe.Pointer(nil)",
-		"nullptr":          "unsafe.Pointer(nil)",
-		"Type":             "0",
-		"USHRT_MAX":        "-1",
-		"ULONG_MAX":        "-1",
-	}
-	_ = argdvs
-
-	cp.APf("body", "    // arg: %d, name=%s %s=%s, %s=%s, %s, %s", aidx,
-		this.genParamRefName(cursor, parent, aidx),
-		argty.Spelling(), argty.Kind().String(), barety.Spelling(), barety.Kind().String(),
-		undty.Spelling(), undty.Kind().String())
-
-	if TypeIsCharPtrPtr(argty) {
-		cp.APf("body", "    var convArg%d = qtrt.StringSliceToCCharPP(%s)", aidx,
-			this.genParamRefName(cursor, parent, aidx))
-	} else if TypeIsCharPtr(argty) {
-		cp.APf("body", "    var convArg%d unsafe.Pointer", aidx)
-	} else if funk.Contains([]clang.TypeKind{clang.Type_Enum, clang.Type_Elaborated}, argty.Kind()) {
-		cp.APf("body", "    %s := 0", this.genParamRefName(cursor, parent, aidx))
-	} else if argty.Kind() == clang.Type_LValueReference &&
-		funk.Contains([]clang.TypeKind{clang.Type_Enum, clang.Type_Elaborated}, argty.PointeeType().Kind()) {
-		cp.APf("body", "    %s := 0", this.genParamRefName(cursor, parent, aidx))
-	} else if funk.Contains([]clang.TypeKind{clang.Type_Int, clang.Type_Long, clang.Type_ULong, clang.Type_LongLong, clang.Type_Double, clang.Type_UShort, clang.Type_Float}, argty.Kind()) {
-		if strings.HasPrefix(argdv, "Qt::") || argdv == "Type" ||
-			(strings.HasPrefix(argdv, "Q") && strings.Contains(argdv, "::")) {
-			cp.APf("body", "    %s := 0/*%s*/", this.genParamRefName(cursor, parent, aidx), argdv)
-		} else if tmpdv, ok := argdvs[argdv]; ok {
-			cp.APf("body", "    %s := %s", this.genParamRefName(cursor, parent, aidx), tmpdv)
-		} else {
-			cp.APf("body", "    %s := %s(%s)", this.genParamRefName(cursor, parent, aidx), this.tyconver.toDest(argty, cursor), strings.TrimRight(argdv, "f"))
-		}
-	} else if barety.Kind() == clang.Type_Typedef &&
-		funk.Contains([]clang.TypeKind{clang.Type_Int, clang.Type_UInt, clang.Type_Long, clang.Type_LongLong, clang.Type_Double, clang.Type_UShort, clang.Type_UChar}, barety.Declaration().TypedefDeclUnderlyingType().Kind()) {
-		if tmpdv, ok := argdvs[argdv]; ok {
-			cp.APf("body", "    %s := %s", this.genParamRefName(cursor, parent, aidx), tmpdv)
-		} else {
-			cp.APf("body", "    %s := %s(%s)", this.genParamRefName(cursor, parent, aidx), this.tyconver.toDest(barety.Declaration().TypedefDeclUnderlyingType(), cursor), argdv)
-		}
-	} else if funk.Contains([]clang.TypeKind{clang.Type_Bool}, argty.Kind()) {
-		cp.APf("body", "    %s := %s", this.genParamRefName(cursor, parent, aidx), argdv)
-	} else if funk.Contains([]clang.TypeKind{clang.Type_Char_S}, argty.Kind()) {
-		cp.APf("body", "    %s := %s", this.genParamRefName(cursor, parent, aidx), argdv)
-	} else if TypeIsBoolPtr(argty) || TypeIsVoidPtr(argty) || TypeIsIntPtr(argty) || TypeIsUCharPtr(argty) {
-		cp.APf("body", "    var %s unsafe.Pointer", this.genParamRefName(cursor, parent, aidx))
-	} else if TypeIsQFlags(argty) {
-		cp.APf("body", "    %s := 0", this.genParamRefName(cursor, parent, aidx))
-	} else if is_qt_class(argty) &&
-		funk.ContainsString([]string{"QString", "QByteArray", "QVariant", "QModelIndex", "QUrl",
-			"QSize", "QAbstractState" /*"QScreen", "QAction"*/}, get_bare_type(argty).Spelling()) {
-		usemod := get_decl_mod(cursor)
-		pkgPref := gopp.IfElseStr(usemod == "core", "", "qtcore.")
-		pkgPref = gopp.IfElseStr(isgenqt3(), "", pkgPref)
-		cp.APf("body", "    var convArg%d = %sNew%s()", aidx, pkgPref, get_bare_type(argty).Spelling())
-	} else if is_qt_class(argty) && get_bare_type(argty).Spelling() == "QChar" {
-		usemod := get_decl_mod(cursor)
-		pkgPref := gopp.IfElseStr(usemod == "core", "", "qtcore.")
-		pkgPref = gopp.IfElseStr(isgenqt3(), "", pkgPref)
-		cp.APf("body", "    var convArg%d  = %sNewQChar8('%s')", aidx,
-			pkgPref, strings.Split(argdv, "'")[1])
-	} else if is_qt_class(argty) && !isPrimitiveType(argty.CanonicalType()) {
-		if argty.Spelling() == "QRgb" {
-			log.Fatalln(argty.Spelling(), argty.CanonicalType().Kind().String())
-		}
-		refmod := get_decl_mod(argty.PointeeType().Declaration())
-		usemod := get_decl_mod(cursor)
-		log.Println("kkkkk", refmod, usemod, parent.Spelling())
-		if _, ok := privClasses[argty.PointeeType().Spelling()]; ok {
-		} else if usemod == "core" && refmod == "widgets" {
-			cp.APf("body", "    var %s unsafe.Pointer", this.genParamRefName(cursor, parent, aidx))
-		} else if usemod == "gui" && refmod == "widgets" {
-			cp.APf("body", "    var %s unsafe.Pointer", this.genParamRefName(cursor, parent, aidx))
-		} else {
-			cp.APf("body", "    var convArg%d unsafe.Pointer", aidx)
-				cp.APf("body", "    var _ = convArg%d", aidx)
-		}
-	} else if argty.Spelling() == "WId" {
-		cp.APf("body", "    var %s unsafe.Pointer ", this.genParamRefName(cursor, parent, aidx))
-	} else if barety.Kind() == clang.Type_Typedef && TypeIsFuncPointer(undty) {
-		cp.APf("body", "    var %s unsafe.Pointer ", this.genParamRefName(cursor, parent, aidx))
-	} else { // no convert needed
-		// log.Fatalln("wtf", argty.Kind(), argty.Spelling(), parent.Spelling())
-		cp.APf("body", "    // var %s unsafe.Pointer // 111", this.genParamRefName(cursor, parent, aidx))
-	}
 }
 
 func (this *GenerateGo) genParams(cursor, parent clang.Cursor) {
@@ -1529,53 +1264,6 @@ func (this *GenerateGo) genParamRefName(cursor, _ clang.Cursor, aidx int) string
 	return gopp.IfElseStr(cursor.Spelling() == "", fmt.Sprintf("arg%d", aidx), argName)
 }
 
-func (this *GenerateGo) genParamsFFI(cursor, parent clang.Cursor) {
-	this.paramDesc = make([]string, 0)
-	for idx := 0; idx < int(cursor.NumArguments()); idx++ {
-		argc := cursor.Argument(uint32(idx))
-		this.genParamFFI(argc, cursor, idx)
-	}
-}
-
-func (this *GenerateGo) genParamFFI(cursor, parent clang.Cursor, idx int) {
-	argty := cursor.Type()
-	if TypeIsCharPtrPtr(argty) {
-		this.paramDesc = append(this.paramDesc, fmt.Sprintf("convArg%d", idx))
-	} else if TypeIsCharPtr(argty) {
-		this.paramDesc = append(this.paramDesc, fmt.Sprintf("convArg%d", idx))
-	} else if is_qt_class(argty) && get_bare_type(argty).Spelling() == "QString" {
-		this.paramDesc = append(this.paramDesc, fmt.Sprintf("convArg%d", idx))
-	} else if is_qt_class(argty) && !isPrimitiveType(argty.CanonicalType()) {
-		usemod := get_decl_mod(cursor)
-		refmod := get_decl_mod(argty.PointeeType().Declaration())
-		if _, ok := privClasses[argty.PointeeType().Spelling()]; ok {
-		} else if usemod == "core" && refmod == "widgets" {
-			this.paramDesc = append(this.paramDesc, cursor.Spelling())
-		} else if usemod == "gui" && refmod == "widgets" {
-			this.paramDesc = append(this.paramDesc, cursor.Spelling())
-		} else {
-			this.paramDesc = append(this.paramDesc, fmt.Sprintf("convArg%d", idx))
-		}
-	} else {
-		argName := cursor.Spelling()
-		argName = gopp.IfElseStr(is_go_keyword(argName), argName+"_", argName)
-
-		useand := argty.Kind() == clang.Type_LValueReference &&
-			isPrimitiveType(argty.PointeeType())
-		if argty.Kind() == clang.Type_Pointer && isPrimitiveType(argty.PointeeType()) &&
-			argty.PointeeType().Kind() == clang.Type_UChar { // UChar, SChar是字符串或者字节串
-			useand = false
-		} else if argty.Kind() == clang.Type_Pointer && isPrimitiveType(argty.PointeeType()) &&
-			argty.PointeeType().Kind() == clang.Type_Bool {
-			useand = false
-		}
-		andop := gopp.IfElseStr(useand, "&", "")
-		this.paramDesc = append(this.paramDesc,
-			andop+gopp.IfElseStr(cursor.Spelling() == "",
-				fmt.Sprintf("arg%d", idx), fmt.Sprintf("%s", argName)))
-	}
-}
-
 func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 	var cp = this.getpropercp(cursor)
 
@@ -1593,169 +1281,6 @@ func (this *GenerateGo) genRetFFI(cursor, parent clang.Cursor, midx int) {
 			cp.APf("body", "    return qtrt.Cretval2go(\"%s\", rv).(%s) // 1111", tycitm.AsArgSign, tycitm.AsArgSign)
 		}
 		return
-	}
-
-	rety := cursor.ResultType()
-	retybare := get_bare_type(rety.CanonicalType()).Declaration()
-	defmod := get_decl_mod(retybare)
-	if retybare.Spelling() == "QList" {
-		defmod = get_decl_mod(rety.Declaration())
-		if defmod == "stdglobal" {
-			if strings.Contains(rety.Spelling(), "QObjectList") {
-				defmod = "core"
-			}
-		}
-		if strings.Contains(rety.Spelling(), "QCameraInfo") {
-			defmod = "multimedia"
-		} else if strings.Contains(rety.Spelling(), "QGraphicsItem") {
-			defmod = "widgets"
-		} else if strings.Contains(rety.Spelling(), "QQuickItem") {
-			defmod = "quick"
-		}
-	}
-	usemod := get_decl_mod(cursor)
-	log.Println("hhhhh use ==? ref", retybare.Spelling(), defmod, usemod, rety.Spelling(), cursor.DisplayName(), parent.Spelling())
-	pkgPrefix := gopp.IfElseStr(defmod == usemod, "/*==*/", fmt.Sprintf("qt%s.", defmod))
-
-	switch rety.Kind() {
-	case clang.Type_Void:
-	case clang.Type_Int, clang.Type_UInt, clang.Type_Long, clang.Type_ULong,
-		clang.Type_Short, clang.Type_UShort,
-		clang.Type_Char_S, clang.Type_Char_U, clang.Type_UChar,
-		clang.Type_Float, clang.Type_Double, clang.Type_LongDouble:
-		cp.APf("body", "    return qtrt.Cretval2go(\"%s\", rv).(%s) // 1111",
-			this.tyconver.toDest(rety, cursor), this.tyconver.toDest(rety, cursor))
-		// cp.APf("body", "    return %s(rv) // 111", this.tyconver.toDest(rety, cursor))
-	case clang.Type_Typedef:
-		if TypeIsQFlags(rety) {
-			cp.APf("body", "    return int(rv)")
-		} else if is_qt_class(rety.CanonicalType()) &&
-			(rety.Spelling() == "QObjectList" || rety.Spelling() == "QModelIndexList" ||
-				rety.Spelling() == "QFileInfoList" || rety.Spelling() == "QVariantList" ||
-				(TypeIsConsted(rety) && (strings.HasSuffix(rety.Spelling(), "QVariantList"))) ||
-				rety.Spelling() == "QWindowList" || rety.Spelling() == "QWidgetList" ||
-				rety.Spelling() == "QCameraFocusZoneList" || rety.Spelling() == "QMediaResourceList") {
-			if strings.HasPrefix(rety.Spelling(), "QWidget") || strings.HasPrefix(rety.Spelling(), "QGraphicsItem") {
-				pkgPrefix = "/*222*/"
-			}
-			cp.APf("body", "    rv2 := %sNew%sFromPointer(unsafe.Pointer(uintptr(rv))) //5551",
-				pkgPrefix, gopp.IfElseStr(TypeIsConsted(rety), rety.Spelling()[6:], rety.Spelling()))
-			cp.APf("body", "    return rv2")
-		} else if is_qt_class(rety.CanonicalType()) {
-			cp.APf("body", "    rv2 := %sNew%sFromPointer(unsafe.Pointer(uintptr(rv))) //555",
-				// pkgPrefix, rety.Spelling())
-				pkgPrefix, get_bare_type(rety.CanonicalType()).Spelling())
-			cp.APf("body", "    return rv2")
-		} else if TypeIsFuncPointer(rety.CanonicalType()) {
-			cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
-		} else if rety.Spelling() == "qreal" {
-			cp.APf("body", "    return qtrt.Cretval2go(\"%s\", rv).(%s) // 1111",
-				this.tyconver.toDest(rety, cursor), this.tyconver.toDest(rety, cursor))
-		} else if TypeIsCharPtr(rety.CanonicalType()) {
-			cp.APf("body", "    return qtrt.GoStringI(rv)")
-			// TODO iterator is pointer, don't convert to string
-		} else if TypeIsPtr(rety.CanonicalType()) {
-			cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
-		} else if TypeIsIter(rety.CanonicalType()) {
-			cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
-		} else if strings.HasPrefix(this.tyconver.toDest(rety, cursor), "unsafe.Pointer") {
-			cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
-		} else {
-			cp.APf("body", "    return %s(rv) // 222", this.tyconver.toDest(rety, cursor))
-		}
-	case clang.Type_Record:
-		if is_qt_class(rety) && get_bare_type(rety).Spelling() == "QString" {
-			cp.APf("body", "    rv2 := %sNewQStringFromPointer(unsafe.Pointer(uintptr(rv)))", pkgPrefix)
-			cp.APf("body", "    rv3 := rv2.ToUtf8().Data()")
-			cp.APf("body", "    %sDeleteQString(rv2)", pkgPrefix)
-			cp.APf("body", "    return rv3")
-		} else if is_qt_class(rety) {
-			barety := get_bare_type(rety)
-			cp.APf("body", "    rv2 := %sNew%sFromPointer(unsafe.Pointer(uintptr(rv))) // 333",
-				pkgPrefix, barety.Spelling())
-			cp.APf("body", "    qtrt.SetFinalizer(rv2, %sDelete%s)", pkgPrefix, barety.Spelling())
-			cp.APf("body", "    return rv2")
-		} else {
-			cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
-		}
-
-	case clang.Type_LValueReference:
-		if is_qt_class(rety) && get_bare_type(rety).Spelling() == "QString" {
-			cp.APf("body", "    rv2 := %sNewQStringFromPointer(unsafe.Pointer(uintptr(rv)))", pkgPrefix)
-			cp.APf("body", "    rv3 := rv2.ToUtf8().Data()")
-			cp.APf("body", "    %sDeleteQString(rv2)", pkgPrefix)
-			cp.APf("body", "    return rv3")
-		} else if is_qt_class(rety) && !isPrimitiveType(rety.PointeeType()) {
-			barety := get_bare_type(rety)
-			cp.APf("body", "    rv2 := %sNew%sFromPointer(unsafe.Pointer(uintptr(rv))) // 4441",
-				pkgPrefix, barety.Spelling())
-			cp.APf("body", "    qtrt.SetFinalizer(rv2, %sDelete%s)", pkgPrefix, barety.Spelling())
-			cp.APf("body", "    return rv2")
-		} else if TypeIsCharPtr(rety) {
-			cp.APf("body", "    return qtrt.GoStringI(rv)")
-		} else if rety.PointeeType().CanonicalType().Kind() == clang.Type_UChar {
-			cp.APf("body", "    return byte(rv) /*2221*/")
-		} else if rety.PointeeType().CanonicalType().Kind() == clang.Type_UShort {
-			cp.APf("body", "    return uint16(rv)")
-		} else if isPrimitiveType(rety.PointeeType()) {
-			// int(*(*C.int)(unsafe.Pointer(uintptr(rv))))
-			cp.APf("body", "    return qtrt.Cpretval2go(\"%s\", rv).(%s) // 3331",
-				this.tyconver.toDest(rety.PointeeType(), cursor),
-				this.tyconver.toDest(rety.PointeeType(), cursor))
-			// this.cp.APf("body", "    return %s(rv) // 3331", this.tyconver.toDest(rety.PointeeType(), cursor))
-		} else {
-			cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
-		}
-	case clang.Type_Pointer:
-		if is_qt_class(rety) && get_bare_type(rety).Spelling() == "QString" {
-			cp.APf("body", "    rv2 := %sNewQStringFromPointer(unsafe.Pointer(uintptr(rv)))", pkgPrefix)
-			cp.APf("body", "    rv3 := rv2.ToUtf8().Data()")
-			cp.APf("body", "    %sDeleteQString(rv2)", pkgPrefix)
-			cp.APf("body", "    return rv3")
-		} else if is_qt_class(rety) {
-			if _, ok := privClasses[rety.PointeeType().Spelling()]; ok {
-				cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
-			} else if usemod == "core" && defmod == "widgets" {
-				cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
-			} else if usemod == "gui" && defmod == "widgets" {
-				cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
-			} else {
-				barety := get_bare_type(rety)
-				cp.APf("body", "    return %sNew%sFromPointer(unsafe.Pointer(uintptr(rv))) // 444",
-					pkgPrefix, barety.Spelling())
-			}
-		} else if TypeIsCharPtrPtr(rety) {
-			cp.APf("body", "    return qtrt.CCharPPToStringSlice(unsafe.Pointer(uintptr(rv)))")
-		} else if TypeIsCharPtr(rety) {
-			cp.APf("body", "    return qtrt.GoStringI(rv)")
-		} else if rety.PointeeType().CanonicalType().Kind() == clang.Type_UChar {
-			cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
-		} else if rety.PointeeType().CanonicalType().Kind() == clang.Type_UShort {
-			cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
-		} else if isPrimitiveType(rety.PointeeType()) {
-			cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
-			// this.cp.APf("body", "    return %s(rv) // 333", this.tyconver.toDest(rety.PointeeType(), cursor))
-		} else {
-			cp.APf("body", "    return unsafe.Pointer(uintptr(rv))")
-		}
-	case clang.Type_RValueReference:
-		cp.APf("body", "    return unsafe.Pointer(uintptr(rv)) //777")
-	case clang.Type_Bool:
-		cp.APf("body", "    return rv!=0")
-	case clang.Type_Enum:
-		cp.APf("body", "    return int(rv)")
-	case clang.Type_Elaborated:
-		cp.APf("body", "    return int(rv)")
-	case clang.Type_Unexposed:
-		if strings.HasPrefix(rety.Spelling(), "QList<") {
-			cp.APf("body", "    rv2 := %sNew%sListFromPointer(unsafe.Pointer(uintptr(rv))) //5552",
-				pkgPrefix, strings.TrimRight(rety.Spelling()[6:], " *>"))
-			cp.APf("body", "    return rv2")
-		} else {
-			cp.APf("body", "    return rv/*-222*/")
-		}
-	default:
-		cp.APf("body", "    return rv/*-111*/")
 	}
 }
 
@@ -2063,7 +1588,7 @@ func (this *GenerateGo) genFunctions(cursor clang.Cursor, parent clang.Cursor) {
 }
 
 func (this *GenerateGo) genFunction(cursor clang.Cursor, olidx int) {
-	this.genParamsFFI(cursor, cursor.SemanticParent())
+	this.genArgs(cursor, cursor.SemanticParent(), olidx, -1)
 	paramStr := strings.Join(this.paramDesc, ", ")
 	_ = paramStr
 	var cp = this.getpropercp(cursor)
@@ -2071,7 +1596,7 @@ func (this *GenerateGo) genFunction(cursor clang.Cursor, olidx int) {
 	this.genMethodHeader(cursor, cursor.SemanticParent(), olidx)
 	this.genBareFunctionSignature(cursor, cursor.SemanticParent(), olidx)
 
-	this.genArgsConvFFI(cursor, cursor.SemanticParent(), olidx)
+	this.genArgs(cursor, cursor.SemanticParent(), olidx, -1)
 	cp.APf("body", "  rv, err := qtrt.InvokeQtFunc6(\"%s\", qtrt.FFI_TYPE_POINTER, %s)",
 		cursor.Mangling(), paramStr)
 	cp.APf("body", "  qtrt.ErrPrint(err, rv)")
@@ -2083,7 +1608,7 @@ func (this *GenerateGo) genFunction(cursor clang.Cursor, olidx int) {
 
 // only for static member
 func (this *GenerateGo) genBareFunctionSignature(cursor, parent clang.Cursor, midx int) {
-	this.genArgsDest(cursor, parent, true)
+	this.genArgs(cursor, parent, midx, -1)
 	argStr := strings.Join(this.destArgDesc, ", ")
 	if strings.Contains(argStr, "DropActions::enum_type") {
 		log.Fatalln(parent.Spelling(), cursor.DisplayName(), cursor.Spelling(), argStr)
