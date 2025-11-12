@@ -27,6 +27,7 @@ func init() {
 	}
 }
 
+
 type GenCtrl struct {
 	tu       clang.TranslationUnit
 	tuc      clang.Cursor
@@ -62,6 +63,8 @@ func init() {
 	flag.StringVar(&genQtdir, "qtdir", genQtdir, "generate use qt INSTALL_PREFIX. Or use env QTDIR=")
 	//	flag.StringVar(&genQtver, "qtver", genQtver, "generate use qt version, like 5,10.3. (Optional)")
 	flag.StringVar(&genLang, "lang", genLang, "generate what langauge, c|v|go|rs|cj|js")
+
+	flag.BoolVar(&genctx.refmt_gened_code, "fmt", genctx.refmt_gened_code, "reformat generated code")
 }
 
 func isgenqt3() bool { return strings.HasPrefix(genQtver, "3.")}

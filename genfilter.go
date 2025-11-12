@@ -20,7 +20,7 @@ import (
 var genctx = &GenContext{}
 
 func init() {
-	flag.StringVar(&genctx.specifyClass, "gclass", "", "specify need generate one class")
+	flag.StringVar(&genctx.specify_class, "gclass", "", "specify need generate one class")
 	flag.BoolVar(&genctx.noclip, "noclip", false, "weither noclip, default cliped")
 }
 
@@ -345,7 +345,7 @@ func (this *GenFilterBase) skipClassImpl(cursor, parent clang.Cursor) int {
 	if cname != "QCoreApplication" {
 		// return true
 	}
-	if len(genctx.specifyClass) > 0 && cname != genctx.specifyClass {
+	if len(genctx.specify_class) > 0 && cname != genctx.specify_class {
 		return 10
 	}
 
@@ -796,7 +796,7 @@ func (this *GenFilterBase2) skipClassImpl(cursor, parent clang.Cursor) int {
 	if cname != "QCoreApplication" {
 		// return true
 	}
-	if len(genctx.specifyClass) > 0 && cname != genctx.specifyClass {
+	if len(genctx.specify_class) > 0 && cname != genctx.specify_class {
 		return 10
 	}
 	if parent.Spelling() == "QtPrivate" || parent.Spelling() == "QtMetaTypePrivate" {

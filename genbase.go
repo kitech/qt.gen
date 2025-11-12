@@ -2,9 +2,14 @@ package main
 
 import (
 	"fmt"
-	gopp "github.com/kitech/goplusplus"
+	"io/ioutil"
 	"log"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
+
+	gopp "github.com/kitech/goplusplus"
 
 	"github.com/go-clang/v3.9/clang"
 	// funk "github.com/thoas/go-funk"
@@ -39,6 +44,7 @@ func init() {
 type GenBase struct {
 	tu *clang.TranslationUnit
 	mangler  GenMangler
+	cp *CodePager
 
 	qtdir string
 	qtver string
@@ -84,6 +90,11 @@ type GenBase struct {
 
 	keywords map[string]int
 	idfmtprop IdentRefmtProp
+
+	outdir string
+	file_ext string // lang src file ext
+	fmt_exe string
+	fmt_args []string
 }
 
 type IdentRefmtProp struct {
@@ -310,4 +321,77 @@ func (this *GenBase) protoMatch(c1, cx clang.Cursor) bool {
 	}
 
 	return false
+}
+
+
+// save code
+func (this *GenBase) saveCode(cursor, _ clang.Cursor) {
+	// qtx{yyy}, only yyy
+	file, line, col, _ := cursor.Location().FileLocation()
+	if false {
+		log.Printf("%s:%d:%d @%s\n", file.Name(), line, col, file.Time().String())
+	}
+
+	modname := strings.ToLower(filepath.Base(filepath.Dir(file.Name())))[2:]
+	modname = get_decl_mod(cursor)
+	log.Println(file.Name(), modname, filepath.Dir(file.Name()), filepath.Base(filepath.Dir(file.Name())))
+
+	clsname := strings.ToLower(cursor.Spelling())
+	this.saveCodeToFile(modname, clsname)
+
+	hasnominmth := false
+	for _, mth := range this.methods {
+		if ismthnomin(mth) {
+			hasnominmth = true
+			break
+		}
+	}
+	if hasnominmth { // TODO what
+		// this.saveCodeToFileWithCode(modname, clsname+".nomin", this.cpnomin.ExportAll())
+	}
+}
+
+func (this *GenBase) saveCodeToFile(modname, file string) {
+	// qtx{yyy}, only yyy
+	savefile := fmt.Sprintf("src/%s/%s.%s", modname, file, this.file_ext)
+	log.Println(savefile, gopp.FileExist("src/"+modname))
+	if !gopp.FileExist("src/" + modname) {
+		os.Mkdir("src/"+modname+".miss", 0644)
+	}
+
+	// log.Println(this.cp.AllPoints())
+	bcc := this.cp.ExportAll()
+	if strings.HasPrefix(bcc, "//") {
+		bcc = bcc[strings.Index(bcc, "\n"):]
+	}
+	err := ioutil.WriteFile(savefile, []byte(bcc), 0644)
+	gopp.ErrPrint(err, savefile)
+	if err != nil {
+		// log.Panicln(savefile)
+	}
+
+	if genctx.refmt_gened_code {
+	// gofmt the code
+	cmd := exec.Command(this.fmt_exe, append(this.fmt_args, savefile)...)
+	err = cmd.Run()
+	gopp.ErrPrint(err, cmd)
+	}
+
+}
+
+func (this *GenBase) saveCodeToFileWithCode(modname, file string, bcc string) {
+	// qtx{yyy}, only yyy
+	savefile := fmt.Sprintf("src/%s/%s.%s", modname, file, this.file_ext)
+	log.Println(savefile)
+
+	// log.Println(this.cp.AllPoints())
+	err := ioutil.WriteFile(savefile, []byte(bcc), 0644)
+	gopp.ErrPrint(err, savefile)
+
+	if genctx.refmt_gened_code {
+	// gofmt the code
+	cmd := exec.Command(this.fmt_exe, append(this.fmt_args, savefile)...)
+	err = cmd.Run()
+	gopp.ErrPrint(err, cmd)
+	}
 }

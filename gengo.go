@@ -26,8 +26,8 @@ type GenerateGo struct {
 
 	maxClassSize int64 // 暂存一下类的大小的最大值
 
-	cp          *CodePager
-	cpnomin     *CodePager
+	// cp          *CodePager // moved to GenBase
+	cpnomin     *CodePager // what's this
 	cpcs        map[string]*CodePager // mod =>
 	argDesc     []string              // origin c/c++ language syntax
 	paramDesc   []string
@@ -45,6 +45,9 @@ func NewGenerateGo(qtdir, qtver string) *GenerateGo {
 
 	this.GenBase.funcMangles = map[string]int{}
 
+	this.file_ext = "go"
+	this.fmt_exe = "/usr/bin/gofmt"
+	this.fmt_args = []string{"-w"} // follow file
 	this.initBlocks()
 
 	return this
@@ -93,71 +96,6 @@ func (this *GenerateGo) final(cursor, parent clang.Cursor) {
 	this.saveCode(cursor, parent)
 
 	this.initBlocks()
-}
-func (this *GenerateGo) saveCode(cursor, parent clang.Cursor) {
-	// qtx{yyy}, only yyy
-	file, line, col, _ := cursor.Location().FileLocation()
-	if false {
-		log.Printf("%s:%d:%d @%s\n", file.Name(), line, col, file.Time().String())
-	}
-
-	modname := strings.ToLower(filepath.Base(filepath.Dir(file.Name())))[2:]
-	modname = get_decl_mod(cursor)
-	log.Println(file.Name(), modname, filepath.Dir(file.Name()), filepath.Base(filepath.Dir(file.Name())))
-
-	clsname := strings.ToLower(cursor.Spelling())
-	this.saveCodeToFile(modname, clsname)
-
-	hasnominmth := false
-	for _, mth := range this.methods {
-		if ismthnomin(mth) {
-			hasnominmth = true
-			break
-		}
-	}
-	if hasnominmth {
-		this.saveCodeToFileWithCode(modname, clsname+".nomin", this.cpnomin.ExportAll())
-	}
-}
-
-func (this *GenerateGo) saveCodeToFile(modname, file string) {
-	// qtx{yyy}, only yyy
-	savefile := fmt.Sprintf("src/%s/%s.go", modname, file)
-	log.Println(savefile, gopp.FileExist("src/"+modname))
-	if !gopp.FileExist("src/" + modname) {
-		os.Mkdir("src/"+modname+".miss", 0644)
-	}
-
-	// log.Println(this.cp.AllPoints())
-	bcc := this.cp.ExportAll()
-	if strings.HasPrefix(bcc, "//") {
-		bcc = bcc[strings.Index(bcc, "\n"):]
-	}
-	err := ioutil.WriteFile(savefile, []byte(bcc), 0644)
-	gopp.ErrPrint(err, savefile)
-	if err != nil {
-		// log.Panicln(savefile)
-	}
-
-	// gofmt the code
-	cmd := exec.Command("/usr/bin/gofmt", []string{"-w", savefile}...)
-	err = cmd.Run()
-	gopp.ErrPrint(err, cmd)
-
-}
-
-func (this *GenerateGo) saveCodeToFileWithCode(modname, file string, bcc string) {
-	// qtx{yyy}, only yyy
-	savefile := fmt.Sprintf("src/%s/%s.go", modname, file)
-	log.Println(savefile)
-
-	// log.Println(this.cp.AllPoints())
-	ioutil.WriteFile(savefile, []byte(bcc), 0644)
-
-	// gofmt the code
-	cmd := exec.Command("/usr/bin/gofmt", []string{"-w", savefile}...)
-	err := cmd.Run()
-	gopp.ErrPrint(err, cmd)
 }
 
 func (this *GenerateGo) genFileHeader(cursor, parent clang.Cursor) {

@@ -23,7 +23,7 @@ type GenerateInline struct {
 	mangler  GenMangler
 
 	methods   []clang.Cursor
-	cp        *CodePager
+	// cp          *CodePager // moved to GenBase
 	cpcs      *CodeFS // mod => file =>,
 	argDesc   []string
 	argtyDesc []string
@@ -41,6 +41,10 @@ func NewGenerateInline(qtdir, qtver string) *GenerateInline {
 	this.tyconver = NewTypeConvertGo()
 
 	this.GenBase.funcMangles = map[string]int{}
+
+	this.file_ext = "cxx"
+	this.fmt_exe = "clang-format"
+	this.fmt_args = []string{"--dry-run", "-i"} // follow file
 
 	this.cp = NewCodePager()
 	this.initBlocks(this.cp)
@@ -83,31 +87,6 @@ func (this *GenerateInline) final(cursor, parent clang.Cursor) {
 
 	this.cp = NewCodePager()
 	this.initBlocks(this.cp)
-}
-func (this *GenerateInline) saveCode(cursor, parent clang.Cursor) {
-	// qtx{yyy}, only yyy
-	file, line, col, _ := cursor.Location().FileLocation()
-	if false {
-		log.Printf("%s:%d:%d @%s\n", file.Name(), line, col, file.Time().String())
-	}
-	modname := strings.ToLower(filepath.Base(filepath.Dir(file.Name())))[2:]
-	savefile := fmt.Sprintf("src/%s/%s.cxx", modname, strings.ToLower(cursor.Spelling()))
-
-	ioutil.WriteFile(savefile, []byte(this.cp.ExportAll()), 0644)
-}
-
-func (this *GenerateInline) saveCodeToFile(modname, file string) {
-	// qtx{yyy}, only yyy
-	savefile := fmt.Sprintf("src/%s/%s.cxx", modname, file)
-	log.Println(savefile)
-
-	// log.Println(this.cp.AllPoints())
-	bcc := this.cp.ExportAll()
-	if strings.HasPrefix(bcc, "//") {
-		bcc = bcc[strings.Index(bcc, "\n"):]
-	}
-	err := ioutil.WriteFile(savefile, []byte(bcc), 0644)
-	gopp.ErrPrint(err, savefile)
 }
 
 func (this *GenerateInline) genFileHeader(clsctx *GenClassContext, cursor, parent clang.Cursor) {

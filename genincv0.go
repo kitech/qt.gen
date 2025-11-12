@@ -100,7 +100,8 @@ func (this *GenerateInlinev0) saveCode(cursor, parent clang.Cursor) {
 	modname := strings.ToLower(filepath.Base(filepath.Dir(file.Name())))[2:]
 	savefile := fmt.Sprintf("src/%s/%s.cxx", modname, strings.ToLower(cursor.Spelling()))
 
-	ioutil.WriteFile(savefile, []byte(this.cp.ExportAll()), 0644)
+	err := ioutil.WriteFile(savefile, []byte(this.cp.ExportAll()), 0644)
+	gopp.ErrPrint(err, savefile)
 }
 
 func (this *GenerateInlinev0) saveCodeToFile(modname, file string) {
@@ -113,8 +114,8 @@ func (this *GenerateInlinev0) saveCodeToFile(modname, file string) {
 	if strings.HasPrefix(bcc, "//") {
 		bcc = bcc[strings.Index(bcc, "\n"):]
 	}
-	ioutil.WriteFile(savefile, []byte(bcc), 0644)
-
+	err := ioutil.WriteFile(savefile, []byte(bcc), 0644)
+	gopp.ErrPrint(err, savefile)
 }
 
 func (this *GenerateInlinev0) genFileHeader(clsctx *GenClassContext, cursor, parent clang.Cursor) {

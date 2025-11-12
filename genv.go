@@ -23,7 +23,7 @@ type GenerateV struct {
 
 	maxClassSize int64        // 暂存一下类的大小的最大值
 
-	cp          *CodePager
+	// cp          *CodePager // moved to GenBase
 	cpnomin     *CodePager
 	cpcs        map[string]*CodePager // mod =>
 	argDesc     []string              // origin c/c++ language syntax
@@ -41,6 +41,10 @@ func NewGenerateV(qtdir, qtver string) *GenerateV {
 	this.tyconver = NewTypeConvertV()
 
 	this.GenBase.funcMangles = map[string]int{}
+
+	this.file_ext = "v"
+	this.fmt_exe = "v"
+	this.fmt_args = []string{"fmt", "-w"} // follow file
 
 	this.initBlocks()
 
@@ -92,74 +96,6 @@ func (this *GenerateV) final(cursor, parent clang.Cursor) {
 	this.saveCode(cursor, parent)
 
 	this.initBlocks()
-}
-func (this *GenerateV) saveCode(cursor, parent clang.Cursor) {
-	// qtx{yyy}, only yyy
-	file, line, col, _ := cursor.Location().FileLocation()
-	if false {
-		log.Printf("%s:%d:%d @%s\n", file.Name(), line, col, file.Time().String())
-	}
-
-	modname := strings.ToLower(filepath.Base(filepath.Dir(file.Name())))[2:]
-	modname = get_decl_mod(cursor)
-	log.Println(file.Name(), modname, filepath.Dir(file.Name()), filepath.Base(filepath.Dir(file.Name())))
-
-	clsname := strings.ToLower(cursor.Spelling())
-	this.saveCodeToFile(modname, clsname)
-
-	hasnominmth := false
-	for _, mth := range this.methods {
-		if ismthnomin(mth) {
-			hasnominmth = true
-			break
-		}
-	}
-	if hasnominmth {
-		this.saveCodeToFileWithCode(modname, clsname+".nov", this.cpnomin.ExportAll())
-	}
-}
-
-func (this *GenerateV) saveCodeToFile(modname, file string) {
-	// qtx{yyy}, only yyy
-	savefile := fmt.Sprintf("src/%s/%s.v", modname, file)
-	log.Println(savefile, gopp.FileExist("src/"+modname))
-	if !gopp.FileExist("src/" + modname) {
-		os.Mkdir("src/"+modname+".miss", 0644)
-	}
-
-	// log.Println(this.cp.AllPoints())
-	bcc := this.cp.ExportAll()
-	if strings.HasPrefix(bcc, "//") {
-		bcc = bcc[strings.Index(bcc, "\n"):]
-	}
-	err := ioutil.WriteFile(savefile, []byte(bcc), 0644)
-	gopp.ErrPrint(err, savefile)
-	if err != nil {
-		// log.Panicln(savefile)
-	}
-
-	// gofmt the code
-	cmd := exec.Command("v", []string{"fmt", "-w", savefile}...)
-	if false {
-		err = cmd.Run()
-		gopp.ErrPrint(err, cmd)
-	}
-}
-
-func (this *GenerateV) saveCodeToFileWithCode(modname, file string, bcc string) {
-	// qtx{yyy}, only yyy
-	savefile := fmt.Sprintf("src/%s/%s.v", modname, file)
-	log.Println(savefile)
-
-	// log.Println(this.cp.AllPoints())
-	ioutil.WriteFile(savefile, []byte(bcc), 0644)
-
-	// gofmt the code
-	cmd := exec.Command("v", []string{"fmt", "-w", savefile}...)
-	if false {
-		err := cmd.Run()
-		gopp.ErrPrint(err, cmd)
-	}
 }
 
 func (this *GenerateV) genFileHeader(cursor, parent clang.Cursor) {

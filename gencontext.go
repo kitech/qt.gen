@@ -5,14 +5,31 @@ import (
 	// "github.com/therecipe/qt/internal/binding/parser"
 )
 
+// should be Options???
 type GenContext struct {
 	qtdir      string
 	qtver      string
 	genlang    string
-	noclip 		bool
-	specifyClass string
+	// filter clip, default true
+	// full code generate for
+	noclip 		bool // use filter clip now
+	specify_class string
 	bsast_file string
 	bshdr_file string
+
+	debug int
+	// generate C_ prefix wrap func, for avoid some func ROV cannot correct handled
+	// default true
+	// thus we can merge geninc.go and genincv0 in one
+	cwrap bool
+	// default false
+	refmt_gened_code bool
+}
+func NewGenContext() *GenContext {
+	rv := &GenContext{}
+	rv.debug = 1
+	rv.cwrap = true
+	return rv
 }
 
 type GenClassContext struct {
