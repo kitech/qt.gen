@@ -3,7 +3,7 @@ method, =, QWidget, QWidget, ~QWidget, show, hide, resize
 method, =, QObject, QObject, ~QObject, sender, name, setName, connect, disconnect, parent
 method, =, QObject, deleteLater, setProperty, property
 method, =, QApplication, QApplication, ~QApplication, exec
-method, =, QString, QString, ~QString, toUtf8
+method, =, QString, QString, ~QString, fromLocal8Bit, toUtf8, length, latin1, ascii
 method, =, QByteArray, QByteArray, ~QByteArray, data
 method, =, QColor, QColor, ~QColor
 

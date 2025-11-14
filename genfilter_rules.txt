@@ -17,12 +17,14 @@ class, ~, QList<, QMap<, QHash<, Q*Iterator
 class, ~, Q*Map<, Q*Hash<, Q*List<
 argty, ~, QList<, QMap<, QHash<
 argty, ~, Q*Map<, Q*Hash<
-argty, ~, QTSMFI
+argty, ~, QTSMFI, Display
 # cannot use ^QMap, ^QList, for maybe have const prefix
 
 # these should works but not???
 class, ~, QStyleHintReturn, QTextCursor, QTextDocument, QTextFormat, QTextItem
-class, ~, QStyleApplicationActionRequestData
+class, ~, QStyleApplicationActionRequestData, QComponent, QKDEIntegration
+class, ~, QNPInstance, QNPlugin, QNPWidget, QNPStream
+class, ~, QCompactStyle, QAssistantClient
 method, ~, styleHint
 
 class, ~, QWidgetMapper, QFileInfoList, QTextDrag, QTextParag

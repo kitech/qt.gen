@@ -88,6 +88,7 @@ func (this *GoMangler) origin(cursor clang.Cursor) (defname string) {
 		// log.Println("what's the manglings:", cursor.CXXManglings().Strings())
 	}
 	epfx := gopp.IfElseStr(runtime.GOOS == "darwin", "", "_") // for macos compatable
+	epfx = ""
 	switch cursor.Kind() {
 	case clang.Cursor_Constructor:
 		return epfx + strings.Replace(cursor.Mangling(), "C1E", "C2E", -1)

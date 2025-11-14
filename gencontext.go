@@ -17,6 +17,7 @@ type GenContext struct {
 	bsast_file string
 	bshdr_file string
 
+	mypfx_class bool
 	debug int
 	// generate C_ prefix wrap func, for avoid some func ROV cannot correct handled
 	// default true

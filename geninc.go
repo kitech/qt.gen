@@ -4,7 +4,7 @@ import (
 	"fmt"
 	gopp "github.com/kitech/goplusplus"
 	"github.com/kitech/goplusplus/gods"
-	"io/ioutil"
+	// "io/ioutil"
 	"log"
 	"path/filepath"
 	"sort"
@@ -15,6 +15,29 @@ import (
 	// "github.com/therecipe/qt/internal/binding/parser"
 	funk "github.com/thoas/go-funk"
 )
+
+/*
+ * TODOS / BUGS:
+ error: invalid conversion from 'char**' to 'const char**' [-fpermissive]
+
+ error: invalid new-expression of abstract class type 'QGridView'
+
+ #include <qcom_p.h>
+ fatal error: qcom_p.h: No such file or directory
+ qpsprinter.cxx:8:10: fatal error: qpsprinter_p.h: No such file or directory
+
+ arg list error: invalid conversion from 'int' to 'Qt::Dock'
+
+  error: invalid conversion from 'int' to 'QNPInstance::StreamMode' [-fpermissive]
+
+ qplaintmplinstcls.cxx:583:12: error: 'Q_DECL_EXPORT' does not name a type
+
+ QStyle::const ControlElementFlags
+
+ qstringvariantmap.cxx:30:54: error: no matching function for call to 'QMap<QString, QVariant>::operator=(int)'
+
+ /usr/bin/ld: CMakeFiles/Qt5Inline.dir/src/qt3/qchecktableitem.cxx.o:/bprog/qt3.inline/src/qt3/qchecktableitem.cxx:61: multiple definition of `qm1290425286'; CMakeFiles/Qt5Inline.dir/src/qt3/qcanvassprite.cxx.o:/bprog/qt3.inline/src/qt3/qcanvassprite.cxx:82: first defined here
+ */
 
 type GenerateInline struct {
 	// TODO move to base
@@ -121,7 +144,7 @@ func (this *GenerateInline) genFileHeader(clsctx *GenClassContext, cursor, paren
 		this.cp.APf("header", "#include <%s>", filepath.Base(file.Name()))
 	}
 
-	this.cp.APf("header", "#include <%s>", fullModname)
+	this.cp.APf("header", "// #include <%s>", fullModname)
 	this.cp.APf("header", "#include \"callback_inherit.h\"")
 	this.cp.APf("header", "")
 }
@@ -276,6 +299,8 @@ func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, paren
 	if is_deleted_class(cursor) {
 		return
 	}
+	if isgenqt3() { return }
+
 	isqobjcls := has_qobject_base_class(cursor)
 	_ = isqobjcls
 	// 需要proxy的类：QObject的子类
@@ -310,7 +335,11 @@ func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, paren
 	this.cp.APf("main", "  0,       // signalCount")
 	this.cp.APf("main", "  0        // eod")
 	this.cp.APf("main", "};")
+	if isgenqt3() {
+		this.cp.APf("main", "class Q_EXPORT My%s : public %s {", cursor.Spelling(), cursor.Type().Spelling())
+	}else{
 	this.cp.APf("main", "class Q_DECL_EXPORT My%s : public %s {", cursor.Spelling(), cursor.Type().Spelling())
+	}
 	if isqobjcls {
 		this.cp.APf("main", "public: // Q_OBJECT")
 		this.cp.APf("main", "/*static*/ QMetaObject staticMetaObject = {{&%s::staticMetaObject,", cursor.Spelling())
@@ -520,7 +549,11 @@ func (this *GenerateInline) genProxyClass(clsctx *GenClassContext, cursor, paren
 	this.cp.APf("main", "")
 
 	if isqobjcls {
+		if isgenqt3() {
+			this.cp.APf("main", "extern \"C\" Q_EXPORT")
+		}else{
 		this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
+		}
 		this.cp.APf("main", "void* C_%s_init_staticMetaObject(void* this_, void* strdat, void* dat, void* smcfn, void* mcastfn, void* mcallfn) {", cursor.Spelling())
 		this.cp.APf("main", "  My%s* qo = (My%s*)(this_);", cursor.Spelling(), cursor.Spelling())
 		this.cp.APf("main", "  QMetaObject* qmo = &qo->staticMetaObject;")
@@ -618,7 +651,11 @@ func (this *GenerateInline) genMethodHeader(clsctx *GenClassContext, cursor, par
 		len(this.mangler.origin(cursor)), this.mangler.origin(cursor))
 }
 func (this *GenerateInline) genMethodFooter(clsctx *GenClassContext, cursor, parent clang.Cursor) {
+	if isgenqt3() {
+		this.cp.APf("main", "extern \"C\" Q_EXPORT")
+	}else{
 	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
+	}
 	this.cp.APf("main", "void* %s = (void*)&%s;", this.mangler.crc32p(cursor), this.mangler.convTo(cursor))
 }
 
@@ -642,7 +679,11 @@ func (this *GenerateInline) genCtor(clsctx *GenClassContext, cursor, parent clan
 	// if found && funco.Since != "" {
 	// 	this.cp.APf("main", "#if QT_VERSION >= %s", sinceVer2Hex(funco.Since))
 	// }
+	if isgenqt3() {
+		this.cp.APf("main", "extern \"C\" Q_EXPORT")
+	}else{
 	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
+	}
 	this.cp.APf("main", "void* %s(%s) {", this.mangler.convTo(cursor), argStr)
 	pxyclsp := ""
 	if !is_deleted_class(parent) && this.hasVirtualProtected {
@@ -650,6 +691,7 @@ func (this *GenerateInline) genCtor(clsctx *GenClassContext, cursor, parent clan
 		pxyclsp = "My"
 		// pxyclsp = "" // TODO
 	}
+
 	isobjsub := has_qobject_base_class(parent)
 	pureVirtRetstr := gopp.IfElseStr(this.isPureVirtualClass, "0; //", "")
 	pureVirtRetstr = gopp.IfElseStr(this.isPureVirtualClass || !this.hasMyCls, "0; //", "")
@@ -659,6 +701,7 @@ func (this *GenerateInline) genCtor(clsctx *GenClassContext, cursor, parent clan
 		pxyclsp = "My"
 		pureVirtRetstr = ""
 	}
+	pxyclsp = gopp.IfElseStr(isgenqt3(), "", pxyclsp)
 
 	if strings.HasPrefix(pparent.Spelling(), "Qt") {
 		if pxyclsp == "" {
@@ -680,7 +723,11 @@ func (this *GenerateInline) genCtor(clsctx *GenClassContext, cursor, parent clan
 func (this *GenerateInline) genDtor(clsctx *GenClassContext, cursor, parent clang.Cursor) {
 	pparent := parent.SemanticParent()
 
+	if isgenqt3() {
+		this.cp.APf("main", "extern \"C\" Q_EXPORT")
+	}else{
 	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
+	}
 	this.cp.APf("main", "void %s(void *this_) {", this.mangler.convTo(cursor))
 	if strings.HasPrefix(pparent.Spelling(), "Qt") {
 		this.cp.APf("main", "  delete (%s::%s*)(this_);", pparent.Spelling(), parent.Spelling())
@@ -696,7 +743,11 @@ func (this *GenerateInline) genDtorNotsee(cursor, parent clang.Cursor) {
 	// pparent := parent.SemanticParent()
 
 	this.cp.APf("main", "")
+	if isgenqt3() {
+		this.cp.APf("main", "extern \"C\" Q_EXPORT")
+	}else{
 	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
+	}
 	this.cp.APf("main", "void C_ZN%d%sD2Ev(void *this_) {", len(cursor.Spelling()), cursor.Spelling())
 	if strings.HasPrefix(parent.Spelling(), "Qt") {
 		this.cp.APf("main", "  delete (%s::%s*)(this_);", parent.Spelling(), cursor.Spelling())
@@ -726,6 +777,12 @@ func (this *GenerateInline) genNonStaticMethod(clsctx *GenClassContext, cursor, 
 	rety := cursor.ResultType()
 	cancpobj := has_copy_ctor(rety.Declaration()) || is_trivial_class(rety.Declaration())
 	if rety.Kind() == clang.Type_Void {
+	} else if isPrimitiveType(rety) && rety.Kind()==clang.Type_Elaborated {
+		// lexpar for class enum
+		lexpar := rety.Declaration().LexicalParent()
+		lpstr := gopp.IfElseStr(lexpar.Spelling()==""||strings.HasPrefix(lexpar.Spelling(), "/"), "", lexpar.Spelling()+"::")
+		retstr = fmt.Sprintf("%s%s", lpstr, rety.Spelling())
+		retset = true /////
 	} else if isPrimitiveType(rety) {
 		retstr = rety.Spelling()
 		retset = true
@@ -772,7 +829,11 @@ func (this *GenerateInline) genNonStaticMethod(clsctx *GenClassContext, cursor, 
 			vaprmstr += fmt.Sprintf(",a%d ", i)
 		}
 	}
+	if isgenqt3() {
+		this.cp.APf("main", "extern \"C\" Q_EXPORT")
+	}else{
 	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
+	}
 	this.cp.APf("main", "%s %s(void *this_%s%s) {", retstr, this.mangler.convTo(cursor), argStr, vaargstr)
 	log.Println(rety.Spelling(), rety.Declaration().Spelling(), rety.IsPODType())
 
@@ -845,7 +906,13 @@ func (this *GenerateInline) genStaticMethod(clsctx *GenClassContext, cursor, par
 	retset := false
 	rety := cursor.ResultType()
 	cancpobj := has_copy_ctor(rety.Declaration()) || is_trivial_class(rety.Declaration())
-	if isPrimitiveType(rety) {
+	if isPrimitiveType(rety) && rety.Kind()==clang.Type_Elaborated {
+		// lexpar for class enum
+		lexpar :=rety.Declaration().LexicalParent()
+		lpstr := gopp.IfElseStr(lexpar.Spelling()==""||strings.HasPrefix(lexpar.Spelling(), "/"), "", lexpar.Spelling()+"::")
+		retstr = fmt.Sprintf("%s%s", lpstr, rety.Spelling())
+		retset = true
+	} else if isPrimitiveType(rety) {
 		retstr = rety.Spelling()
 		retset = true
 	} else if rety.Kind() == clang.Type_Pointer {
@@ -885,7 +952,11 @@ func (this *GenerateInline) genStaticMethod(clsctx *GenClassContext, cursor, par
 			vaprmstr += fmt.Sprintf(",a%d ", i)
 		}
 	}
+	if isgenqt3() {
+		this.cp.APf("main", "extern \"C\" Q_EXPORT")
+	}else{
 	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
+	}
 	this.cp.APf("main", "%s %s(%s%s) {", retstr, this.mangler.convTo(cursor), argStr, vaargstr)
 
 	if cursor.ResultType().Kind() == clang.Type_Void {
@@ -1017,7 +1088,7 @@ func (this *GenerateInline) genArg(cursor, parent clang.Cursor, idx int) {
 			cursor.Type().CanonicalType().Spelling(), argName))
 		this.argtyDesc = append(this.argtyDesc, cursor.Type().CanonicalType().Spelling())
 	} else {
-		log.Println(csty.Kind(), csty.Spelling(), parent.SemanticParent().Spelling(), parent.DisplayName())
+		log.Println(csty.Kind(), csty.Spelling(), csty.Declaration().SemanticParent().Spelling(), parent.SemanticParent().Spelling(), parent.DisplayName())
 		if csty.Kind() == clang.Type_Record {
 			this.argDesc = append(this.argDesc, fmt.Sprintf("%s* %s", cursor.Type().Spelling(), argName))
 			this.argtyDesc = append(this.argtyDesc, fmt.Sprintf("%s*", cursor.Type().Spelling()))
@@ -1083,9 +1154,12 @@ func (this *GenerateInline) genArg(cursor, parent clang.Cursor, idx int) {
 			argtyDesc := fmt.Sprintf("%s", canty.Spelling())
 			this.argtyDesc = append(this.argtyDesc, argtyDesc)
 		} else {
-			argDesc := fmt.Sprintf("%s %s", cursor.Type().Spelling(), argName)
+			// lexpar for class enum
+			lexpar := cursor.Type().Declaration().LexicalParent()
+			lpstr := gopp.IfElseStr(lexpar.Spelling()==""||strings.HasPrefix(lexpar.Spelling(), "/"), "", lexpar.Spelling()+"::")
+			argDesc := fmt.Sprintf("%s%s %s", lpstr, cursor.Type().Spelling(), argName)
 			this.argDesc = append(this.argDesc, argDesc)
-			argtyDesc := fmt.Sprintf("%s", cursor.Type().Spelling())
+			argtyDesc := fmt.Sprintf("%s%s", lpstr, cursor.Type().Spelling())
 			this.argtyDesc = append(this.argtyDesc, argtyDesc)
 		}
 	}
@@ -1325,8 +1399,11 @@ func (this *GenerateInline) genFunction(cursor clang.Cursor, olidx int) {
 			vaprmstr += fmt.Sprintf(",a%d ", i)
 		}
 	}
-
+	if isgenqt3() {
+		this.cp.APf("main", "extern \"C\" Q_EXPORT")
+	}else{
 	this.cp.APf("main", "extern \"C\" Q_DECL_EXPORT")
+	}
 	this.cp.APf("main", "%s %s%s(%s%s) {", retstr,
 		this.mangler.convTo(cursor), overloadSuffix, argStr, vaargstr)
 	if rety.Kind() == clang.Type_Void {

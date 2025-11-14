@@ -83,7 +83,7 @@
 #include <qevent.h>
 #include <qeventloop.h>
 #include <qfeatures.h>
-#include <qfiledef.h>
+//#include <qfiledef.h>
 #include <qfiledialog.h>
 #include <qfiledlg.h>
 #include <qfile.h>
@@ -104,7 +104,7 @@
 #include <qgbkcodec.h>
 #include <qgcache.h>
 #include <qgdict.h>
-#include <qgeneric.h>
+//#include <qgeneric.h>
 #include <qgif.h>
 #include <qglcolormap.h>
 #include <qgl.h>
@@ -185,11 +185,11 @@
 #include <qobjectdict.h>
 #include <qobject.h>
 #include <qobjectlist.h>
-#include <qpaintdc.h>
-#include <qpaintdevicedefs.h>
+//#include <qpaintdc.h>
+//#include <qpaintdevicedefs.h>
 #include <qpaintdevice.h>
 #include <qpaintdevicemetrics.h>
-#include <qpaintd.h>
+//#include <qpaintd.h>
 #include <qpainter.h>
 #include <qpair.h>
 #include <qpalette.h>
@@ -305,12 +305,12 @@
 #include <qthreadstorage.h>
 #include <qtimer.h>
 #include <qtl.h>
-#include <qtmultilineedit.h>
+//#include <qtmultilineedit.h>
 #include <qtoolbar.h>
 #include <qtoolbox.h>
 #include <qtoolbutton.h>
 #include <qtooltip.h>
-#include <qt_pch.h>
+//#include <qt_pch.h>
 #include <qtranslator.h>
 #include <qtsciicodec.h>
 #include <qtstream.h>
@@ -341,7 +341,7 @@
 #include <qwidgetstack.h>
 #include <qwindefs.h>
 #include <qwindowdefs.h>
-#include <qwindow.h>
+//#include <qwindow.h>
 #include <qwindowsstyle.h>
 #include <qwinexport.h>
 #include <qwizard.h>
