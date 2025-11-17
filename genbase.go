@@ -33,6 +33,7 @@ type Generator interface {
 	genPlainTmplInstClses()
 	genTydefTmplInstClses()
 	genConstantsGlobal(cursor, parent clang.Cursor)
+	genClassSizes(cursor, parent clang.Cursor)
 }
 
 func init() {
@@ -196,6 +197,25 @@ func (this *GenBase) groupFunctionsByModule() map[string][]clang.Cursor {
 	}
 
 	return rets
+}
+
+func (this *GenBase) genClassSizes(cursor, parent clang.Cursor) {
+	log.Println("clslens", len(clslens))
+	cp := this.cp
+	// cp.initblocks()
+	cp.APf("main", "#include <string.h>\n")
+	cp.APf("main", "#include <stdlib.h>\n")
+	cp.APf("main", "extern \"C\" \nint qtinline_get_class_size(char* name) {\n")
+	cp.APf("main", "    if (0) {}\n")
+	for k,v := range clslens {
+		  cp.APf("main", "   else if (strcmp(name, \"%s\") == 0) { return %d; }\n", k, v)
+	}
+	cp.APf("main", "  return 386;\n")
+	cp.APf("main", "}\n")
+	// oldcp := this.cp
+	qtmod := gopp.IfElseStr(isgenqt3(), "3", "core")
+	this.saveCodeToFile(qtmod, "qtclass_sizes")
+	// this.cp = oldcp
 }
 
 // check empty

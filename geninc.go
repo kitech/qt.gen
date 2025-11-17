@@ -117,6 +117,7 @@ func (this *GenerateInline) genFileHeader(clsctx *GenClassContext, cursor, paren
 	if false {
 		log.Printf("%s:%d:%d @%s\n", file.Name(), line, col, file.Time().String())
 	}
+	this.cp.APf("header", "// +build ignore go")
 
 	fullModname := filepath.Base(filepath.Dir(file.Name()))
 	ftpath := strings.ToLower(fmt.Sprintf("%s/%s", fullModname, filepath.Base(file.Name())))

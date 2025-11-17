@@ -407,11 +407,7 @@ func (this *GenCtrl) visfn(cursor, parent clang.Cursor) clang.ChildVisitResult {
 		} else {
 			clts.SkippedClassCount += 1
 		}
-		if cursor.Type().SizeOf() > clts.MaxClassSize {
-			clts.MaxClassSize = cursor.Type().SizeOf()
-			clts.MaxSizeClass = cursor.Type().Spelling()
-		}
-		clts.addClassSize(cursor.Type().SizeOf())
+		clts.addClassSize(cursor.Type().SizeOf(), cursor.Spelling())
 		// cursor.Visit(this.visfn)
 	case clang.Cursor_FunctionDecl:
 		clts.FunctionCount += 1
@@ -649,6 +645,8 @@ func (this *GenCtrl) collectClasses() {
 		//	log.Println(modname, cp.TotolLine(), cp.TotolLength())
 		//	gg.saveCodeToFileWithCode(modname, "qt"+modname, cp.ExportAll())
 		//}
+	} else if genLang == "c" {
+		this.qtfuncgen.genClassSizes(cursor, cursor.SemanticParent())
 	}
 	this.qttmplgen.genPlainTmplInstClses()
 	this.qttmplgen.genTydefTmplInstClses()
@@ -688,6 +686,7 @@ type collects struct {
 }
 
 var clts = &collects{funcParents: map[string]int{}}
+var clslens = map[string]int{}
 
 func init() {
 	clts.ClassSizeMap = map[int64]int{}
@@ -695,7 +694,12 @@ func init() {
 	clts.qtreqcfgs = map[string]string{}
 	clts.qtcfgexps = map[string][]*LineRange{}
 }
-func (this *collects) addClassSize(sz int64) {
+func (this *collects) addClassSize(sz int64, cls string) {
+	clslens[cls] = int(sz)
+	if sz > clts.MaxClassSize {
+		clts.MaxClassSize = sz
+		clts.MaxSizeClass = cls
+	}
 	if sz <= 256 {
 		return
 	}
