@@ -16,6 +16,7 @@ import (
 	funk "github.com/thoas/go-funk"
 
 	gopp "github.com/kitech/goplusplus"
+	"github.com/kitech/mkuse/c2genut"
 )
 
 // module depend table
@@ -24,6 +25,7 @@ var modDeps = modDepsAll                        // auto generated
 func init() {
 	if false {
 		log.Println(123)
+		c2genut.IsOurScope()
 	}
 }
 

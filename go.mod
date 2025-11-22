@@ -6,6 +6,9 @@ replace github.com/go-clang/v3.9/clang => ../go-clang-v3.9/clang
 
 // github.com/go-clang/v3.9/clang v0.0.0
 
+replace github.com/kitech/mkuse/c2genut => ../../aprog/mkuse/c2genut
+require github.com/kitech/mkuse/c2genut v0.0.0
+
 require (
 	github.com/PuerkitoBio/goquery v1.10.3
 	github.com/emirpasic/gods v1.18.1
